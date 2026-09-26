@@ -280,6 +280,28 @@ public class AuthController {
     return ResponseEntity.ok(ApiResponseDto.<Void>builder().success(true).message("Verification email resent").build());
   }
 
+  /**
+   * The signed-in user's own profile.
+   *
+   * <p>There is deliberately no user id parameter: this always returns the caller, taken from
+   * the security context. Accepting an id would be an invitation to read other accounts.
+   */
+  @GetMapping("/me")
+  public ResponseEntity<ApiResponseDto<UserProfileResponse>> me(
+      @AuthenticationPrincipal UserPrincipal principal) {
+    if (principal == null) {
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+          .body(ApiResponseDto.<UserProfileResponse>builder()
+              .success(false).message("Unauthorized").build());
+    }
+    return authService.findById(principal.getId())
+        .map(user -> ResponseEntity.ok(ApiResponseDto.<UserProfileResponse>builder()
+            .success(true).data(toProfile(user)).build()))
+        .orElseGet(() -> ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+            .body(ApiResponseDto.<UserProfileResponse>builder()
+                .success(false).message("Unauthorized").build()));
+  }
+
   private UserProfileResponse toProfile(UserEntity user) {
     return UserProfileResponse.builder()
         .id(user.getId().toString())

@@ -1,5 +1,12 @@
 import api from '@/lib/axios';
 
+/** Envelope every DevForge endpoint returns. */
+export interface ApiEnvelope<T = unknown> {
+  success: boolean;
+  data: T;
+  message: string | null;
+}
+
 export interface SignupData {
   firstName: string;
   lastName: string;
@@ -12,18 +19,11 @@ export interface SignupData {
 export interface LoginData {
   usernameOrEmail: string;
   password: string;
-  rememberMe: boolean;
 }
 
 export interface ResetPasswordData {
   token: string;
   newPassword: string;
-}
-
-export interface AuthResponse<T = unknown> {
-  success: boolean;
-  data: T;
-  message: string;
 }
 
 export interface UserProfile {
@@ -34,7 +34,7 @@ export interface UserProfile {
   email: string;
   phone: string | null;
   avatarUrl: string | null;
-  organization: string;
+  organization: string | null;
   roles: string[];
   status: string;
   oauthProvider: string;
@@ -47,30 +47,90 @@ export interface UserProfile {
   lastLogin: string | null;
 }
 
-export interface LoginResponse {
-  accessToken: string;
-  tokenType: string;
-  expiresIn: number;
-  user: UserProfile;
+/**
+ * What POST /auth/login returns.
+ *
+ * When the account has MFA enabled the server withholds the access token and
+ * returns a short-lived challenge token instead, so a correct password alone
+ * never yields API access. The caller must then post to /auth/login/mfa.
+ */
+export interface LoginResult {
+  mfaRequired: boolean;
+  accessToken: string | null;
+  challengeToken: string | null;
+}
+
+export interface MfaVerifyData {
+  challengeToken: string;
+  code: string;
+}
+
+export interface SessionSummary {
+  id: string;
+  deviceLabel: string | null;
+  userAgent: string | null;
+  ipAddress: string | null;
+  createdAt: string;
+  lastUsedAt: string | null;
+  expiresAt: string;
+  current: boolean;
+}
+
+export interface MfaStatus {
+  enabled: boolean;
+  remainingBackupCodes: number;
+}
+
+export interface MfaEnrolmentChallenge {
+  secret: string;
+  provisioningUri: string;
 }
 
 export const authApi = {
-  signup: (data: SignupData) => api.post<AuthResponse<UserProfile>>('/auth/signup', data),
+  signup: (data: SignupData) => api.post<ApiEnvelope<UserProfile>>('/auth/signup', data),
 
-  login: (data: LoginData) => api.post<AuthResponse<LoginResponse>>('/auth/login', data),
+  login: (data: LoginData) => api.post<ApiEnvelope<LoginResult>>('/auth/login', data),
 
-  logout: () => api.post<AuthResponse<void>>('/auth/logout'),
+  verifyMfa: (data: MfaVerifyData) => api.post<ApiEnvelope<LoginResult>>('/auth/login/mfa', data),
 
-  refresh: () => api.post<AuthResponse<string>>('/auth/refresh'),
+  logout: () => api.post<ApiEnvelope<void>>('/auth/logout'),
+
+  /** Rotates the refresh cookie and returns a new access token. */
+  refresh: () => api.post<ApiEnvelope<string>>('/auth/refresh'),
+
+  /** The signed-in user. Takes no id: the server always returns the caller. */
+  me: () => api.get<ApiEnvelope<UserProfile>>('/auth/me'),
 
   forgotPassword: (email: string) =>
-    api.post<AuthResponse<void>>('/auth/forgot-password', { email }),
+    api.post<ApiEnvelope<void>>('/auth/forgot-password', { email }),
 
   resetPassword: (data: ResetPasswordData) =>
-    api.post<AuthResponse<void>>('/auth/reset-password', data),
+    api.post<ApiEnvelope<void>>('/auth/reset-password', data),
 
-  verifyEmail: (token: string) => api.post<AuthResponse<void>>(`/auth/verify-email?token=${token}`),
+  // Token goes in the query string because that is what the endpoint expects.
+  verifyEmail: (token: string) =>
+    api.post<ApiEnvelope<void>>(`/auth/verify-email?token=${encodeURIComponent(token)}`),
 
   resendVerification: (email: string) =>
-    api.post<AuthResponse<void>>(`/auth/resend-verification?email=${email}`),
+    api.post<ApiEnvelope<void>>(`/auth/resend-verification?email=${encodeURIComponent(email)}`),
+
+  listSessions: () => api.get<ApiEnvelope<SessionSummary[]>>('/auth/sessions'),
+
+  revokeSession: (sessionId: string) =>
+    api.delete<ApiEnvelope<void>>(`/auth/sessions/${sessionId}`),
+
+  revokeOtherSessions: () =>
+    api.post<ApiEnvelope<{ revoked: number }>>('/auth/sessions/revoke-others'),
+
+  mfaStatus: () => api.get<ApiEnvelope<MfaStatus>>('/auth/mfa/status'),
+
+  mfaEnrol: () => api.post<ApiEnvelope<MfaEnrolmentChallenge>>('/auth/mfa/enrol'),
+
+  /** Confirms enrolment. The recovery codes come back once and are never retrievable again. */
+  mfaConfirm: (code: string) => api.post<ApiEnvelope<string[]>>('/auth/mfa/confirm', { code }),
+
+  mfaDisable: (code: string) => api.post<ApiEnvelope<void>>('/auth/mfa/disable', { code }),
+
+  mfaRegenerateBackupCodes: (code: string) =>
+    api.post<ApiEnvelope<string[]>>('/auth/mfa/backup-codes', { code }),
 };

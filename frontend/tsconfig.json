@@ -7,6 +7,10 @@
     "moduleResolution": "Bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
+    // Type-check only. Without this, `npm run build` (tsc && vite build) emits
+    // JavaScript next to every source file in src/, which then gets committed
+    // and shadows the real modules. Vite does the actual compilation.
+    "noEmit": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "strict": true,

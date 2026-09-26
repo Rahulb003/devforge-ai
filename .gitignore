@@ -8,6 +8,10 @@ out/
 !.mvn/wrapper/maven-wrapper.jar
 
 # ---- Node ----
+# Belt and braces: tsconfig sets noEmit, but a stray tsc invocation must not
+# leave compiled output beside the TypeScript sources.
+frontend/src/**/*.js
+frontend/src/**/*.jsx
 node_modules/
 .npm/
 *.tsbuildinfo
