@@ -13,7 +13,7 @@
 | Gate | Command | Result |
 |---|---|---|
 | Backend compile | `mvn -B -ntp -f backend/pom.xml clean compile` | **PASS** — all 16 modules |
-| Backend tests | `mvn -B -ntp -f backend/pom.xml clean test` | **PASS** — 32 tests, 0 failures |
+| Backend tests | `mvn -B -ntp -f backend/pom.xml clean test` | **PASS** — 55 tests, 0 failures |
 | Frontend install | `npm ci` (in `frontend/`) | **PASS** |
 | Frontend lint | `npm run lint` | **PASS** — 0 errors, 0 warnings |
 | Frontend tests | `npm test` | **PASS** — 3 tests |
@@ -129,8 +129,8 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 | Auth: signup/verify/login/refresh/logout/reset | `IMPLEMENTED` | 15 integration tests against the real filter chain and migrated schema. **All five paths were broken before these tests existed** — see commit `093d648` |
 | Auth: OAuth | `SCAFFOLDED` | `CustomOAuth2UserService` delegates to the default and persists nothing |
 | Auth: MFA/TOTP, session management, rate limiting, account lockout | `MISSING` | No code |
-| RBAC enforcement | `SCAFFOLDED` | Roles exist; `@EnableMethodSecurity` on, but no `@PreAuthorize` anywhere |
-| Multi-tenancy / organizations | `MISSING` | No `Organization` entity |
+| RBAC enforcement | `PARTIALLY_IMPLEMENTED` | Enforced in project-service (org + project roles, server-side, membership-derived). Other services remain skeletons. |
+| Multi-tenancy / organizations | `IMPLEMENTED` | Organizations, members, projects, project members; 23 tenant-isolation/IDOR tests |
 | API gateway routing | `MISSING` | — |
 | Kafka / outbox / event envelope | `MISSING` | — |
 | Projects, tasks, sprints, IDE, AI, Git, review, docs, chat, deploy, analytics, RAG, agents | `MISSING` / `SCAFFOLDED` | Health endpoints only |
@@ -146,7 +146,7 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 3. ~~Phase 0 §16 secrets/config~~ **DONE** (commit `b49d7f7`).
 4. ~~Phase 0 §15 Dockerfile hardening~~ **DONE** (commit `8e27355`, UNVERIFIED — no Docker here).
 5. Phase 1: ~~refresh-token rotation, login throttling, audit trail~~ **DONE** (commit `5adfb5b`). Still missing: **MFA/TOTP**, per-device sessions, and real OAuth account persistence.
-6. **NEXT:** Add `@PreAuthorize` enforcement — `@EnableMethodSecurity` is on but **no endpoint carries an authorization annotation**, so RBAC is currently decorative.
+6. ~~RBAC enforcement~~ **DONE** (commit `4d6caa7`): enforced in project-service via membership-derived checks + `@PreAuthorize`. **NEXT:** Phase 2 (Kafka + event envelope + outbox), then Phase 4 (tasks/sprints). — `@EnableMethodSecurity` is on but **no endpoint carries an authorization annotation**, so RBAC is currently decorative.
 7. Then Phase 2 (Kafka), including the RabbitMQ keep/remove decision required by §18.
 
 ---
