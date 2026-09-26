@@ -1,5 +1,6 @@
 package com.devforge.ai.authservice.service;
 
+import com.devforge.ai.common.exception.ResourceConflictException;
 import com.devforge.ai.authservice.entity.EmailVerificationTokenEntity;
 import com.devforge.ai.authservice.entity.PasswordResetTokenEntity;
 import com.devforge.ai.authservice.entity.RefreshTokenEntity;
@@ -21,9 +22,11 @@ import java.time.Instant;
 import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -41,18 +44,25 @@ public class AuthService {
   public UserEntity registerUser(String firstName, String lastName, String username, String email, String password, String organization) {
     var existingEmail = userRepository.findByEmailIgnoreCase(email);
     if (existingEmail.isPresent()) {
-      throw new IllegalArgumentException("Email is already registered");
+      throw new ResourceConflictException("Email is already registered");
     }
     var existingUsername = userRepository.findByUsernameIgnoreCase(username);
     if (existingUsername.isPresent()) {
-      throw new IllegalArgumentException("Username is already taken");
+      throw new ResourceConflictException("Username is already taken");
     }
 
     var userRole = roleRepository.findByName(RoleName.DEVELOPER)
         .orElseThrow(() -> new IllegalStateException("Default role not configured"));
 
+    // The id is deliberately NOT assigned here. UserEntity inherits @UuidGenerator from
+    // BaseEntity, and Hibernate treats an entity that has a *generated* id strategy but an
+    // already-populated id as detached. save() then routes to merge() instead of persist(),
+    // @PrePersist never runs, and the @Version column stays null — which fails with
+    // "Detached entity with generated id ... has an uninitialized version value".
+    // Letting the generator assign the id keeps the instance transient so persist() runs.
+    // (The token entities below use a plain assigned @Id with no generator, so they must
+    // keep setting ids explicitly.)
     var user = UserEntity.builder()
-        .id(UUID.randomUUID())
         .firstName(firstName)
         .lastName(lastName)
         .username(username)
@@ -98,10 +108,22 @@ public class AuthService {
     emailVerificationTokenRepository.delete(verification);
   }
 
+  /**
+   * Starts a password reset.
+   *
+   * <p>Deliberately silent when the address is unknown. Throwing (or otherwise varying the
+   * response) would turn this endpoint into an account-enumeration oracle: an attacker could
+   * submit addresses and learn which ones are registered. The controller returns the same
+   * "password reset email sent" response either way.
+   */
   @Transactional
   public void forgotPassword(String email) {
-    var user = userRepository.findByEmailIgnoreCase(email)
-        .orElseThrow(() -> new IllegalArgumentException("User with supplied email does not exist"));
+    var maybeUser = userRepository.findByEmailIgnoreCase(email);
+    if (maybeUser.isEmpty()) {
+      log.info("Password reset requested for an address with no account; responding as if sent.");
+      return;
+    }
+    var user = maybeUser.get();
     var token = UUID.randomUUID().toString();
     var resetEntity = PasswordResetTokenEntity.builder()
         .id(UUID.randomUUID())
@@ -153,6 +175,36 @@ public class AuthService {
     return jwtTokenProvider.createRefreshToken(user);
   }
 
+  /**
+   * Issues a refresh token for a user and persists it, replacing any existing one.
+   *
+   * <p>Takes a user id rather than a {@code UserEntity} on purpose. Callers used to pass
+   * {@code UserPrincipal.toEntity()}, which fabricates a partially-populated instance carrying
+   * an id but no {@code @Version}. Hibernate classifies that as a detached entity with a
+   * generated id and refuses to associate it, so every login failed with
+   * "uninitialized version value". Loading the managed entity here keeps persistence correct.
+   */
+  @Transactional
+  public String issueAndStoreRefreshToken(UUID userId) {
+    var user = userRepository.findById(userId)
+        .orElseThrow(() -> new IllegalArgumentException("User not found"));
+    var token = jwtTokenProvider.createRefreshToken(user);
+
+    // One active refresh token per user: replace rather than accumulate.
+    refreshTokenRepository.deleteByUser(user);
+    refreshTokenRepository.flush();
+
+    var refreshToken = RefreshTokenEntity.builder()
+        .id(UUID.randomUUID())
+        .token(token)
+        .user(user)
+        .expiresAt(Instant.now().plus(jwtTokenProvider.getRefreshTokenTtl()))
+        .revoked(false)
+        .build();
+    refreshTokenRepository.save(refreshToken);
+    return token;
+  }
+
   @Transactional
   public void storeRefreshToken(UserEntity user, String token) {
     refreshTokenRepository.deleteByUser(user);
@@ -197,7 +249,9 @@ public class AuthService {
 
   @Transactional
   public boolean validateRefreshToken(String token) {
-    if (!jwtTokenProvider.validateToken(token)) {
+    // Must assert the REFRESH type explicitly: the no-arg validateToken() requires an
+    // access token, so using it here would reject every legitimate refresh.
+    if (!jwtTokenProvider.validateToken(token, JwtTokenProvider.TOKEN_TYPE_REFRESH)) {
       return false;
     }
     return refreshTokenRepository.findByToken(token)

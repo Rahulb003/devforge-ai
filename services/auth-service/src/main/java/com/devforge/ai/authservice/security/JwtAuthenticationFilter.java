@@ -2,12 +2,9 @@ package com.devforge.ai.authservice.security;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,20 +41,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     filterChain.doFilter(request, response);
   }
 
+  /**
+   * Extracts the access token from the Authorization header only.
+   *
+   * <p>This deliberately does NOT fall back to the refresh cookie. Accepting an
+   * ambient cookie as a general-purpose API credential would make every endpoint
+   * authenticable without an explicit header — which, with CSRF protection disabled
+   * for this stateless API, is precisely the shape CSRF exploits. The refresh cookie
+   * has exactly one legitimate use, at {@code POST /api/v1/auth/refresh}, where it is
+   * read explicitly and checked against the persisted refresh token.
+   */
   private String getBearerToken(HttpServletRequest request) {
     var header = request.getHeader("Authorization");
     if (header != null && header.startsWith("Bearer ")) {
       return header.substring(7);
     }
-    var cookie = getRefreshCookie(request);
-    return cookie.map(Cookie::getValue).orElse(null);
-  }
-
-  private Optional<Cookie> getRefreshCookie(HttpServletRequest request) {
-    var cookies = request.getCookies();
-    if (cookies == null) {
-      return Optional.empty();
-    }
-    return Arrays.stream(cookies).filter(cookie -> cookie.getName().equals("DEVFORGE_REFRESH_TOKEN")).findFirst();
+    return null;
   }
 }

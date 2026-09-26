@@ -14,7 +14,6 @@ import com.devforge.ai.authservice.service.CustomUserDetailsService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
-import java.security.Principal;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -23,6 +22,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -62,8 +62,7 @@ public class AuthController {
           new UsernamePasswordAuthenticationToken(request.getUsernameOrEmail(), request.getPassword()));
       var accessToken = authService.createAccessToken(authentication);
       var user = (UserPrincipal) authentication.getPrincipal();
-      var refreshToken = authService.createRefreshToken(user.toEntity());
-      authService.storeRefreshToken(user.toEntity(), refreshToken);
+      var refreshToken = authService.issueAndStoreRefreshToken(user.getId());
       authService.addRefreshCookie(response, refreshToken);
       return ResponseEntity.ok(ApiResponseDto.<String>builder().success(true).data(accessToken).message("Login successful").build());
     } catch (AuthenticationException ex) {
@@ -71,14 +70,24 @@ public class AuthController {
     }
   }
 
+  /**
+   * Revokes the caller's refresh token and clears the refresh cookie.
+   *
+   * <p>Uses {@code @AuthenticationPrincipal} rather than a java.security.Principal parameter. Spring
+   * injects the {@code Authentication} itself into a {@code Principal} argument, and that is a
+   * {@code UsernamePasswordAuthenticationToken}, never a {@link UserPrincipal} — so the previous
+   * {@code instanceof UserPrincipal} check could never match and logout always returned 401.
+   */
   @PostMapping("/logout")
-  public ResponseEntity<ApiResponseDto<Void>> logout(HttpServletRequest request, HttpServletResponse response, Principal principal) {
-    if (principal instanceof UserPrincipal userPrincipal) {
-      authService.revokeRefreshToken(userPrincipal.getId());
-      authService.clearRefreshCookie(response);
-      return ResponseEntity.ok(ApiResponseDto.<Void>builder().success(true).message("Logout successful").build());
+  public ResponseEntity<ApiResponseDto<Void>> logout(
+      HttpServletResponse response, @AuthenticationPrincipal UserPrincipal userPrincipal) {
+    if (userPrincipal == null) {
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+          .body(ApiResponseDto.<Void>builder().success(false).message("Unauthorized").build());
     }
-    return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponseDto.<Void>builder().success(false).message("Unauthorized").build());
+    authService.revokeRefreshToken(userPrincipal.getId());
+    authService.clearRefreshCookie(response);
+    return ResponseEntity.ok(ApiResponseDto.<Void>builder().success(true).message("Logout successful").build());
   }
 
   @PostMapping("/refresh")

@@ -13,5 +13,7 @@ public class ApiError {
   private final String error;
   private final String message;
   private final String path;
+  /** Correlates this response with the server-side log entry for the same failure. */
+  private final String traceId;
   private final List<String> details;
 }
