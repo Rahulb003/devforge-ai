@@ -21,6 +21,12 @@ public class JwtConfig {
   private String cookieName = "DEVFORGE_REFRESH_TOKEN";
 
   /**
+   * Lifetime of the MFA challenge token issued between password and second factor.
+   * Short by design: it is a partially-authenticated credential.
+   */
+  private Duration mfaChallengeTtl = Duration.ofMinutes(5);
+
+  /**
    * Whether the refresh cookie carries the {@code Secure} attribute. Defaults to {@code true};
    * only the local profile may turn it off, since plain-HTTP localhost cannot set secure cookies.
    */
@@ -43,6 +49,10 @@ public class JwtConfig {
 
   public void setSigningKey(String signingKey) {
     this.signingKey = signingKey;
+  }
+
+  public void setMfaChallengeTtl(Duration mfaChallengeTtl) {
+    this.mfaChallengeTtl = mfaChallengeTtl;
   }
 
   public void setCookieName(String cookieName) {

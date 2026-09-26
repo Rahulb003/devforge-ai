@@ -17,7 +17,9 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Slf4j
@@ -51,8 +53,28 @@ public class SecurityConfig {
         .csrf(csrf -> csrf.disable())
         .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .authorizeHttpRequests(authorize -> authorize
-            .requestMatchers("/api/v1/auth/**", "/actuator/**", "/error").permitAll()
+            // Only the endpoints that establish a session are public. A blanket
+            // /api/v1/auth/** permitAll would expose MFA management and session
+            // revocation to anonymous callers — anyone could disable a user's second
+            // factor or sign them out.
+            .requestMatchers(
+                "/api/v1/auth/signup",
+                "/api/v1/auth/login",
+                "/api/v1/auth/login/mfa",
+                "/api/v1/auth/refresh",
+                "/api/v1/auth/forgot-password",
+                "/api/v1/auth/reset-password",
+                "/api/v1/auth/verify-email",
+                "/api/v1/auth/resend-verification",
+                "/api/v1/auth/oauth2/**").permitAll()
+            .requestMatchers("/actuator/health/**", "/actuator/info", "/error").permitAll()
             .anyRequest().authenticated())
+        // Without an explicit entry point, an unauthenticated call to a protected endpoint
+        // returns 403, which tells the client "you are known but not allowed" when the truth
+        // is "you are not signed in". 401 is the correct signal and is what drives a client
+        // to refresh its token.
+        .exceptionHandling(ex -> ex.authenticationEntryPoint(
+            new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
         .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
 
     if (clientRegistrationRepository.getIfAvailable() != null) {

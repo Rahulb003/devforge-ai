@@ -115,7 +115,7 @@ class AuthFlowIntegrationTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.success").value(true))
         .andReturn();
-    return objectMapper.readTree(result.getResponse().getContentAsString()).get("data").asText();
+    return objectMapper.readTree(result.getResponse().getContentAsString()).get("data").get("accessToken").asText();
   }
 
   @Test
@@ -181,7 +181,7 @@ class AuthFlowIntegrationTest {
         .andReturn();
 
     var accessToken = objectMapper.readTree(result.getResponse().getContentAsString())
-        .get("data").asText();
+        .get("data").get("accessToken").asText();
     assertThat(jwtTokenProvider.validateToken(accessToken, JwtTokenProvider.TOKEN_TYPE_ACCESS))
         .isTrue();
 

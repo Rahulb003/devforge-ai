@@ -4,6 +4,8 @@ import com.devforge.ai.authservice.dto.ApiResponseDto;
 import com.devforge.ai.authservice.dto.ChangePasswordRequest;
 import com.devforge.ai.authservice.dto.ForgotPasswordRequest;
 import com.devforge.ai.authservice.dto.LoginRequest;
+import com.devforge.ai.authservice.dto.LoginResult;
+import com.devforge.ai.authservice.dto.MfaVerifyRequest;
 import com.devforge.ai.authservice.dto.PasswordResetRequest;
 import com.devforge.ai.authservice.dto.SignupRequest;
 import com.devforge.ai.authservice.dto.UserProfileResponse;
@@ -12,6 +14,7 @@ import com.devforge.ai.authservice.security.UserPrincipal;
 import com.devforge.ai.authservice.service.AuthService;
 import com.devforge.ai.authservice.service.AuditService;
 import com.devforge.ai.authservice.service.CustomUserDetailsService;
+import com.devforge.ai.authservice.service.MfaService;
 import com.devforge.ai.authservice.service.LoginAttemptService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -48,6 +51,7 @@ public class AuthController {
   private final PasswordEncoder passwordEncoder;
   private final AuditService auditService;
   private final LoginAttemptService loginAttemptService;
+  private final MfaService mfaService;
 
   @PostMapping("/signup")
   public ResponseEntity<ApiResponseDto<UserProfileResponse>> signup(@Valid @RequestBody SignupRequest request) {
@@ -68,7 +72,7 @@ public class AuthController {
    * instead, where only operators can see it.
    */
   @PostMapping("/login")
-  public ResponseEntity<ApiResponseDto<String>> login(
+  public ResponseEntity<ApiResponseDto<LoginResult>> login(
       @Valid @RequestBody LoginRequest request,
       HttpServletRequest httpRequest,
       HttpServletResponse response) {
@@ -91,20 +95,29 @@ public class AuthController {
     try {
       Authentication authentication = authenticationManager.authenticate(
           new UsernamePasswordAuthenticationToken(request.getUsernameOrEmail(), request.getPassword()));
-      var accessToken = authService.createAccessToken(authentication);
       var user = (UserPrincipal) authentication.getPrincipal();
-      var refreshToken = authService.issueAndStoreRefreshToken(user.getId());
-      authService.addRefreshCookie(response, refreshToken);
+      var entity = authService.findById(user.getId()).orElseThrow();
 
-      authService.findById(user.getId()).ifPresent(entity -> {
-        auditService.recordLoginAttempt(entity, AuditService.LOGIN_TYPE_PASSWORD,
-            AuditService.STATUS_SUCCESS, null, httpRequest);
-        auditService.record(entity, AuditService.ACTION_LOGIN_SUCCESS,
-            auditService.clientIp(httpRequest), "Password login succeeded.");
-      });
+      // A correct password is only the first factor. When MFA is on, no access or refresh
+      // token is issued here: the caller gets a short-lived challenge token and must prove
+      // the second factor before any usable credential exists.
+      if (entity.isMfaEnabled()) {
+        auditService.record(entity, "LOGIN_MFA_CHALLENGED",
+            auditService.clientIp(httpRequest), "Password accepted; awaiting second factor.");
+        return ResponseEntity.ok(ApiResponseDto.<LoginResult>builder()
+            .success(true)
+            .data(LoginResult.mfaChallenge(authService.createMfaChallengeToken(entity)))
+            .message("Multi-factor authentication required")
+            .build());
+      }
 
-      return ResponseEntity.ok(ApiResponseDto.<String>builder()
-          .success(true).data(accessToken).message("Login successful").build());
+      var accessToken = authService.createAccessToken(authentication);
+      issueSession(entity.getId(), httpRequest, response);
+      recordLoginSuccess(entity, httpRequest);
+
+      return ResponseEntity.ok(ApiResponseDto.<LoginResult>builder()
+          .success(true).data(LoginResult.authenticated(accessToken)).message("Login successful")
+          .build());
     } catch (AuthenticationException ex) {
       // Recorded against the account when we know it; this is what the throttle counts.
       auditService.recordLoginAttempt(existingUser, AuditService.LOGIN_TYPE_PASSWORD,
@@ -115,9 +128,80 @@ public class AuthController {
     }
   }
 
-  private ResponseEntity<ApiResponseDto<String>> unauthorized() {
+  private ResponseEntity<ApiResponseDto<LoginResult>> unauthorized() {
     return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-        .body(ApiResponseDto.<String>builder().success(false).message("Invalid credentials").build());
+        .body(ApiResponseDto.<LoginResult>builder()
+            .success(false).message("Invalid credentials").build());
+  }
+
+  /**
+   * Second step of login: exchanges an MFA challenge token plus a code for real credentials.
+   *
+   * <p>The challenge token only identifies which half-finished login this is. It carries
+   * {@code typ=mfa}, so it cannot authenticate an API call on its own even before the code is
+   * checked.
+   */
+  @PostMapping("/login/mfa")
+  public ResponseEntity<ApiResponseDto<LoginResult>> verifyMfa(
+      @Valid @RequestBody MfaVerifyRequest request,
+      HttpServletRequest httpRequest,
+      HttpServletResponse response) {
+
+    var userId = authService.userIdFromMfaChallenge(request.challengeToken());
+    if (userId == null) {
+      return unauthorized();
+    }
+    var entity = authService.findById(userId).orElse(null);
+    if (entity == null || !entity.isMfaEnabled()) {
+      return unauthorized();
+    }
+
+    // Second-factor attempts count against the same throttle as passwords; otherwise the
+    // six-digit code space could be brute-forced freely once a password was known.
+    if (loginAttemptService.isBlocked(userId)) {
+      auditService.record(entity, AuditService.ACTION_LOGIN_BLOCKED,
+          auditService.clientIp(httpRequest), "MFA verification refused: too many failures.");
+      return unauthorized();
+    }
+
+    if (!mfaService.verifyCode(entity, request.code())) {
+      auditService.recordLoginAttempt(entity, AuditService.LOGIN_TYPE_PASSWORD,
+          AuditService.STATUS_FAILURE, "Invalid MFA code", httpRequest);
+      auditService.record(entity, "MFA_VERIFICATION_FAILED",
+          auditService.clientIp(httpRequest), "Invalid second factor submitted.");
+      return unauthorized();
+    }
+
+    var principal = UserPrincipal.fromEntity(entity);
+    var authentication = new UsernamePasswordAuthenticationToken(
+        principal, null, principal.getAuthorities());
+    var accessToken = authService.createAccessToken(authentication);
+    issueSession(entity.getId(), httpRequest, response);
+    recordLoginSuccess(entity, httpRequest);
+
+    return ResponseEntity.ok(ApiResponseDto.<LoginResult>builder()
+        .success(true).data(LoginResult.authenticated(accessToken))
+        .message("Login successful").build());
+  }
+
+  /** Creates a device-scoped session and sets the refresh cookie. */
+  private void issueSession(
+      java.util.UUID userId, HttpServletRequest httpRequest, HttpServletResponse response) {
+    var userAgent = httpRequest.getHeader("User-Agent");
+    var refreshToken = authService.issueAndStoreRefreshToken(
+        userId,
+        DeviceLabeller.describe(userAgent),
+        userAgent,
+        auditService.clientIp(httpRequest));
+    authService.addRefreshCookie(response, refreshToken);
+  }
+
+  private void recordLoginSuccess(
+      com.devforge.ai.authservice.entity.UserEntity entity, HttpServletRequest httpRequest) {
+    auditService.recordLoginAttempt(entity, AuditService.LOGIN_TYPE_PASSWORD,
+        AuditService.STATUS_SUCCESS, null, httpRequest);
+    auditService.record(entity, AuditService.ACTION_LOGIN_SUCCESS,
+        auditService.clientIp(httpRequest), "Login succeeded.");
   }
 
   /**

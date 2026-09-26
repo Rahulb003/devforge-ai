@@ -77,6 +77,22 @@ public class UserEntity extends BaseEntity {
   @Column(name = "dark_mode", nullable = false)
   private boolean darkMode;
 
+  /** Whether TOTP two-factor authentication is active for this account. */
+  @Column(name = "mfa_enabled", nullable = false)
+  private boolean mfaEnabled;
+
+  /**
+   * Base32 TOTP shared secret.
+   *
+   * <p>A credential in its own right: anyone holding it can mint valid codes. It must never be
+   * logged, returned by an API after enrolment, or included in a profile response.
+   */
+  @Column(name = "mfa_secret", length = 255)
+  private String mfaSecret;
+
+  @Column(name = "mfa_enrolled_at")
+  private Instant mfaEnrolledAt;
+
   @Column(name = "last_login")
   private Instant lastLogin;
 

@@ -39,6 +39,16 @@ public class JwtTokenProvider {
   /** Value of the {@code typ} claim on long-lived refresh tokens. */
   public static final String TOKEN_TYPE_REFRESH = "refresh";
 
+  /**
+   * Value of the {@code typ} claim on the short-lived token issued between a correct password
+   * and a verified second factor.
+   *
+   * <p>It authenticates nothing on its own: {@code validateToken} requires the access type, so
+   * presenting this at an API endpoint fails. It only identifies which half-authenticated login
+   * a submitted MFA code belongs to.
+   */
+  public static final String TOKEN_TYPE_MFA_CHALLENGE = "mfa";
+
   private static final String CLAIM_TOKEN_TYPE = "typ";
   private static final String CLAIM_USERNAME = "username";
   private static final String CLAIM_EMAIL = "email";
@@ -46,6 +56,23 @@ public class JwtTokenProvider {
 
   @Getter
   private final JwtConfig jwtConfig;
+
+  /**
+   * Issues the short-lived token that carries a login from "password accepted" to "second factor
+   * verified".
+   *
+   * <p>Deliberately brief: it is a partially-authenticated credential, so the window in which a
+   * captured one is useful must be small.
+   */
+  public String createMfaChallengeToken(UserEntity user) {
+    return buildToken(
+        user.getId(),
+        user.getUsername(),
+        user.getEmail(),
+        null,
+        TOKEN_TYPE_MFA_CHALLENGE,
+        jwtConfig.getMfaChallengeTtl());
+  }
 
   public java.time.Duration getAccessTokenTtl() {
     return jwtConfig.getAccessTokenTtl();

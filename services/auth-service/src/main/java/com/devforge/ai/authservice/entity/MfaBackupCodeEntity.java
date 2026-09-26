@@ -16,52 +16,51 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+/**
+ * A single-use MFA recovery code.
+ *
+ * <p>Only the BCrypt hash is persisted. These codes are second factors, so a dump of this table
+ * must not let an attacker bypass MFA — the same reasoning that applies to password storage.
+ * {@code usedAt} enforces single use; rows are kept rather than deleted so the audit trail shows
+ * a recovery code was spent.
+ */
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 @Entity
-@Table(name = "refresh_tokens")
-public class RefreshTokenEntity {
+@Table(name = "mfa_backup_codes")
+public class MfaBackupCodeEntity {
 
   @Id
   @Column(name = "id", nullable = false, updatable = false)
   private UUID id;
 
-  @Column(name = "token", nullable = false, unique = true, length = 500)
-  private String token;
-
-  @ManyToOne(fetch = FetchType.LAZY)
+  @ManyToOne(fetch = FetchType.LAZY, optional = false)
   @JoinColumn(name = "user_id", nullable = false)
   private UserEntity user;
 
-  @Column(name = "expires_at", nullable = false)
-  private Instant expiresAt;
+  @Column(name = "code_hash", nullable = false, length = 200)
+  private String codeHash;
 
-  @Column(name = "revoked", nullable = false)
-  private boolean revoked;
-
-  /** Human-readable device name shown in the session list, e.g. "Chrome on Windows". */
-  @Column(name = "device_label", length = 150)
-  private String deviceLabel;
-
-  @Column(name = "user_agent", length = 500)
-  private String userAgent;
-
-  @Column(name = "ip_address", length = 45)
-  private String ipAddress;
-
-  /** Updated on each rotation, so a stale session is visible as such. */
-  @Column(name = "last_used_at")
-  private Instant lastUsedAt;
+  @Column(name = "used_at")
+  private Instant usedAt;
 
   @Column(name = "created_at", nullable = false, updatable = false)
   private Instant createdAt;
 
+  public boolean isUsed() {
+    return usedAt != null;
+  }
+
   @PrePersist
   protected void onCreate() {
-    if (id == null) id = UUID.randomUUID();
-    if (createdAt == null) createdAt = Instant.now();
+    if (id == null) {
+      id = UUID.randomUUID();
+    }
+    if (createdAt == null) {
+      createdAt = Instant.now();
+    }
   }
 }

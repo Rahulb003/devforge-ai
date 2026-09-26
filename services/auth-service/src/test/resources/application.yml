@@ -34,6 +34,10 @@ spring:
     password: test
 
 security:
+  mfa:
+    issuer: DevForge AI Test
+    totp-window-steps: 1
+    backup-code-count: 10
   login:
     # Brute-force protection: failures counted per account over a rolling window.
     # Deliberately not a sticky lock, which would let anyone disable an account.

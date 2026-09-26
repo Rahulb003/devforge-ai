@@ -47,6 +47,12 @@ spring:
             enable: ${MAIL_STARTTLS_ENABLED:true}
 
 security:
+  mfa:
+    # Shown in the user's authenticator app.
+    issuer: ${DEVFORGE_MFA_ISSUER:DevForge AI}
+    # Accepted clock drift in 30s steps; wider means an intercepted code lives longer.
+    totp-window-steps: ${DEVFORGE_MFA_TOTP_WINDOW_STEPS:1}
+    backup-code-count: ${DEVFORGE_MFA_BACKUP_CODE_COUNT:10}
   login:
     # Brute-force protection: failures counted per account over a rolling window.
     # Deliberately not a sticky lock, which would let anyone disable an account.

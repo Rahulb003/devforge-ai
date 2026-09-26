@@ -190,13 +190,23 @@ public class AuthService {
    */
   @Transactional
   public String issueAndStoreRefreshToken(UUID userId) {
+    return issueAndStoreRefreshToken(userId, null, null, null);
+  }
+
+  /**
+   * Issues a refresh token for one device and stores it as its own session.
+   *
+   * <p>Each device gets its own row. The previous behaviour deleted every token for the user on
+   * each login, so signing in on a phone silently signed the same user out on their laptop, and
+   * there was no way to see or revoke an individual session. Sessions are now independent, which
+   * is what makes {@code GET /sessions} and per-session revocation meaningful.
+   */
+  @Transactional
+  public String issueAndStoreRefreshToken(
+      UUID userId, String deviceLabel, String userAgent, String ipAddress) {
     var user = userRepository.findById(userId)
         .orElseThrow(() -> new IllegalArgumentException("User not found"));
     var token = jwtTokenProvider.createRefreshToken(user);
-
-    // One active refresh token per user: replace rather than accumulate.
-    refreshTokenRepository.deleteByUser(user);
-    refreshTokenRepository.flush();
 
     var refreshToken = RefreshTokenEntity.builder()
         .id(UUID.randomUUID())
@@ -204,6 +214,10 @@ public class AuthService {
         .user(user)
         .expiresAt(Instant.now().plus(jwtTokenProvider.getRefreshTokenTtl()))
         .revoked(false)
+        .deviceLabel(deviceLabel)
+        .userAgent(userAgent)
+        .ipAddress(ipAddress)
+        .lastUsedAt(Instant.now())
         .build();
     refreshTokenRepository.save(refreshToken);
     return token;
@@ -240,6 +254,28 @@ public class AuthService {
   @Transactional(readOnly = true)
   public Optional<UserEntity> findById(UUID userId) {
     return userRepository.findById(userId);
+  }
+
+  public String createMfaChallengeToken(UserEntity user) {
+    return jwtTokenProvider.createMfaChallengeToken(user);
+  }
+
+  /**
+   * Resolves the user behind an MFA challenge token.
+   *
+   * @return null when the token is invalid, expired, or not of the MFA challenge type. Requiring
+   *     the type means an access or refresh token cannot be substituted here to skip the password
+   *     step entirely.
+   */
+  public UUID userIdFromMfaChallenge(String challengeToken) {
+    if (!jwtTokenProvider.validateToken(challengeToken, JwtTokenProvider.TOKEN_TYPE_MFA_CHALLENGE)) {
+      return null;
+    }
+    try {
+      return jwtTokenProvider.getUserIdFromToken(challengeToken);
+    } catch (RuntimeException ex) {
+      return null;
+    }
   }
 
   // Cookie helpers only touch the HTTP response, so they deliberately carry no transaction.
@@ -329,6 +365,12 @@ public class AuthService {
       throw new IllegalArgumentException("Refresh token invalid");
     }
 
+    // Carry the device identity across the rotation, or every refresh would orphan the
+    // session's metadata and the session list would fill with anonymous entries.
+    var deviceLabel = entity.getDeviceLabel();
+    var userAgent = entity.getUserAgent();
+    var ipAddress = entity.getIpAddress();
+
     // Consume the presented token before issuing its replacement.
     refreshTokenRepository.delete(entity);
     refreshTokenRepository.flush();
@@ -337,7 +379,8 @@ public class AuthService {
     var authentication = new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
         principal, null, principal.getAuthorities());
     var accessToken = jwtTokenProvider.createAccessToken(authentication);
-    var newRefreshToken = issueAndStoreRefreshToken(user.getId());
+    var newRefreshToken =
+        issueAndStoreRefreshToken(user.getId(), deviceLabel, userAgent, ipAddress);
 
     auditService.record(user, AuditService.ACTION_TOKEN_REFRESHED, null, "Refresh token rotated.");
     return new TokenPair(accessToken, newRefreshToken);
