@@ -16,7 +16,7 @@
 | Backend tests | `mvn -B -ntp -f backend/pom.xml clean test` | **PASS** — 97 tests, 0 failures |
 | Frontend install | `npm ci` (in `frontend/`) | **PASS** |
 | Frontend lint | `npm run lint` | **PASS** — 0 errors, 0 warnings |
-| Frontend tests | `npm test` | **PASS** — 3 tests |
+| Frontend tests | `npm test` | **PASS** — 12 tests |
 | Frontend build | `npm run build` | **PASS** |
 | YAML validity | js-yaml parse of all 24 YAML files | **PASS** — 0 invalid |
 | Docker image builds | `docker build ...` | **UNVERIFIED** — no Docker daemon in this environment |
@@ -113,7 +113,7 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 | 2 | ~~Placeholder secrets in tracked config~~ **RESOLVED** (commit `b49d7f7`). All credentials are environment-driven with no fallbacks outside the `local` profile; `.env.example` added; k8s `secrets.yaml` is now a template. | — | The k8s Secret still needs wiring to a real secret store (External Secrets / Sealed Secrets) before any cluster deploy. |
 | 3 | Docker images still **UNVERIFIED**: no Docker daemon here. Images are now non-root with healthchecks and a single shared build stage, but none of it has been executed. | MEDIUM | First run of the `docker` CI job will confirm. |
 | 4 | `api-gateway` is a plain `spring-boot-starter-web` app — not Spring Cloud Gateway, no routes, no filters | MEDIUM | Routing is entirely `MISSING`. |
-| 5 | Theme-toggle button in `AppLayout.tsx` has no accessible name | LOW | Real a11y defect; `jsx-a11y` does not catch it. |
+| 5 | ~~Theme toggle had no accessible name~~ **RESOLVED** (commit `33a649f`). | — | Icon-only controls now all carry accessible names. |
 | 6 | ~~Kafka absent / RabbitMQ unused~~ **RESOLVED** (commit `0a2f97d`). RabbitMQ removed; Kafka + outbox + idempotency implemented. **Broker itself UNVERIFIED** (no Docker), and Kafka has no TLS/SASL/ACLs configured yet. | MEDIUM | Production needs broker auth before deploy. |
 | 7 | 13 of 15 services are health-endpoint skeletons with `placeholder.txt` | — | Expected; Phases 3+. |
 
@@ -136,8 +136,10 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 | API gateway routing | `MISSING` | — |
 | Kafka / outbox / event envelope | `IMPLEMENTED` | Envelope, outbox, idempotency, DLQ config; 10 tests. Broker publication UNVERIFIED — see docs/EVENT_CATALOG.md §8 |
 | Projects, tasks, sprints, IDE, AI, Git, review, docs, chat, deploy, analytics, RAG, agents | `MISSING` / `SCAFFOLDED` | Health endpoints only |
-| Frontend app shell, routing, theme store | `IMPLEMENTED` | 3 passing tests |
-| Frontend auth/project/task/IDE screens | `MISSING` | `auth.api.ts` and `user.api.ts` exist but no screens consume them |
+| Frontend app shell, routing, theme store | `IMPLEMENTED` | 12 passing tests |
+| Frontend auth screens (login/MFA/signup/verify/forgot/reset) | `IMPLEMENTED` | Driven against the live API; verified end-to-end through the dev proxy |
+| Frontend organization + project screens | `IMPLEMENTED` | List/create, loading/empty/error states |
+| Frontend task/IDE/AI screens | `MISSING` | Phases 4+ |
 
 ---
 
