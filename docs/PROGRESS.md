@@ -13,7 +13,7 @@
 | Gate | Command | Result |
 |---|---|---|
 | Backend compile | `mvn -B -ntp -f backend/pom.xml clean compile` | **PASS** — all 16 modules |
-| Backend tests | `mvn -B -ntp -f backend/pom.xml clean test` | **PASS** — 87 tests, 0 failures |
+| Backend tests | `mvn -B -ntp -f backend/pom.xml clean test` | **PASS** — 97 tests, 0 failures |
 | Frontend install | `npm ci` (in `frontend/`) | **PASS** |
 | Frontend lint | `npm run lint` | **PASS** — 0 errors, 0 warnings |
 | Frontend tests | `npm test` | **PASS** — 3 tests |
@@ -114,7 +114,7 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 | 3 | Docker images still **UNVERIFIED**: no Docker daemon here. Images are now non-root with healthchecks and a single shared build stage, but none of it has been executed. | MEDIUM | First run of the `docker` CI job will confirm. |
 | 4 | `api-gateway` is a plain `spring-boot-starter-web` app — not Spring Cloud Gateway, no routes, no filters | MEDIUM | Routing is entirely `MISSING`. |
 | 5 | Theme-toggle button in `AppLayout.tsx` has no accessible name | LOW | Real a11y defect; `jsx-a11y` does not catch it. |
-| 6 | Kafka is entirely absent. Messaging is RabbitMQ (`spring-boot-starter-amqp` in auth-service only) | — | Phase 2, by design not yet started. |
+| 6 | ~~Kafka absent / RabbitMQ unused~~ **RESOLVED** (commit `0a2f97d`). RabbitMQ removed; Kafka + outbox + idempotency implemented. **Broker itself UNVERIFIED** (no Docker), and Kafka has no TLS/SASL/ACLs configured yet. | MEDIUM | Production needs broker auth before deploy. |
 | 7 | 13 of 15 services are health-endpoint skeletons with `placeholder.txt` | — | Expected; Phases 3+. |
 
 ---
@@ -134,7 +134,7 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 | RBAC enforcement | `PARTIALLY_IMPLEMENTED` | Enforced in project-service (org + project roles, server-side, membership-derived). Other services remain skeletons. |
 | Multi-tenancy / organizations | `IMPLEMENTED` | Organizations, members, projects, project members; 23 tenant-isolation/IDOR tests |
 | API gateway routing | `MISSING` | — |
-| Kafka / outbox / event envelope | `MISSING` | — |
+| Kafka / outbox / event envelope | `IMPLEMENTED` | Envelope, outbox, idempotency, DLQ config; 10 tests. Broker publication UNVERIFIED — see docs/EVENT_CATALOG.md §8 |
 | Projects, tasks, sprints, IDE, AI, Git, review, docs, chat, deploy, analytics, RAG, agents | `MISSING` / `SCAFFOLDED` | Health endpoints only |
 | Frontend app shell, routing, theme store | `IMPLEMENTED` | 3 passing tests |
 | Frontend auth/project/task/IDE screens | `MISSING` | `auth.api.ts` and `user.api.ts` exist but no screens consume them |
@@ -148,7 +148,7 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 3. ~~Phase 0 §16 secrets/config~~ **DONE** (commit `b49d7f7`).
 4. ~~Phase 0 §15 Dockerfile hardening~~ **DONE** (commit `8e27355`, UNVERIFIED — no Docker here).
 5. ~~Phase 1~~ **COMPLETE** (commits `5adfb5b`, `aa6713a`): rotation, throttling, audit trail, MFA/TOTP, per-device sessions, OAuth persistence. OAuth remains UNVERIFIED without provider credentials.
-6. ~~RBAC enforcement~~ **DONE** (commit `4d6caa7`): enforced in project-service via membership-derived checks + `@PreAuthorize`. **NEXT:** Phase 2 (Kafka + event envelope + outbox, and the RabbitMQ keep/remove decision), then Phase 4 (tasks/sprints). — `@EnableMethodSecurity` is on but **no endpoint carries an authorization annotation**, so RBAC is currently decorative.
+6. ~~RBAC enforcement~~ **DONE** (commit `4d6caa7`): enforced in project-service via membership-derived checks + `@PreAuthorize`. ~~Phase 2~~ **DONE** (commit `0a2f97d`). **NEXT:** Phase 4 (tasks, sprints, Kanban) in task-service, then Phase 3 remainder (project activity feed, org member management endpoints). — `@EnableMethodSecurity` is on but **no endpoint carries an authorization annotation**, so RBAC is currently decorative.
 7. Then Phase 2 (Kafka), including the RabbitMQ keep/remove decision required by §18.
 
 ---
@@ -171,10 +171,10 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 
 ## Documentation Status
 
-Written: `docs/PROGRESS.md` (this file).
+Written: `docs/PROGRESS.md` (this file), `docs/EVENT_CATALOG.md`.
 
 Not yet written — required by §7 and still outstanding: `CLAUDE.md`, `docs/ARCHITECTURE.md`,
 `docs/DEVELOPMENT_PLAN.md`, `docs/REQUIREMENTS_MATRIX.md`, `docs/TEST_PLAN.md`,
-`docs/THREAT_MODEL.md`, `docs/API_CONTRACTS.md`, `docs/EVENT_CATALOG.md`, `docs/SECURITY.md`,
+`docs/THREAT_MODEL.md`, `docs/API_CONTRACTS.md`, `docs/SECURITY.md`,
 `docs/TESTING.md`. `README.md` and `docs/Setup.md` exist but have **not** been reviewed against
 the repaired build and should be assumed stale.
