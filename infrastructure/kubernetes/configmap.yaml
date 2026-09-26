@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: devforge-ai-config
+  namespace: devforge-ai
+data:
+  SPRING_PROFILES_ACTIVE: local
+  SPRING_CLOUD_CONFIG_URI: http://config-server.devforge-ai.svc.cluster.local:8888
+  EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server.devforge-ai.svc.cluster.local:8761/eureka/
+  SPRING_REDIS_HOST: redis
+  SPRING_RABBITMQ_HOST: rabbitmq

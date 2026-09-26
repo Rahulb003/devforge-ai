@@ -1,0 +1,13 @@
+server:
+  port: 9004
+spring:
+  application:
+    name: ai-service
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info
+  endpoint:
+    health:
+      show-details: always

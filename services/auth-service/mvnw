@@ -1,0 +1,10 @@
+#!/usr/bin/env sh
+
+MAVEN_HOME=${MAVEN_HOME:-}
+MAVEN_OPTS="${MAVEN_OPTS:-}"
+
+if [ -z "$MAVEN_HOME" ]; then
+  mvn "$@"
+else
+  "$MAVEN_HOME/bin/mvn" "$@"
+fi

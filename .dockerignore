@@ -1,0 +1,12 @@
+node_modules
+dist
+target
+*.log
+*.tmp
+*.swp
+.DS_Store
+.git
+.gitignore
+frontend/node_modules
+frontend/dist
+**/target

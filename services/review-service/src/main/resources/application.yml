@@ -1,0 +1,13 @@
+server:
+  port: 9006
+spring:
+  application:
+    name: review-service
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info
+  endpoint:
+    health:
+      show-details: always

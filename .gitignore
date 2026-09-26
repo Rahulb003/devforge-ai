@@ -1,0 +1,52 @@
+# ---- Build output ----
+target/
+dist/
+build/
+out/
+*.jar
+*.war
+!.mvn/wrapper/maven-wrapper.jar
+
+# ---- Node ----
+node_modules/
+.npm/
+*.tsbuildinfo
+coverage/
+.vite/
+
+# ---- Secrets and local environment ----
+# .env.example IS tracked; real env files never are.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.jks
+secrets.local.*
+
+# ---- IDE / editor ----
+.idea/
+*.iml
+.vscode/*
+!.vscode/extensions.json
+*.swp
+*.swo
+
+# ---- OS ----
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---- Logs / temp ----
+*.log
+logs/
+*.tmp
+*.pid
+*.seed
+
+# ---- Test / tooling output ----
+.surefire-*
+**/surefire-reports/
+**/failsafe-reports/
+.gradle/

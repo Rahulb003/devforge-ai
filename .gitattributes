@@ -1,0 +1,31 @@
+# Normalize all text files to LF in the repository.
+#
+# The frontend's Prettier config pins endOfLine: "lf". Without this file, a
+# checkout on Windows reintroduces CRLF and `npm run lint` fails with hundreds
+# of "Delete `␍`" errors, which is exactly what happened before Phase 0.
+* text=auto eol=lf
+
+# Windows-only scripts must keep CRLF to run correctly.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+mvnw.cmd text eol=crlf
+
+# Shell scripts and the Maven wrapper must stay LF even on Windows checkouts.
+*.sh text eol=lf
+mvnw text eol=lf
+
+# Binary files: never convert, never diff as text.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.pdf binary
+*.jar binary
+*.zip binary
+*.gz binary

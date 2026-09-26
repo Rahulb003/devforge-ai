@@ -1,0 +1,13 @@
+server:
+  port: 9009
+spring:
+  application:
+    name: deployment-service
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info
+  endpoint:
+    health:
+      show-details: always

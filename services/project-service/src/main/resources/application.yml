@@ -1,0 +1,13 @@
+server:
+  port: 9002
+spring:
+  application:
+    name: project-service
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info
+  endpoint:
+    health:
+      show-details: always

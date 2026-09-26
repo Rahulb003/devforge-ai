@@ -1,0 +1,56 @@
+# Test configuration for auth-service.
+#
+# This overrides src/main/resources/application.yml for the whole test source set.
+# It runs the REAL Flyway migrations against an in-memory H2 database in PostgreSQL
+# compatibility mode, then sets ddl-auto=validate so Hibernate asserts that the JPA
+# entity mappings actually match the migrated schema. That catches entity/migration
+# drift without requiring a Docker daemon.
+#
+# Tests that need true PostgreSQL behaviour (or Flyway's postgresql module) should use
+# Testcontainers instead; see docs/TESTING.md.
+server:
+  port: 0
+
+spring:
+  datasource:
+    url: jdbc:h2:mem:authdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password: ''
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: true
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+  mail:
+    host: localhost
+    port: 3025
+    username: test
+    password: test
+
+security:
+  jwt:
+    issuer: devforge-ai-test
+    access-token-ttl: 15m
+    refresh-token-ttl: 14d
+    # Test-only key. Never used outside the test source set.
+    signing-key: test-only-signing-key-that-is-long-enough-to-satisfy-hs256-256-bit-requirement
+    cookie-name: DEVFORGE_REFRESH_TOKEN
+    # Tests run over plain HTTP, so the Secure attribute must be off here.
+    cookie-secure: false
+    cookie-same-site: Lax
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info
+
+logging:
+  level:
+    org.flywaydb: INFO
