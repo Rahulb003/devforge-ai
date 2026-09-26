@@ -1,0 +1,104 @@
+# auth-service — STANDALONE profile.
+#
+# Purpose: let someone start the platform and exercise it without installing
+# PostgreSQL, Kafka, Redis or an SMTP relay. It runs the REAL application code,
+# the REAL Flyway migrations and REAL persistence — only the surrounding
+# infrastructure is swapped for embedded equivalents.
+#
+# NOT a production or staging profile, and not safe as one:
+#   - the JWT signing key below is a well-known development value
+#   - refresh cookies are not Secure, because this serves plain HTTP
+#   - verification and password-reset links are written to the log
+#   - data lives in a local file, not a managed database
+#   - events are staged in the outbox but never published, since there is no broker
+#
+# Run:  java -jar app.jar --spring.profiles.active=standalone
+server:
+  port: ${SERVER_PORT:9001}
+
+spring:
+  application:
+    name: auth-service
+  datasource:
+    # File-based rather than in-memory so a restart does not wipe the account you
+    # just created. Delete ./data/devforge-auth.mv.db to reset.
+    url: jdbc:h2:file:./data/devforge-auth;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;AUTO_SERVER=TRUE
+    username: sa
+    password: ''
+    driver-class-name: org.h2.Driver
+  h2:
+    console:
+      # Browse the data at http://localhost:9001/h2-console
+      enabled: true
+      path: /h2-console
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+  mail:
+    # Never contacted: LoggingEmailService replaces the sender under this profile.
+    # The values exist only because the base profile requires MAIL_HOST with no
+    # default, and Spring resolves that placeholder while evaluating mail
+    # auto-configuration, before any bean is chosen.
+    host: localhost
+    port: 1025
+    username: ''
+    password: ''
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false
+  # Redis auto-configuration creates its connection lazily, so nothing here
+  # touches it at startup. Left pointing at localhost in case one is running.
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+
+security:
+  jwt:
+    issuer: devforge-ai
+    # DEVELOPMENT KEY. Shared with project-service so tokens issued here verify there.
+    signing-key: local-development-only-signing-key-change-me-0123456789abcdef
+    access-token-ttl: 60m
+    cookie-secure: false
+    cookie-same-site: Lax
+  mfa:
+    issuer: DevForge AI (standalone)
+
+devforge:
+  app:
+    base-url: http://localhost:4173
+  kafka:
+    # No broker. The outbox still records events, so you can inspect them in
+    # the OUTBOX_EVENTS table and see that publishing is wired up.
+    enabled: false
+  outbox:
+    enabled: false
+    use-skip-locked: false
+
+management:
+  health:
+    # Neither is reachable under this profile, and their indicators would
+    # otherwise report the whole service DOWN over dependencies it does not use.
+    mail:
+      enabled: false
+    redis:
+      enabled: false
+  endpoints:
+    web:
+      exposure:
+        include: health, info, metrics
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.devforge.ai: DEBUG
+    org.flywaydb: INFO

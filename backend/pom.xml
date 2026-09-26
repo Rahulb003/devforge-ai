@@ -60,6 +60,22 @@
           <groupId>org.springframework.boot</groupId>
           <artifactId>spring-boot-maven-plugin</artifactId>
           <version>${spring.boot.version}</version>
+          <!--
+            The repackage execution must be declared explicitly. It comes for free
+            from spring-boot-starter-parent, but this reactor imports the BOM
+            instead, so without this the build produces a plain library jar with no
+            Main-Class and no bundled dependencies. `java -jar` on it fails with
+            "no main manifest attribute", which is exactly what every container
+            image does.
+          -->
+          <executions>
+            <execution>
+              <id>repackage</id>
+              <goals>
+                <goal>repackage</goal>
+              </goals>
+            </execution>
+          </executions>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>

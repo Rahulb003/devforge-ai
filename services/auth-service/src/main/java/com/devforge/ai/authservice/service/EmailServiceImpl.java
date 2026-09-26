@@ -5,9 +5,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
+// Excluded from the standalone profile, where LoggingEmailService takes its place so the
+// service can run without an SMTP relay. Exactly one EmailService bean must exist.
 @Service
+@Profile("!standalone")
 @RequiredArgsConstructor
 public class EmailServiceImpl implements EmailService {
 

@@ -99,6 +99,18 @@
       <artifactId>common-events</artifactId>
       <version>0.1.0</version>
     </dependency>
+    <!-- standalone-h2 -->
+    <!--
+      H2 at runtime, not just test scope, so the standalone profile can boot on an
+      embedded database without PostgreSQL installed. It is unused by every other
+      profile; the cost is a small jar, the benefit is that the platform can be run
+      and inspected on a clean machine.
+    -->
+    <dependency>
+      <groupId>com.h2database</groupId>
+      <artifactId>h2</artifactId>
+      <scope>runtime</scope>
+    </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>
@@ -128,11 +140,6 @@
     <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>com.h2database</groupId>
-      <artifactId>h2</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>

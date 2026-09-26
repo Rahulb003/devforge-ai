@@ -38,6 +38,12 @@ secrets.local.*
 Thumbs.db
 desktop.ini
 
+# ---- Standalone-profile local database ----
+# H2 files created by the standalone profile; never source.
+data/
+*.mv.db
+*.trace.db
+
 # ---- Logs / temp ----
 *.log
 logs/
