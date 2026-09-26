@@ -67,6 +67,12 @@ public class SecurityConfig {
                 "/api/v1/auth/verify-email",
                 "/api/v1/auth/resend-verification",
                 "/api/v1/auth/oauth2/**").permitAll()
+            // Development mailbox. Unauthenticated by necessity — it exists to
+            // complete a signup before there is an account to sign in with. The
+            // controller itself only exists when
+            // devforge.mail.dev-mailbox-enabled=true, so this rule matches nothing
+            // in any deployment that sends real mail.
+            .requestMatchers("/api/v1/dev/mailbox").permitAll()
             .requestMatchers("/actuator/health/**", "/actuator/info", "/error").permitAll()
             .anyRequest().authenticated())
         // Without an explicit entry point, an unauthenticated call to a protected endpoint

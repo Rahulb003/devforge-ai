@@ -45,6 +45,19 @@ public class AuthService {
   private final com.devforge.ai.authservice.events.IdentityEventPublisher identityEventPublisher;
   private final SessionRevocationService sessionRevocationService;
 
+  /**
+   * Whether a new account must confirm its email address before it can sign in.
+   *
+   * <p>Turning this off makes signup immediately usable, at a real cost: nothing then proves the
+   * registrant controls the address. That matters because the address is the account recovery
+   * channel — someone can register with an address that is not theirs, and the real owner can
+   * later take the account over via password reset. It also removes the friction that discourages
+   * bulk signups. Appropriate for local development and demos; reconsider before exposing signup
+   * publicly.
+   */
+  @org.springframework.beans.factory.annotation.Value("${devforge.auth.require-email-verification:true}")
+  private boolean requireEmailVerification;
+
   @Transactional
   public UserEntity registerUser(String firstName, String lastName, String username, String email, String password, String organization) {
     var existingEmail = userRepository.findByEmailIgnoreCase(email);
@@ -73,15 +86,21 @@ public class AuthService {
         .username(username)
         .email(email)
         .organization(organization)
-        .status(AccountStatus.PENDING_VERIFICATION)
+        // When verification is not required the account is usable immediately.
+        // See requireEmailVerification for what that trades away.
+        .status(requireEmailVerification ? AccountStatus.PENDING_VERIFICATION : AccountStatus.ACTIVE)
         .oauthProvider(OAuthProvider.LOCAL)
         .passwordHash(passwordEncoder.encode(password))
-        .emailVerified(false)
+        .emailVerified(!requireEmailVerification)
         .darkMode(true)
         .roles(Set.of(userRole))
         .build();
 
     userRepository.save(user);
+
+    // The verification mail is sent either way, so the link keeps working and the
+    // development mailbox still shows the message. When verification is not required
+    // it simply is not a gate on signing in.
     sendVerificationEmail(user);
     // Staged in this same transaction: the event and the user row commit together.
     identityEventPublisher.userRegistered(user);

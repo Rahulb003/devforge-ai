@@ -52,6 +52,43 @@ public class GlobalExceptionHandler {
   }
 
   /**
+   * A request that matched no handler.
+   *
+   * <p>Spring Boot 3.2+ raises {@code NoResourceFoundException} for an unmapped path. Without an
+   * explicit handler it reaches the catch-all below and is reported as 500, so every typo in a URL
+   * looked like a server fault — and, worse, a genuinely absent endpoint looked like a broken one.
+   */
+  @ExceptionHandler({
+      org.springframework.web.servlet.resource.NoResourceFoundException.class,
+      org.springframework.web.servlet.NoHandlerFoundException.class,
+  })
+  public ResponseEntity<ApiError> handleNoHandler(Exception ex, HttpServletRequest request) {
+    return build(HttpStatus.NOT_FOUND, "Not found", request, Collections.emptyList());
+  }
+
+  /**
+   * An unsupported method on a path that does exist.
+   */
+  @ExceptionHandler(org.springframework.web.HttpRequestMethodNotSupportedException.class)
+  public ResponseEntity<ApiError> handleMethodNotSupported(
+      org.springframework.web.HttpRequestMethodNotSupportedException ex, HttpServletRequest request) {
+    return build(HttpStatus.METHOD_NOT_ALLOWED, "Method not allowed", request, Collections.emptyList());
+  }
+
+  /**
+   * A malformed or unreadable request body.
+   *
+   * <p>Caller error, so 400 rather than the 500 the catch-all would otherwise produce.
+   */
+  @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+  public ResponseEntity<ApiError> handleUnreadableBody(
+      org.springframework.http.converter.HttpMessageNotReadableException ex,
+      HttpServletRequest request) {
+    // The parser message can name internal types, so it is not echoed.
+    return build(HttpStatus.BAD_REQUEST, "Malformed request body", request, Collections.emptyList());
+  }
+
+  /**
    * A resource that does not exist, or that belongs to another tenant.
    *
    * <p>Both map to 404. Answering 403 for the second case would confirm the id is real and let a

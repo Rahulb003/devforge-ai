@@ -30,6 +30,12 @@ export default defineConfig({
         // what keeps a session alive across reloads.
         cookieDomainRewrite: 'localhost',
       },
+      // auth-service also serves the development mailbox, which only exists when
+      // it runs with the log mail provider.
+      '/api/v1/dev': {
+        target: 'http://localhost:9001',
+        changeOrigin: true,
+      },
       // project-service
       '/api/v1/organizations': {
         target: 'http://localhost:9002',

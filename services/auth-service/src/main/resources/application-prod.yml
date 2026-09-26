@@ -50,3 +50,13 @@ logging:
     # SQL logging at production volume is both a performance and a disclosure
     # problem (bind parameters can contain personal data).
     org.hibernate.SQL: WARN
+
+devforge:
+  auth:
+    # Restated so the production posture is explicit and reviewable.
+    require-email-verification: true
+  mail:
+    # Restated so the production posture is explicit and reviewable: real
+    # delivery, and the token-exposing dev mailbox hard off.
+    provider: smtp
+    dev-mailbox-enabled: false

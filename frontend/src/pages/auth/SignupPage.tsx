@@ -20,6 +20,7 @@ export function SignupPage() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
+  const [needsVerification, setNeedsVerification] = useState(true);
 
   const strength = passwordStrength(form.password);
 
@@ -39,10 +40,11 @@ export function SignupPage() {
 
     setSubmitting(true);
     try {
-      await authApi.signup(form);
-      // Deliberately does not sign the user in: the account is created in a
-      // PENDING_VERIFICATION state and the server refuses login until the
-      // email is verified.
+      const { data } = await authApi.signup(form);
+      // Whether the account is usable straight away depends on the server's
+      // require-email-verification setting, so the confirmation is driven by the
+      // status it returns rather than by an assumption baked into the UI.
+      setNeedsVerification(!data.data.emailVerified);
       setRegisteredEmail(form.email);
     } catch (err) {
       setError(describeApiError(err));
@@ -57,18 +59,42 @@ export function SignupPage() {
         <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-emerald-500/10 text-emerald-400">
           <CheckCircle2 className="h-7 w-7" aria-hidden="true" />
         </div>
-        <h1 className="text-xl font-semibold text-white">Check your email</h1>
+        <h1 className="text-xl font-semibold text-white">
+          {needsVerification ? 'Check your email' : 'Account created'}
+        </h1>
         <p className="text-sm text-slate-400">
-          We sent a verification link to <span className="text-slate-200">{registeredEmail}</span>.
-          You need to verify before you can sign in.
+          {needsVerification ? (
+            <>
+              We sent a verification link to{' '}
+              <span className="text-slate-200">{registeredEmail}</span>. You need to verify before
+              you can sign in.
+            </>
+          ) : (
+            <>
+              Your account <span className="text-slate-200">{registeredEmail}</span> is ready. You
+              can sign in now.
+            </>
+          )}
         </p>
-        <p className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-xs text-slate-500">
-          Running locally? Mail is not actually sent — the verification link is printed in the
-          auth-service console window.
-        </p>
+
+        {needsVerification && (
+          <div className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-left">
+            <p className="text-xs text-slate-500">
+              Running locally with the development mail provider? Nothing was actually sent — open
+              the captured message to continue.
+            </p>
+            <Link
+              to="/dev/mailbox"
+              className="mt-2 inline-block text-xs font-medium text-indigo-400 underline-offset-4 hover:underline"
+            >
+              Open the development mailbox
+            </Link>
+          </div>
+        )}
+
         <Link to="/login">
-          <Button variant="secondary" fullWidth>
-            Back to sign in
+          <Button variant={needsVerification ? 'secondary' : 'primary'} fullWidth>
+            {needsVerification ? 'Back to sign in' : 'Continue to sign in'}
           </Button>
         </Link>
       </div>

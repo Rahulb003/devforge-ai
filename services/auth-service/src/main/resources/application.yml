@@ -85,6 +85,10 @@ security:
     cookie-same-site: ${DEVFORGE_COOKIE_SAME_SITE:Strict}
 
 devforge:
+  auth:
+    # On by default. Without it nothing proves the registrant controls the
+    # address, and the address is the account-recovery channel.
+    require-email-verification: ${DEVFORGE_REQUIRE_EMAIL_VERIFICATION:true}
   kafka:
     enabled: ${DEVFORGE_KAFKA_ENABLED:true}
   outbox:
@@ -97,6 +101,12 @@ devforge:
   app:
     base-url: ${DEVFORGE_APP_BASE_URL:https://app.devforge.ai}
   mail:
+    # log | smtp. Selected by configuration rather than by profile, so any
+    # environment can send real mail once MAIL_* is populated.
+    provider: ${DEVFORGE_MAIL_PROVIDER:smtp}
+    # Serves captured mail, including single-use tokens. Never enable outside
+    # local development.
+    dev-mailbox-enabled: ${DEVFORGE_DEV_MAILBOX_ENABLED:false}
     from: ${MAIL_FROM:no-reply@devforge.ai}
 
 management:

@@ -5,6 +5,7 @@ import { AppLayout } from './components/layout/AppLayout';
 import { AuthLayout } from './components/layout/AuthLayout';
 import { ErrorBoundary } from './components/ui/ErrorBoundary';
 import { DashboardPage } from './pages/DashboardPage';
+import { DevMailboxPage } from './pages/DevMailboxPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { OrganizationDetailPage } from './pages/OrganizationDetailPage';
 import { OrganizationsPage } from './pages/OrganizationsPage';
@@ -44,6 +45,13 @@ function App() {
             <Route path="settings" element={<SettingsPage />} />
           </Route>
         </Route>
+
+        {/*
+          Public on purpose: it exists to finish a signup before there is an
+          account to sign in with. The backend only serves the underlying
+          endpoint when the development mail provider is active.
+        */}
+        <Route path="/dev/mailbox" element={<DevMailboxPage />} />
 
         <Route path="/404" element={<NotFoundPage />} />
         <Route path="*" element={<Navigate replace to="/404" />} />

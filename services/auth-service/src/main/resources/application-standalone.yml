@@ -72,6 +72,17 @@ security:
     issuer: DevForge AI (standalone)
 
 devforge:
+  auth:
+    # Off here so a new account can sign in straight away. Nothing then proves
+    # the registrant owns the address, which is why the base profile keeps it on.
+    require-email-verification: ${DEVFORGE_REQUIRE_EMAIL_VERIFICATION:false}
+  mail:
+    # Captures mail instead of sending it, and exposes it at
+    # /api/v1/dev/mailbox so the verification link is reachable from the
+    # browser. Set DEVFORGE_MAIL_PROVIDER=smtp with MAIL_* configured to send
+    # real mail from this profile instead.
+    provider: ${DEVFORGE_MAIL_PROVIDER:log}
+    dev-mailbox-enabled: ${DEVFORGE_DEV_MAILBOX_ENABLED:true}
   app:
     base-url: http://localhost:4173
   kafka:

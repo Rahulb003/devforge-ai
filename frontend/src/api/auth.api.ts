@@ -86,6 +86,23 @@ export interface MfaEnrolmentChallenge {
   provisioningUri: string;
 }
 
+/**
+ * A message the development mail provider captured instead of sending.
+ * Only available when the backend runs with devforge.mail.provider=log.
+ */
+export interface DevMailMessage {
+  sentAt: string;
+  to: string;
+  subject: string;
+  body: string;
+  actionUrl: string;
+}
+
+export const devMailApi = {
+  list: () => api.get<ApiEnvelope<DevMailMessage[]>>('/dev/mailbox'),
+  clear: () => api.delete<ApiEnvelope<void>>('/dev/mailbox'),
+};
+
 export const authApi = {
   signup: (data: SignupData) => api.post<ApiEnvelope<UserProfile>>('/auth/signup', data),
 

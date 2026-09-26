@@ -71,6 +71,16 @@ logging:
     org.flywaydb: INFO
 
 devforge:
+  auth:
+    # Kept on: the integration tests assert that login is refused before
+    # verification, which is the behaviour a production deployment has.
+    require-email-verification: true
+  mail:
+    # Tests mock EmailService, so neither provider is exercised.
+    provider: log
+    dev-mailbox-enabled: false
+  app:
+    base-url: http://localhost:4173
   kafka:
     # No broker in the test environment.
     enabled: false
