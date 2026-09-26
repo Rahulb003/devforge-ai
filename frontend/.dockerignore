@@ -1,0 +1,18 @@
+# The frontend image builds with ./frontend as its context, so the repository
+# root .dockerignore does not apply here. Without this file, node_modules and
+# dist would be sent to the daemon and then copied over the image's own
+# `npm ci` output by `COPY . .`.
+node_modules
+dist
+coverage
+.vite
+
+# Never ship real environment files into an image layer.
+.env
+.env.*
+!.env.example
+
+Dockerfile
+.dockerignore
+*.log
+.DS_Store

@@ -1,12 +1,47 @@
+# Build context for the root Dockerfile (all JVM services).
+# Keeping this tight matters: everything listed here is uploaded to the Docker
+# daemon on every build.
+
+# Build output — the image builds its own.
+**/target
+**/dist
+**/build
 node_modules
-dist
-target
+frontend/node_modules
+frontend/dist
+
+# Version control and CI metadata.
+.git
+.gitignore
+.gitattributes
+.github
+
+# Secrets must never enter a build context: anything copied into a layer is
+# recoverable from the image, even if a later layer deletes it.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.jks
+
+# Local tooling and editor state.
+.idea
+.vscode
+*.iml
 *.log
 *.tmp
 *.swp
 .DS_Store
-.git
-.gitignore
-frontend/node_modules
-frontend/dist
-**/target
+Thumbs.db
+
+# Docs and scripts are not needed to compile the services.
+docs
+scripts
+infrastructure
+monitoring
+README.md
+
+# The frontend has its own image and its own context.
+frontend

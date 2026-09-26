@@ -2,15 +2,24 @@ services:
   frontend:
     build:
       context: ./frontend
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api/v1}
     ports:
-      - 80:80
+      # The container listens on 8080: the image runs as a non-root user and
+      # cannot bind a privileged port.
+      - ${FRONTEND_PORT:-4173}:8080
     depends_on:
       - api-gateway
 
   api-gateway:
     build:
       context: .
-      dockerfile: api-gateway/Dockerfile
+      dockerfile: Dockerfile
+      target: service
+      args:
+        MODULE_PATH: api-gateway
+        ARTIFACT_ID: api-gateway
+        SERVICE_PORT: "8080"
     ports:
       - 8080:8080
     depends_on:
@@ -20,21 +29,36 @@ services:
   config-server:
     build:
       context: .
-      dockerfile: config-server/Dockerfile
+      dockerfile: Dockerfile
+      target: service
+      args:
+        MODULE_PATH: config-server
+        ARTIFACT_ID: config-server
+        SERVICE_PORT: "8888"
     ports:
       - 8888:8888
 
   discovery-server:
     build:
       context: .
-      dockerfile: discovery-server/Dockerfile
+      dockerfile: Dockerfile
+      target: service
+      args:
+        MODULE_PATH: discovery-server
+        ARTIFACT_ID: discovery-server
+        SERVICE_PORT: "8761"
     ports:
       - 8761:8761
 
   auth-service:
     build:
       context: .
-      dockerfile: services/auth-service/Dockerfile
+      dockerfile: Dockerfile
+      target: service
+      args:
+        MODULE_PATH: services/auth-service
+        ARTIFACT_ID: auth-service
+        SERVICE_PORT: "9001"
     ports:
       - 9001:9001
     environment:
@@ -69,7 +93,12 @@ services:
   project-service:
     build:
       context: .
-      dockerfile: services/project-service/Dockerfile
+      dockerfile: Dockerfile
+      target: service
+      args:
+        MODULE_PATH: services/project-service
+        ARTIFACT_ID: project-service
+        SERVICE_PORT: "9002"
     ports:
       - 9002:9002
     environment:
@@ -86,7 +115,12 @@ services:
   task-service:
     build:
       context: .
-      dockerfile: services/task-service/Dockerfile
+      dockerfile: Dockerfile
+      target: service
+      args:
+        MODULE_PATH: services/task-service
+        ARTIFACT_ID: task-service
+        SERVICE_PORT: "9003"
     ports:
       - 9003:9003
     environment:
@@ -103,7 +137,12 @@ services:
   ai-service:
     build:
       context: .
-      dockerfile: services/ai-service/Dockerfile
+      dockerfile: Dockerfile
+      target: service
+      args:
+        MODULE_PATH: services/ai-service
+        ARTIFACT_ID: ai-service
+        SERVICE_PORT: "9004"
     ports:
       - 9004:9004
     environment:
@@ -120,7 +159,12 @@ services:
   git-service:
     build:
       context: .
-      dockerfile: services/git-service/Dockerfile
+      dockerfile: Dockerfile
+      target: service
+      args:
+        MODULE_PATH: services/git-service
+        ARTIFACT_ID: git-service
+        SERVICE_PORT: "9005"
     ports:
       - 9005:9005
     environment:
@@ -137,7 +181,12 @@ services:
   analytics-service:
     build:
       context: .
-      dockerfile: services/analytics-service/Dockerfile
+      dockerfile: Dockerfile
+      target: service
+      args:
+        MODULE_PATH: services/analytics-service
+        ARTIFACT_ID: analytics-service
+        SERVICE_PORT: "9010"
     ports:
       - 9006:9006
     environment:
@@ -154,7 +203,12 @@ services:
   chat-service:
     build:
       context: .
-      dockerfile: services/chat-service/Dockerfile
+      dockerfile: Dockerfile
+      target: service
+      args:
+        MODULE_PATH: services/chat-service
+        ARTIFACT_ID: chat-service
+        SERVICE_PORT: "9008"
     ports:
       - 9007:9007
     environment:
@@ -171,7 +225,12 @@ services:
   deployment-service:
     build:
       context: .
-      dockerfile: services/deployment-service/Dockerfile
+      dockerfile: Dockerfile
+      target: service
+      args:
+        MODULE_PATH: services/deployment-service
+        ARTIFACT_ID: deployment-service
+        SERVICE_PORT: "9009"
     ports:
       - 9008:9008
     environment:
@@ -188,7 +247,12 @@ services:
   documentation-service:
     build:
       context: .
-      dockerfile: services/documentation-service/Dockerfile
+      dockerfile: Dockerfile
+      target: service
+      args:
+        MODULE_PATH: services/documentation-service
+        ARTIFACT_ID: documentation-service
+        SERVICE_PORT: "9007"
     ports:
       - 9009:9009
     environment:
@@ -205,7 +269,12 @@ services:
   notification-service:
     build:
       context: .
-      dockerfile: services/notification-service/Dockerfile
+      dockerfile: Dockerfile
+      target: service
+      args:
+        MODULE_PATH: services/notification-service
+        ARTIFACT_ID: notification-service
+        SERVICE_PORT: "9011"
     ports:
       - 9010:9010
     environment:
@@ -222,7 +291,12 @@ services:
   review-service:
     build:
       context: .
-      dockerfile: services/review-service/Dockerfile
+      dockerfile: Dockerfile
+      target: service
+      args:
+        MODULE_PATH: services/review-service
+        ARTIFACT_ID: review-service
+        SERVICE_PORT: "9006"
     ports:
       - 9011:9011
     environment:

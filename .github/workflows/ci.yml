@@ -101,41 +101,64 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # Every backend Dockerfile runs `mvn -f backend/pom.xml -pl <module> -am`,
-      # which needs the WHOLE repository as build context (the reactor parent and
-      # common-library live outside each service directory). So the context is the
-      # repo root and the Dockerfile is selected with -f, rather than using the
-      # service directory as context.
+      # All JVM services share one root Dockerfile and one Maven build. The
+      # context is the repository root because the reactor parent and
+      # common-library live outside each service directory. The `build` stage is
+      # produced once and reused from cache by every subsequent service image.
+      - name: Warm the shared build stage
+        run: docker build --target build -t devforge-ai/build-cache .
+
       - name: Build backend images
         run: |
           set -euo pipefail
+          # name : module path : port
           modules=(
-            "api-gateway:api-gateway"
-            "config-server:config-server"
-            "discovery-server:discovery-server"
-            "auth-service:services/auth-service"
-            "project-service:services/project-service"
-            "task-service:services/task-service"
-            "ai-service:services/ai-service"
-            "git-service:services/git-service"
-            "review-service:services/review-service"
-            "documentation-service:services/documentation-service"
-            "chat-service:services/chat-service"
-            "deployment-service:services/deployment-service"
-            "analytics-service:services/analytics-service"
-            "notification-service:services/notification-service"
+            "api-gateway:api-gateway:8080"
+            "config-server:config-server:8888"
+            "discovery-server:discovery-server:8761"
+            "auth-service:services/auth-service:9001"
+            "project-service:services/project-service:9002"
+            "task-service:services/task-service:9003"
+            "ai-service:services/ai-service:9004"
+            "git-service:services/git-service:9005"
+            "review-service:services/review-service:9006"
+            "documentation-service:services/documentation-service:9007"
+            "chat-service:services/chat-service:9008"
+            "deployment-service:services/deployment-service:9009"
+            "analytics-service:services/analytics-service:9010"
+            "notification-service:services/notification-service:9011"
           )
           for entry in "${modules[@]}"; do
             name="${entry%%:*}"
-            path="${entry##*:}"
-            echo "::group::Building $name from $path/Dockerfile"
-            docker build -f "$path/Dockerfile" -t "devforge-ai/$name:${GITHUB_SHA}" .
+            rest="${entry#*:}"
+            path="${rest%%:*}"
+            port="${rest##*:}"
+            echo "::group::Building $name"
+            docker build --target service \
+              --build-arg "MODULE_PATH=$path" \
+              --build-arg "ARTIFACT_ID=$name" \
+              --build-arg "SERVICE_PORT=$port" \
+              -t "devforge-ai/$name:${GITHUB_SHA}" .
             echo "::endgroup::"
           done
 
       # The frontend image is self-contained, so its context is frontend/.
       - name: Build frontend image
         run: docker build -f frontend/Dockerfile -t "devforge-ai/frontend:${GITHUB_SHA}" frontend
+
+      # Fails the job if any image would run as root. The previous images all
+      # did; this keeps that from silently regressing.
+      - name: Verify images do not run as root
+        run: |
+          set -euo pipefail
+          for image in auth-service api-gateway frontend; do
+            user="$(docker image inspect -f '{{.Config.User}}' "devforge-ai/$image:${GITHUB_SHA}")"
+            echo "$image runs as: '${user:-<root>}'"
+            if [ -z "$user" ] || [ "$user" = "root" ] || [ "$user" = "0" ]; then
+              echo "::error::devforge-ai/$image runs as root"
+              exit 1
+            fi
+          done
 
       - name: Scan auth-service image
         uses: aquasecurity/trivy-action@0.28.0
