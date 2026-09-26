@@ -102,9 +102,15 @@ services:
     ports:
       - 9002:9002
     environment:
-      SPRING_PROFILES_ACTIVE: local
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-local}
       SPRING_CLOUD_CONFIG_URI: http://config-server:8888
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
+      DEVFORGE_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-devforge}
+      POSTGRES_USER: ${POSTGRES_USER:-devforge}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-devforge}
+      # Must match the key auth-service signs with, or every token is rejected.
+      DEVFORGE_JWT_SIGNING_KEY: ${DEVFORGE_JWT_SIGNING_KEY:-local-development-only-signing-key-change-me-0123456789abcdef}
+      DEVFORGE_JWT_ISSUER: ${DEVFORGE_JWT_ISSUER:-devforge-ai}
     depends_on:
       - config-server
       - discovery-server

@@ -5,10 +5,20 @@
     <groupId>com.devforge.ai</groupId>
     <artifactId>devforge-ai-root</artifactId>
     <version>0.1.0</version>
-    <relativePath>../../backend/pom.xml</relativePath>
+    <relativePath>../backend/pom.xml</relativePath>
   </parent>
-  <artifactId>project-service</artifactId>
+  <artifactId>common-security</artifactId>
+  <packaging>jar</packaging>
 
+  <!--
+    Deliberately a separate module rather than part of common-library.
+    common-library is on the classpath of every module, including
+    discovery-server and config-server, which have no API to protect. Putting
+    Spring Security there would apply a filter chain to those too, and making
+    it optional does not help: their component scan covers com.devforge.ai, so
+    the configuration classes would be picked up and fail to load without the
+    dependency present. Services that expose a protected API opt in instead.
+  -->
   <dependencies>
     <dependency>
       <groupId>org.springframework.boot</groupId>
@@ -16,33 +26,29 @@
     </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-actuator</artifactId>
+      <artifactId>spring-boot-starter-security</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-validation</artifactId>
+      <groupId>io.jsonwebtoken</groupId>
+      <artifactId>jjwt-api</artifactId>
+      <version>${jjwt.version}</version>
     </dependency>
     <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-data-jpa</artifactId>
+      <groupId>io.jsonwebtoken</groupId>
+      <artifactId>jjwt-impl</artifactId>
+      <version>${jjwt.version}</version>
+      <scope>runtime</scope>
     </dependency>
     <dependency>
-      <groupId>org.flywaydb</groupId>
-      <artifactId>flyway-core</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.flywaydb</groupId>
-      <artifactId>flyway-database-postgresql</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.postgresql</groupId>
-      <artifactId>postgresql</artifactId>
+      <groupId>io.jsonwebtoken</groupId>
+      <artifactId>jjwt-jackson</artifactId>
+      <version>${jjwt.version}</version>
       <scope>runtime</scope>
     </dependency>
     <dependency>
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>
-      <scope>provided</scope>
+      <optional>true</optional>
     </dependency>
     <dependency>
       <groupId>com.devforge.ai</groupId>
@@ -50,34 +56,14 @@
       <version>0.1.0</version>
     </dependency>
     <dependency>
-      <groupId>com.devforge.ai</groupId>
-      <artifactId>common-security</artifactId>
-      <version>0.1.0</version>
-    </dependency>
-
-    <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.springframework.security</groupId>
-      <artifactId>spring-security-test</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>com.h2database</groupId>
-      <artifactId>h2</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>
 
   <build>
     <plugins>
-      <plugin>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-maven-plugin</artifactId>
-      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>

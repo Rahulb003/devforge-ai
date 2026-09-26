@@ -1,0 +1,17 @@
+# project-service — LOCAL DEVELOPMENT ONLY.
+# Active only when SPRING_PROFILES_ACTIVE=local.
+spring:
+  datasource:
+    url: ${DEVFORGE_DB_URL:jdbc:postgresql://localhost:5432/devforge}
+    username: ${POSTGRES_USER:devforge}
+    password: ${POSTGRES_PASSWORD:devforge}
+
+security:
+  jwt:
+    # Development key, matching auth-service's local profile so tokens issued
+    # there verify here. Production supplies this from a secret manager.
+    signing-key: ${DEVFORGE_JWT_SIGNING_KEY:local-development-only-signing-key-change-me-0123456789abcdef}
+
+logging:
+  level:
+    com.devforge.ai: DEBUG

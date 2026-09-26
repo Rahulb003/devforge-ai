@@ -52,6 +52,23 @@ public class GlobalExceptionHandler {
   }
 
   /**
+   * A resource that does not exist, or that belongs to another tenant.
+   *
+   * <p>Both map to 404. Answering 403 for the second case would confirm the id is real and let a
+   * caller enumerate other tenants' resources.
+   */
+  @ExceptionHandler(ResourceNotFoundException.class)
+  public ResponseEntity<ApiError> handleNotFound(
+      ResourceNotFoundException ex, HttpServletRequest request) {
+    return build(HttpStatus.NOT_FOUND, ex.getMessage(), request, Collections.emptyList());
+  }
+
+  // AccessDeniedException is handled in common-security's SecurityExceptionHandler.
+  // It cannot live here: common-library is on the classpath of modules that have no
+  // Spring Security dependency, and a handler method referencing a missing class fails
+  // at advice-registration time.
+
+  /**
    * Caller-supplied arguments that failed a domain check (expired token, unknown value, ...).
    *
    * <p>These messages are written by us for the caller, so echoing them is intentional.

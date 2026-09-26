@@ -7,6 +7,7 @@
   <packaging>pom</packaging>
   <modules>
     <module>../common-library</module>
+    <module>../common-security</module>
     <module>../config-server</module>
     <module>../discovery-server</module>
     <module>../api-gateway</module>
@@ -27,6 +28,7 @@
     <spring.boot.version>3.4.0</spring.boot.version>
     <mapstruct.version>1.6.3</mapstruct.version>
     <springdoc.version>2.7.0</springdoc.version>
+    <jjwt.version>0.12.6</jjwt.version>
     <lombok.version>1.18.34</lombok.version>
     <maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
     <maven-surefire-plugin.version>3.2.5</maven-surefire-plugin.version>
@@ -64,6 +66,14 @@
           <version>${maven-compiler-plugin.version}</version>
           <configuration>
             <release>${java.version}</release>
+            <!--
+              Retain parameter names in the bytecode. spring-boot-starter-parent
+              sets this, but this reactor imports the BOM instead and so does not
+              inherit it. Without it Spring cannot infer the name of a
+              @PathVariable / @RequestParam argument and fails the request with
+              "parameter name information not available via reflection".
+            -->
+            <parameters>true</parameters>
           </configuration>
         </plugin>
         <plugin>
