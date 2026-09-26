@@ -13,7 +13,7 @@
 | Gate | Command | Result |
 |---|---|---|
 | Backend compile | `mvn -B -ntp -f backend/pom.xml clean compile` | **PASS** — all 16 modules |
-| Backend tests | `mvn -B -ntp -f backend/pom.xml clean test` | **PASS** — 55 tests, 0 failures |
+| Backend tests | `mvn -B -ntp -f backend/pom.xml clean test` | **PASS** — 87 tests, 0 failures |
 | Frontend install | `npm ci` (in `frontend/`) | **PASS** |
 | Frontend lint | `npm run lint` | **PASS** — 0 errors, 0 warnings |
 | Frontend tests | `npm test` | **PASS** — 3 tests |
@@ -127,8 +127,10 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 | Auth: entities, repositories, migrations | `IMPLEMENTED` | V1/V2 migrations run; `ddl-auto: validate` passes |
 | Auth: JWT issue/verify | `IMPLEMENTED` | Verified end-to-end; token-type confusion covered by tests in both directions |
 | Auth: signup/verify/login/refresh/logout/reset | `IMPLEMENTED` | 15 integration tests against the real filter chain and migrated schema. **All five paths were broken before these tests existed** — see commit `093d648` |
-| Auth: OAuth | `SCAFFOLDED` | `CustomOAuth2UserService` delegates to the default and persists nothing |
-| Auth: MFA/TOTP, session management, rate limiting, account lockout | `MISSING` | No code |
+| Auth: OAuth | `IMPLEMENTED` | Links on verified email only, provisions new accounts, persists provider identity. **UNVERIFIED end-to-end** — needs real provider credentials |
+| Auth: MFA/TOTP | `IMPLEMENTED` | RFC 6238 verified against published vectors; two-step enrolment, recovery codes, throttled |
+| Auth: per-device sessions | `IMPLEMENTED` | List/revoke/revoke-others; 7 tests |
+| Auth: rate limiting | `IMPLEMENTED` | Per-account rolling window on password and MFA attempts |
 | RBAC enforcement | `PARTIALLY_IMPLEMENTED` | Enforced in project-service (org + project roles, server-side, membership-derived). Other services remain skeletons. |
 | Multi-tenancy / organizations | `IMPLEMENTED` | Organizations, members, projects, project members; 23 tenant-isolation/IDOR tests |
 | API gateway routing | `MISSING` | — |
@@ -145,8 +147,8 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 2. ~~Auth integration tests~~ **DONE** (commit `093d648`, 15 tests).
 3. ~~Phase 0 §16 secrets/config~~ **DONE** (commit `b49d7f7`).
 4. ~~Phase 0 §15 Dockerfile hardening~~ **DONE** (commit `8e27355`, UNVERIFIED — no Docker here).
-5. Phase 1: ~~refresh-token rotation, login throttling, audit trail~~ **DONE** (commit `5adfb5b`). Still missing: **MFA/TOTP**, per-device sessions, and real OAuth account persistence.
-6. ~~RBAC enforcement~~ **DONE** (commit `4d6caa7`): enforced in project-service via membership-derived checks + `@PreAuthorize`. **NEXT:** Phase 2 (Kafka + event envelope + outbox), then Phase 4 (tasks/sprints). — `@EnableMethodSecurity` is on but **no endpoint carries an authorization annotation**, so RBAC is currently decorative.
+5. ~~Phase 1~~ **COMPLETE** (commits `5adfb5b`, `aa6713a`): rotation, throttling, audit trail, MFA/TOTP, per-device sessions, OAuth persistence. OAuth remains UNVERIFIED without provider credentials.
+6. ~~RBAC enforcement~~ **DONE** (commit `4d6caa7`): enforced in project-service via membership-derived checks + `@PreAuthorize`. **NEXT:** Phase 2 (Kafka + event envelope + outbox, and the RabbitMQ keep/remove decision), then Phase 4 (tasks/sprints). — `@EnableMethodSecurity` is on but **no endpoint carries an authorization annotation**, so RBAC is currently decorative.
 7. Then Phase 2 (Kafka), including the RabbitMQ keep/remove decision required by §18.
 
 ---
