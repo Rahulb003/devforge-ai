@@ -48,6 +48,11 @@ data/
 *.mv.db
 *.trace.db
 
+# ---- Playwright ----
+frontend/playwright-report/
+frontend/test-results/
+frontend/blob-report/
+
 # ---- Logs / temp ----
 *.log
 logs/

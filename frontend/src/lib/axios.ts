@@ -37,10 +37,38 @@ api.interceptors.request.use(
   (error) => Promise.reject(error),
 );
 
+/**
+ * Endpoints where a 401 is a legitimate answer rather than an expired session.
+ *
+ * Refreshing on these is actively harmful: a wrong password made the
+ * interceptor attempt a refresh, fail, clear storage and hard-redirect to
+ * /login. The full page load discarded the error the form had just set, so the
+ * user saw an empty form reload with no explanation of what went wrong.
+ */
+const NO_REFRESH_PATHS = [
+  '/auth/login',
+  '/auth/login/mfa',
+  '/auth/signup',
+  '/auth/refresh',
+  '/auth/forgot-password',
+  '/auth/reset-password',
+  '/auth/verify-email',
+];
+
+function isAuthAttempt(url: string | undefined): boolean {
+  if (!url) return false;
+  return NO_REFRESH_PATHS.some((path) => url.includes(path));
+}
+
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+
+    if (isAuthAttempt(originalRequest?.url)) {
+      // Hand it straight back so the form can show what happened.
+      return Promise.reject(error);
+    }
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       if (isRefreshing) {
