@@ -98,10 +98,13 @@ public class AuthService {
 
     userRepository.save(user);
 
-    // The verification mail is sent either way, so the link keeps working and the
-    // development mailbox still shows the message. When verification is not required
-    // it simply is not a gate on signing in.
-    sendVerificationEmail(user);
+    if (requireEmailVerification) {
+      sendVerificationEmail(user);
+    } else {
+      // No verification step at all: sending a link the account does not need would
+      // only invite the user to click something that changes nothing.
+      emailService.sendWelcomeEmail(user.getEmail());
+    }
     // Staged in this same transaction: the event and the user row commit together.
     identityEventPublisher.userRegistered(user);
     return user;

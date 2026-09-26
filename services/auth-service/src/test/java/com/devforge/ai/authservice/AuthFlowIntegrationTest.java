@@ -193,6 +193,34 @@ class AuthFlowIntegrationTest {
   }
 
   @Test
+  @DisplayName("login accepts the email address, not only the username")
+  void loginWorksWithEmailAddress() throws Exception {
+    signup();
+    verifyEmail();
+
+    // The field is called usernameOrEmail and the form offers both, but the email
+    // branch did not exist: anyone who typed their address was told their
+    // credentials were invalid while using the correct password.
+    var body = objectMapper.writeValueAsString(
+        java.util.Map.of("usernameOrEmail", EMAIL, "password", PASSWORD));
+    mockMvc.perform(post(LOGIN).contentType(MediaType.APPLICATION_JSON).content(body))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.accessToken").isNotEmpty());
+  }
+
+  @Test
+  @DisplayName("login by email is case-insensitive")
+  void loginByEmailIgnoresCase() throws Exception {
+    signup();
+    verifyEmail();
+
+    var body = objectMapper.writeValueAsString(
+        java.util.Map.of("usernameOrEmail", EMAIL.toUpperCase(), "password", PASSWORD));
+    mockMvc.perform(post(LOGIN).contentType(MediaType.APPLICATION_JSON).content(body))
+        .andExpect(status().isOk());
+  }
+
+  @Test
   @DisplayName("a wrong password is rejected")
   void wrongPasswordRejected() throws Exception {
     signup();

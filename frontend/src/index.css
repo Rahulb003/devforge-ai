@@ -82,3 +82,15 @@
     @apply bg-gradient-to-r from-blue-400 to-violet-400 bg-clip-text text-transparent;
   }
 }
+
+
+/*
+  Edge and Chrome render their own password reveal control inside the field.
+  With our own toggle button that produced two eye icons side by side, and the
+  native one sits under our absolutely-positioned button. Suppressing it leaves
+  a single, keyboard-accessible control with a proper accessible name.
+*/
+input[type='password']::-ms-reveal,
+input[type='password']::-ms-clear {
+  display: none;
+}

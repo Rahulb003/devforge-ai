@@ -95,15 +95,23 @@ class SignupWithoutVerificationTest {
   }
 
   @Test
-  @DisplayName("the verification email is still produced")
-  void verificationMailIsStillSent() throws Exception {
+  @DisplayName("no verification email is produced, because there is nothing to verify")
+  void noVerificationMailIsSent() throws Exception {
     signup();
 
-    // Kept on purpose: the link still works, and the development mailbox still has
-    // something to show. It is simply no longer a gate on signing in.
-    Mockito.verify(emailService)
-        .sendEmailVerification(ArgumentMatchers.eq(EMAIL), ArgumentMatchers.anyString());
-    assertThat(emailVerificationTokenRepository.findAll()).hasSize(1);
+    // Sending a verification link for an account that is already active would only
+    // invite the user to click something that changes nothing.
+    Mockito.verify(emailService, Mockito.never())
+        .sendEmailVerification(ArgumentMatchers.anyString(), ArgumentMatchers.anyString());
+    assertThat(emailVerificationTokenRepository.findAll()).isEmpty();
+  }
+
+  @Test
+  @DisplayName("a welcome email is produced instead")
+  void welcomeMailIsSent() throws Exception {
+    signup();
+
+    Mockito.verify(emailService).sendWelcomeEmail(ArgumentMatchers.eq(EMAIL));
   }
 
   @Test
