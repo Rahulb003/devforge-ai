@@ -82,12 +82,13 @@ services:
       DEVFORGE_JWT_SIGNING_KEY: ${DEVFORGE_JWT_SIGNING_KEY:-local-development-only-signing-key-change-me-0123456789abcdef}
       DEVFORGE_COOKIE_SECURE: ${DEVFORGE_COOKIE_SECURE:-false}
       DEVFORGE_COOKIE_SAME_SITE: ${DEVFORGE_COOKIE_SAME_SITE:-Lax}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
     depends_on:
       - config-server
       - discovery-server
       - postgres
       - redis
-      - rabbitmq
+      - kafka
       - mailpit
 
   project-service:
@@ -111,12 +112,13 @@ services:
       # Must match the key auth-service signs with, or every token is rejected.
       DEVFORGE_JWT_SIGNING_KEY: ${DEVFORGE_JWT_SIGNING_KEY:-local-development-only-signing-key-change-me-0123456789abcdef}
       DEVFORGE_JWT_ISSUER: ${DEVFORGE_JWT_ISSUER:-devforge-ai}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
     depends_on:
       - config-server
       - discovery-server
       - postgres
       - redis
-      - rabbitmq
+      - kafka
 
   task-service:
     build:
@@ -138,7 +140,7 @@ services:
       - discovery-server
       - postgres
       - redis
-      - rabbitmq
+      - kafka
 
   ai-service:
     build:
@@ -160,7 +162,7 @@ services:
       - discovery-server
       - postgres
       - redis
-      - rabbitmq
+      - kafka
 
   git-service:
     build:
@@ -182,7 +184,7 @@ services:
       - discovery-server
       - postgres
       - redis
-      - rabbitmq
+      - kafka
 
   analytics-service:
     build:
@@ -204,7 +206,7 @@ services:
       - discovery-server
       - postgres
       - redis
-      - rabbitmq
+      - kafka
 
   chat-service:
     build:
@@ -226,7 +228,7 @@ services:
       - discovery-server
       - postgres
       - redis
-      - rabbitmq
+      - kafka
 
   deployment-service:
     build:
@@ -248,7 +250,7 @@ services:
       - discovery-server
       - postgres
       - redis
-      - rabbitmq
+      - kafka
 
   documentation-service:
     build:
@@ -270,7 +272,7 @@ services:
       - discovery-server
       - postgres
       - redis
-      - rabbitmq
+      - kafka
 
   notification-service:
     build:
@@ -292,7 +294,7 @@ services:
       - discovery-server
       - postgres
       - redis
-      - rabbitmq
+      - kafka
 
   review-service:
     build:
@@ -314,7 +316,7 @@ services:
       - discovery-server
       - postgres
       - redis
-      - rabbitmq
+      - kafka
 
   postgres:
     image: postgres:15
@@ -332,14 +334,49 @@ services:
     ports:
       - 6379:6379
 
-  rabbitmq:
-    image: rabbitmq:3-management
-    environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-rabbitmq}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-rabbitmq}
+  # Kafka in KRaft mode: no ZooKeeper, which removes a whole component from the
+  # local stack and from operations.
+  kafka:
+    image: confluentinc/cp-kafka:7.7.1
     ports:
-      - 5672:5672
-      - 15672:15672
+      - 9092:9092
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,CONTROLLER://0.0.0.0:29093,PLAINTEXT_HOST://0.0.0.0:9092
+      # Services inside the network reach kafka:29092; the host uses localhost:9092.
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      # Single broker locally, so replication cannot exceed 1.
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      # Off in production: a typo in a topic name would otherwise silently create
+      # a new topic instead of failing.
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      CLUSTER_ID: devforge-local-cluster
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+
+  # Web UI for inspecting topics, consumer lag and dead-letter contents.
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    ports:
+      - 8090:8080
+    environment:
+      KAFKA_CLUSTERS_0_NAME: devforge-local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+      DYNAMIC_CONFIG_ENABLED: "true"
+    depends_on:
+      - kafka
 
   prometheus:
     image: prom/prometheus:latest
@@ -366,3 +403,4 @@ services:
 
 volumes:
   postgres-data:
+  kafka-data:

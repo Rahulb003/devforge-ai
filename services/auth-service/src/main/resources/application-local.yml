@@ -5,6 +5,8 @@
 # populating .env. None of these values is safe anywhere else, and none of
 # them is reachable from the prod or staging profiles.
 spring:
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
   datasource:
     url: ${DEVFORGE_DB_URL:jdbc:postgresql://localhost:5432/devforge}
     username: ${POSTGRES_USER:devforge}
@@ -28,6 +30,7 @@ spring:
     properties:
       hibernate:
         format_sql: true
+
 
 security:
   jwt:

@@ -39,6 +39,7 @@ public class MfaService {
   private final TotpService totpService;
   private final PasswordEncoder passwordEncoder;
   private final AuditService auditService;
+  private final com.devforge.ai.authservice.events.IdentityEventPublisher identityEventPublisher;
 
   @Value("${security.mfa.issuer:DevForge AI}")
   private String issuer;
@@ -100,6 +101,7 @@ public class MfaService {
 
     var codes = regenerateBackupCodes(user);
     auditService.record(user, "MFA_ENABLED", null, "TOTP enrolment confirmed.");
+    identityEventPublisher.mfaEnabled(user);
     log.info("MFA enabled for user {}", userId);
     return new BackupCodes(codes);
   }
@@ -128,6 +130,7 @@ public class MfaService {
     backupCodeRepository.deleteByUser(user);
 
     auditService.record(user, "MFA_DISABLED", null, "TOTP disabled by user.");
+    identityEventPublisher.mfaDisabled(user);
     log.info("MFA disabled for user {}", userId);
   }
 

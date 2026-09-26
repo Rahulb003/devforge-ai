@@ -1,0 +1,220 @@
+# DevForge AI — Event Catalog
+
+**Last updated:** 2026-09-26
+**Transport:** Apache Kafka (KRaft mode, no ZooKeeper)
+**Status:** envelope, outbox and idempotency `IMPLEMENTED` and tested. Publication to a live broker
+is `UNVERIFIED` — no Docker daemon in the development environment, so no broker has been run.
+
+---
+
+## 1. Why Kafka, and why RabbitMQ was removed
+
+RabbitMQ was declared in `auth-service/pom.xml`, `docker-compose.yml`, the Kubernetes manifests and
+`.env.example`, but had **zero lines of Java using it** — no `RabbitTemplate`, no `@RabbitListener`,
+no exchange or queue declarations. It was infrastructure nobody called.
+
+§18 asks for a justification to keep it. There is none: DevForge's messaging needs are domain event
+streaming (many independent consumers, replayable history, ordered per tenant), which is Kafka's
+model. RabbitMQ's advantage is competing-consumer work distribution with per-message
+acknowledgement, and nothing here needs that today. Keeping both would mean operating two brokers
+and teaching every contributor which to use.
+
+It has been removed from all five places. If a genuine work-queue requirement appears later
+(for example dispatching sandboxed code-execution jobs, §37), that is the point to reconsider —
+and the decision should be recorded here.
+
+---
+
+## 2. Envelope
+
+Every event, on every topic, uses one shape. Defined in
+`common-events/.../EventEnvelope.java`.
+
+```json
+{
+  "eventId": "6f1c...",
+  "eventType": "UserRegistered",
+  "version": 1,
+  "timestamp": "2026-09-26T10:15:30Z",
+  "source": "auth-service",
+  "tenantId": null,
+  "actorId": "a71f...",
+  "correlationId": "req-8821",
+  "payload": { }
+}
+```
+
+| Field | Notes |
+|---|---|
+| `eventId` | Unique per event; **the consumer deduplication key**. Never reused, including across publish retries. |
+| `eventType` | From `EventTypes`. Constants, not literals — a typo in a producer or a consumer filter is otherwise a silent no-op. |
+| `version` | Payload schema version. See §6. |
+| `timestamp` | When the event *occurred*, not when it was published. Those differ whenever the outbox lags. |
+| `source` | Emitting service, from `spring.application.name`. If unset, events are stamped `unknown-service` and become untraceable. |
+| `tenantId` | Owning organization, or null for platform-level events. **Consumers must treat this as the authorization boundary.** |
+| `actorId` | User who caused the event; null for system-initiated. |
+| `correlationId` | Read from MDC, ties an event back to the HTTP request that caused it. |
+| `payload` | Event-specific. **Never credentials** — see §7. |
+
+Unknown envelope fields are ignored on read, so a producer on a newer version can add fields
+without breaking older consumers. That plus `version` is what makes rolling deploys survivable.
+
+**Partition key** is `tenantId` when present, else `eventId`. All of one organization's events
+therefore land on one partition and are consumed in order. Ordering *across* tenants is not
+guaranteed and is not needed.
+
+---
+
+## 3. Topics
+
+Grouped by bounded context, not one topic per event type — a topic per type multiplies partitions
+and consumer groups for no ordering benefit.
+
+| Topic | Contents |
+|---|---|
+| `devforge.identity.v1` | User lifecycle: registration, verification, password and MFA changes |
+| `devforge.projects.v1` | Organizations, projects, membership |
+| `devforge.tasks.v1` | Tasks and sprints (Phase 4, not yet produced) |
+| `devforge.security.v1` | Security signals other services act on |
+| `devforge.notifications.v1` | Notification fan-out (Phase 12, not yet produced) |
+
+Dead-letter topics are the topic name plus `.dlt`, e.g. `devforge.identity.v1.dlt`.
+
+The `.v1` suffix is deliberate: a breaking payload change ships as a **new topic** that old and new
+consumers can straddle, rather than an in-place change that breaks whoever deploys second.
+
+---
+
+## 4. Events
+
+### Produced today (`auth-service`)
+
+| Event | Topic | Payload | Trigger |
+|---|---|---|---|
+| `UserRegistered` | identity | `userId`, `username`, `email`, `status`, `emailVerified` | Signup succeeds |
+| `UserVerified` | identity | `userId`, `email` | Email verification token accepted |
+| `UserPasswordReset` | identity | `userId` | Password changed via reset token |
+| `UserMfaEnabled` | identity | `userId` | TOTP enrolment confirmed |
+| `UserMfaDisabled` | identity | `userId` | MFA turned off |
+| `RefreshTokenReuseDetected` | security | `userId`, `action` | A rotated refresh token was replayed; all sessions revoked |
+
+### Declared, not yet produced
+
+`OrganizationCreated`, `OrganizationDeleted`, `ProjectCreated`, `ProjectUpdated`,
+`ProjectArchived`, `ProjectDeleted`, `ProjectMemberAdded`, `ProjectMemberRemoved`,
+`UserLoggedIn`, `SecurityIssueDetected`.
+
+Constants exist in `EventTypes`; project-service does not yet stage them. Listing them here without
+that caveat would be documenting intent as implementation.
+
+---
+
+## 5. Reliability
+
+### Transactional outbox
+
+```
+business transaction
+  ├── state change      ──┐
+  └── outbox_events row ──┘  commit together
+                     ↓
+            OutboxPublisher (polls)
+                     ↓
+                   Kafka
+```
+
+Publishing inline has two failure modes, and the outbox removes both: an event lost when the broker
+is briefly unavailable *after* a successful commit, and an event announcing a change that was then
+rolled back. `OutboxEventRecorder` is `Propagation.MANDATORY`, so calling it without a transaction
+fails loudly rather than silently degrading to the inline behaviour.
+
+The publisher polls rather than reacting to commits, because the poll is what makes it crash-safe:
+anything staged but unsent is picked up on the next tick, including after the process died
+mid-publish.
+
+`claimUnpublished` uses `FOR UPDATE SKIP LOCKED`. **This is what makes multiple replicas safe** —
+without it every instance races to publish the same rows and duplicates every event. H2 does not
+support it, so tests set `devforge.outbox.use-skip-locked=false`; it must stay `true` in production.
+
+### Delivery guarantee
+
+**At-least-once.** A crash between a successful send and the row being marked published resends.
+Marking first and sending after would silently *drop* events, which is strictly worse than a
+duplicate a consumer can detect.
+
+### Idempotent consumers
+
+`processed_events` is keyed on `(eventId, consumerGroup)` — composite so two consumer groups each
+process an event once. `IdempotentEventProcessor` writes the marker **in the same transaction as
+the handler**, so a failing handler rolls the marker back and the event retries. Recording
+completion first would turn any handler failure into a permanently skipped event.
+
+Retention of these markers must comfortably exceed the topic's own retention. If a marker is pruned
+while the event can still be redelivered, duplicate protection silently lapses.
+
+### Retry and dead-lettering
+
+Consumers use exponential backoff (1s → 30s, capped at 2 minutes total), then publish to the
+topic's `.dlt`. The bound matters: unbounded retry on a poison message **blocks its partition**, so
+one bad event stalls every event behind it.
+
+Deserialization and payload-shape failures can never succeed on retry, so they bypass the backoff
+and dead-letter immediately.
+
+### Producer settings
+
+`acks=all`, `enable.idempotence=true`, `max.in.flight=5`, unbounded retries within a 120s delivery
+timeout. `acks=1` would lose events on a leader failover *after* the outbox had already marked them
+published.
+
+---
+
+## 6. Schema evolution
+
+| Change | How |
+|---|---|
+| Add an optional payload field | In place. Consumers ignore unknown fields. |
+| Add a required field | New `version`, with consumers handling both until producers have all moved. |
+| Remove or retype a field | **Breaking.** New topic (`.v2`), consumers migrated, then the old topic retired. |
+| Rename an event type | New constant; emit both during transition. |
+
+JSON with an explicit `version` is deliberate rather than Avro or Protobuf with a Schema Registry.
+A registry is another service to run, secure and back up, and §23 warns against introducing it for
+complexity alone. Revisit when cross-language consumers or payload size make it pay for itself.
+
+---
+
+## 7. Security
+
+- **No credentials in payloads, ever.** An event is copied to every consumer and retained by its
+  topic, so anything in a payload is effectively broadcast and persisted. Password hashes, tokens,
+  TOTP secrets and recovery codes are excluded; a test asserts the signup payload contains neither
+  the password nor its hash.
+- **`tenantId` is an authorization boundary.** A consumer must not widen it — reading an event for
+  tenant A must never produce a write visible to tenant B.
+- The local broker is `PLAINTEXT` with no authentication. Production needs TLS plus SASL and
+  per-service ACLs; that is **not yet configured** and is tracked in `docs/PROGRESS.md`.
+- `auto.create.topics.enable` is **false** in Kubernetes, so a typo in a topic name fails loudly
+  instead of silently creating a topic nobody consumes. It is `true` in local Compose for
+  convenience.
+
+---
+
+## 8. Verification status
+
+| Behaviour | Status |
+|---|---|
+| Envelope construction, validation, partition key | **Verified** — unit tested |
+| Event staged atomically with the state change | **Verified** — rollback leaves no event |
+| Recording without a transaction is refused | **Verified** |
+| Payload carries no credential material | **Verified** |
+| Duplicate handled once per consumer group | **Verified** |
+| Failing handler leaves the event retryable | **Verified** |
+| Publication to a real broker | **UNVERIFIED** — needs Docker/Testcontainers |
+| Retry, backoff and dead-lettering in practice | **UNVERIFIED** — needs a broker |
+| `SKIP LOCKED` behaviour with concurrent publishers | **UNVERIFIED** — needs PostgreSQL |
+| Consumer lag, rebalance and replay | **UNVERIFIED** |
+
+No consumers exist yet. Producing is wired end-to-end through the outbox; the consuming side is
+configured (error handler, DLT routing, idempotency) but nothing subscribes until Phase 12
+(notifications) and Phase 14 (analytics).

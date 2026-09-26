@@ -21,8 +21,7 @@ data:
   REDIS_HOST: redis.devforge-ai.svc.cluster.local
   REDIS_PORT: "6379"
 
-  RABBITMQ_HOST: rabbitmq.devforge-ai.svc.cluster.local
-  RABBITMQ_PORT: "5672"
+  KAFKA_BOOTSTRAP_SERVERS: kafka.devforge-ai.svc.cluster.local:9092
 
   DEVFORGE_JWT_ISSUER: devforge-ai
   DEVFORGE_JWT_ACCESS_TTL: 15m

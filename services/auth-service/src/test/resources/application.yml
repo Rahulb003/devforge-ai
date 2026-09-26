@@ -12,6 +12,12 @@ server:
   port: 0
 
 spring:
+  application:
+    # Stamped into every event envelope as "source". Without it, events are
+    # attributed to "unknown-service" and become untraceable.
+    name: auth-service
+  kafka:
+    bootstrap-servers: localhost:9092
   datasource:
     url: jdbc:h2:mem:authdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
     username: sa
@@ -63,3 +69,14 @@ management:
 logging:
   level:
     org.flywaydb: INFO
+
+devforge:
+  kafka:
+    # No broker in the test environment.
+    enabled: false
+  outbox:
+    # The recorder still writes rows, which is what the outbox tests assert. The
+    # scheduled publisher is off because there is nothing to publish to.
+    enabled: false
+    # H2 does not support FOR UPDATE SKIP LOCKED.
+    use-skip-locked: false

@@ -25,6 +25,21 @@ spring:
     properties:
       hibernate:
         format_sql: false
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    consumer:
+      group-id: auth-service
+      # Never auto-commit: the offset must move only after the handler succeeded,
+      # or a crash mid-handler silently skips the event.
+      enable-auto-commit: false
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    listener:
+      ack-mode: record
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
   flyway:
     enabled: true
     locations: classpath:db/migration
@@ -70,6 +85,15 @@ security:
     cookie-same-site: ${DEVFORGE_COOKIE_SAME_SITE:Strict}
 
 devforge:
+  kafka:
+    enabled: ${DEVFORGE_KAFKA_ENABLED:true}
+  outbox:
+    enabled: ${DEVFORGE_OUTBOX_ENABLED:true}
+    poll-interval-ms: ${DEVFORGE_OUTBOX_POLL_MS:1000}
+    batch-size: ${DEVFORGE_OUTBOX_BATCH_SIZE:100}
+    # FOR UPDATE SKIP LOCKED. Required when more than one instance runs, or every
+    # replica publishes the same rows and duplicates each event.
+    use-skip-locked: ${DEVFORGE_OUTBOX_SKIP_LOCKED:true}
   app:
     base-url: ${DEVFORGE_APP_BASE_URL:https://app.devforge.ai}
   mail:
@@ -88,3 +112,4 @@ management:
   info:
     env:
       enabled: false
+

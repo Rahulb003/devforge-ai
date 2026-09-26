@@ -42,6 +42,7 @@ public class AuthService {
   private final PasswordEncoder passwordEncoder;
   private final JwtTokenProvider jwtTokenProvider;
   private final AuditService auditService;
+  private final com.devforge.ai.authservice.events.IdentityEventPublisher identityEventPublisher;
   private final SessionRevocationService sessionRevocationService;
 
   @Transactional
@@ -82,6 +83,8 @@ public class AuthService {
 
     userRepository.save(user);
     sendVerificationEmail(user);
+    // Staged in this same transaction: the event and the user row commit together.
+    identityEventPublisher.userRegistered(user);
     return user;
   }
 
@@ -110,6 +113,7 @@ public class AuthService {
     user.setStatus(AccountStatus.ACTIVE);
     userRepository.save(user);
     emailVerificationTokenRepository.delete(verification);
+    identityEventPublisher.userVerified(user);
   }
 
   /**
@@ -150,6 +154,7 @@ public class AuthService {
     user.setPasswordHash(passwordEncoder.encode(newPassword));
     userRepository.save(user);
     passwordResetTokenRepository.delete(reset);
+    identityEventPublisher.passwordReset(user);
   }
 
   @Transactional
@@ -345,9 +350,11 @@ public class AuthService {
       // revocation sharing that transaction would be rolled back by the throw.
       if (sessionRevocationService.revokeAllSessions(userId)) {
         log.warn("Refresh token reuse detected for user {}; revoked all sessions.", userId);
-        userRepository.findById(userId).ifPresent(user ->
-            auditService.record(user, AuditService.ACTION_TOKEN_REUSE_DETECTED, null,
-                "A refresh token was replayed after rotation. All sessions revoked."));
+        userRepository.findById(userId).ifPresent(user -> {
+          auditService.record(user, AuditService.ACTION_TOKEN_REUSE_DETECTED, null,
+              "A refresh token was replayed after rotation. All sessions revoked.");
+          identityEventPublisher.refreshTokenReuseDetected(user);
+        });
       }
       throw new IllegalArgumentException("Refresh token invalid");
     }
