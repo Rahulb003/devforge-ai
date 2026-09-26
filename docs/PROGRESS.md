@@ -13,7 +13,7 @@
 | Gate | Command | Result |
 |---|---|---|
 | Backend compile | `mvn -B -ntp -f backend/pom.xml clean compile` | **PASS** — all 16 modules |
-| Backend tests | `mvn -B -ntp -f backend/pom.xml clean test` | **PASS** — 1 test, 0 failures |
+| Backend tests | `mvn -B -ntp -f backend/pom.xml clean test` | **PASS** — 16 tests, 0 failures |
 | Frontend install | `npm ci` (in `frontend/`) | **PASS** |
 | Frontend lint | `npm run lint` | **PASS** — 0 errors, 0 warnings |
 | Frontend tests | `npm test` | **PASS** — 3 tests |
@@ -109,7 +109,7 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 
 | # | Issue | Severity | Notes |
 |---|---|---|---|
-| 1 | **The working directory is not a git repository.** `git status`/`git log` fail. There is no version control, no history, and no rollback. | **HIGH** | Every change so far is backed up to the session scratchpad. `git init` is strongly recommended before further work — this is a decision for the repo owner, so it has not been done unilaterally. |
+| 1 | ~~Not a git repository~~ **RESOLVED.** Repo initialised on `main` with `.gitignore` + `.gitattributes`; two commits so far. Note the commits are authored as the machine's global identity (`Rahulb003 <rbhowmik003@gmail.com>`), which may not be intended. | — | Change with `git config user.name` / `user.email` and amend if wrong. |
 | 2 | Placeholder secrets remain production-shaped: `changeme`, `smtp.example.com`, `change-this-to-a-very-secure-secret-key...` in `services/auth-service/src/main/resources/application.yml` and `infrastructure/kubernetes/secrets.yaml` | **HIGH** | Phase 0 §16 work, not yet done. No `.env.example` exists. |
 | 3 | Docker images unbuildable/unverifiable here; Dockerfiles still run as **root**, have no `HEALTHCHECK`, and each rebuilds the entire reactor | MEDIUM | Phase 0 §15 hardening outstanding. |
 | 4 | `api-gateway` is a plain `spring-boot-starter-web` app — not Spring Cloud Gateway, no routes, no filters | MEDIUM | Routing is entirely `MISSING`. |
@@ -125,8 +125,8 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 |---|---|---|
 | Backend build/reactor | `IMPLEMENTED` | 16/16 modules compile |
 | Auth: entities, repositories, migrations | `IMPLEMENTED` | V1/V2 migrations run; `ddl-auto: validate` passes |
-| Auth: JWT issue/verify | `PARTIALLY_IMPLEMENTED` | Compiles and is type-safe; **no test exercises an actual login round-trip yet** |
-| Auth: signup/login/refresh/reset endpoints | `PARTIALLY_IMPLEMENTED` | Controllers exist; behaviour unverified by tests |
+| Auth: JWT issue/verify | `IMPLEMENTED` | Verified end-to-end; token-type confusion covered by tests in both directions |
+| Auth: signup/verify/login/refresh/logout/reset | `IMPLEMENTED` | 15 integration tests against the real filter chain and migrated schema. **All five paths were broken before these tests existed** — see commit `093d648` |
 | Auth: OAuth | `SCAFFOLDED` | `CustomOAuth2UserService` delegates to the default and persists nothing |
 | Auth: MFA/TOTP, session management, rate limiting, account lockout | `MISSING` | No code |
 | RBAC enforcement | `SCAFFOLDED` | Roles exist; `@EnableMethodSecurity` on, but no `@PreAuthorize` anywhere |
@@ -141,11 +141,13 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 
 ## Next Task (exact)
 
-1. `git init` + initial commit (**needs owner's go-ahead**; see Known Issue 1) so subsequent phases have rollback.
-2. Finish Phase 0 §16: add `.env.example`, externalise every secret, remove placeholder production values, and split `local`/`dev`/`test`/`staging`/`prod` profiles.
-3. Finish Phase 0 §15: harden Dockerfiles — non-root user, `HEALTHCHECK`, and a shared build stage so 14 images do not each rebuild the whole reactor.
-4. Write a real auth integration test (signup → verify → login → refresh → logout) against the H2 profile before extending auth further. Phase 1 should not be declared complete on compile-only evidence.
-5. Then Phase 2 (Kafka), including the RabbitMQ keep/remove decision required by §18.
+1. ~~git init~~ **DONE** (commit `75548a6`).
+2. ~~Auth integration tests~~ **DONE** (commit `093d648`, 15 tests).
+3. Finish Phase 0 §16: add `.env.example`, externalise every secret, remove placeholder production values, and split `local`/`dev`/`test`/`staging`/`prod` profiles. **This is the next task.**
+4. Finish Phase 0 §15: harden Dockerfiles — non-root user, `HEALTHCHECK`, and a shared build stage so 14 images do not each rebuild the whole reactor.
+5. Remaining Phase 1 gaps before calling auth complete: MFA/TOTP, refresh-token **rotation** (currently one static token per user, replaced only on login), login throttling and account lockout, per-device sessions, and real OAuth account persistence. Wire `AuditLogEntity`/`LoginHistoryEntity`, which are mapped but never written to.
+6. Add `@PreAuthorize` enforcement — `@EnableMethodSecurity` is on but **no endpoint carries an authorization annotation**, so RBAC is currently decorative.
+7. Then Phase 2 (Kafka), including the RabbitMQ keep/remove decision required by §18.
 
 ---
 
@@ -159,6 +161,9 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 | AD-4 | OAuth2 login is wired conditionally | A platform that cannot boot without third-party credentials is not deployable locally or testable in CI. |
 | AD-5 | Access/refresh tokens separated by a `typ` claim | Prevents refresh-token replay as an access token. |
 | AD-6 | ESLint kept at 8.x | `.eslintrc.cjs` is eslint-8 format; moving to 9 requires a flat-config rewrite that is not Phase 0 work. |
+| AD-7 | Entities with `@UuidGenerator` must not have ids assigned in application code | Assigning one makes Hibernate treat the instance as detached, silently converting `persist()` into `merge()`. This broke signup and login. Entities using a plain assigned `@Id` (the token entities) still set ids explicitly. |
+| AD-8 | The catch-all exception handler returns a `traceId`, never the exception message | Echoing `ex.getMessage()` leaked raw Hibernate internals to clients. Details are logged server-side against the same id. |
+| AD-9 | The refresh cookie authenticates only at `/api/v1/auth/refresh` | An ambient cookie accepted as a bearer credential on every endpoint, with CSRF disabled, is a CSRF vector. |
 
 ---
 
