@@ -14,11 +14,13 @@ import com.devforge.ai.authservice.repository.PasswordResetTokenRepository;
 import com.devforge.ai.authservice.repository.RefreshTokenRepository;
 import com.devforge.ai.authservice.repository.RoleRepository;
 import com.devforge.ai.authservice.repository.UserRepository;
+import com.devforge.ai.authservice.dto.TokenPair;
 import com.devforge.ai.authservice.security.JwtTokenProvider;
 import com.devforge.ai.authservice.security.UserPrincipal;
 import jakarta.servlet.http.HttpServletResponse;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +41,8 @@ public class AuthService {
   private final EmailService emailService;
   private final PasswordEncoder passwordEncoder;
   private final JwtTokenProvider jwtTokenProvider;
+  private final AuditService auditService;
+  private final SessionRevocationService sessionRevocationService;
 
   @Transactional
   public UserEntity registerUser(String firstName, String lastName, String username, String email, String password, String organization) {
@@ -218,6 +222,26 @@ public class AuthService {
     refreshTokenRepository.save(refreshToken);
   }
 
+  /**
+   * Resolves a login identifier, which may be either a username or an email address.
+   *
+   * <p>Used to attribute a failed login to an account for throttling and auditing. The caller
+   * must not vary its response on whether this returns a user.
+   */
+  @Transactional(readOnly = true)
+  public Optional<UserEntity> findByUsernameOrEmail(String usernameOrEmail) {
+    if (usernameOrEmail == null || usernameOrEmail.isBlank()) {
+      return Optional.empty();
+    }
+    var byUsername = userRepository.findByUsernameIgnoreCase(usernameOrEmail);
+    return byUsername.isPresent() ? byUsername : userRepository.findByEmailIgnoreCase(usernameOrEmail);
+  }
+
+  @Transactional(readOnly = true)
+  public Optional<UserEntity> findById(UUID userId) {
+    return userRepository.findById(userId);
+  }
+
   // Cookie helpers only touch the HTTP response, so they deliberately carry no transaction.
   public void addRefreshCookie(HttpServletResponse response, String token) {
     jwtTokenProvider.addRefreshTokenCookie(response, token);
@@ -257,6 +281,66 @@ public class AuthService {
     return refreshTokenRepository.findByToken(token)
         .map(refreshToken -> !refreshToken.isRevoked() && refreshToken.getExpiresAt().isAfter(Instant.now()))
         .orElse(false);
+  }
+
+  /**
+   * Exchanges a refresh token for a new access token <em>and a new refresh token</em>.
+   *
+   * <p>Rotation matters: previously the same refresh token stayed valid for its full 14-day
+   * lifetime, so a single captured token gave an attacker two weeks of access with no way to
+   * detect or end it. Each exchange now invalidates the presented token.
+   *
+   * <p>Presenting a token that is cryptographically valid but no longer in the store means it was
+   * already exchanged — the hallmark of a stolen token being replayed, since the legitimate client
+   * would have moved on to its replacement. That cannot distinguish victim from thief, so the
+   * safe response is to revoke every session for the account and force a fresh login.
+   */
+  @Transactional
+  public TokenPair rotateRefreshToken(String presentedToken) {
+    if (!jwtTokenProvider.validateToken(presentedToken, JwtTokenProvider.TOKEN_TYPE_REFRESH)) {
+      throw new IllegalArgumentException("Refresh token invalid");
+    }
+
+    var userId = jwtTokenProvider.getUserIdFromToken(presentedToken);
+    var stored = refreshTokenRepository.findByToken(presentedToken);
+
+    if (stored.isEmpty()) {
+      // Revoked in its own transaction: this method throws immediately afterwards, and a
+      // revocation sharing that transaction would be rolled back by the throw.
+      if (sessionRevocationService.revokeAllSessions(userId)) {
+        log.warn("Refresh token reuse detected for user {}; revoked all sessions.", userId);
+        userRepository.findById(userId).ifPresent(user ->
+            auditService.record(user, AuditService.ACTION_TOKEN_REUSE_DETECTED, null,
+                "A refresh token was replayed after rotation. All sessions revoked."));
+      }
+      throw new IllegalArgumentException("Refresh token invalid");
+    }
+
+    var entity = stored.get();
+    if (entity.isRevoked() || entity.getExpiresAt().isBefore(Instant.now())) {
+      throw new IllegalArgumentException("Refresh token invalid");
+    }
+
+    var user = entity.getUser();
+    // A user disabled, locked or deleted since the token was issued must not be able to
+    // extend their session by refreshing.
+    if (user.getStatus() != AccountStatus.ACTIVE) {
+      refreshTokenRepository.deleteByUser(user);
+      throw new IllegalArgumentException("Refresh token invalid");
+    }
+
+    // Consume the presented token before issuing its replacement.
+    refreshTokenRepository.delete(entity);
+    refreshTokenRepository.flush();
+
+    var principal = UserPrincipal.fromEntity(user);
+    var authentication = new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+        principal, null, principal.getAuthorities());
+    var accessToken = jwtTokenProvider.createAccessToken(authentication);
+    var newRefreshToken = issueAndStoreRefreshToken(user.getId());
+
+    auditService.record(user, AuditService.ACTION_TOKEN_REFRESHED, null, "Refresh token rotated.");
+    return new TokenPair(accessToken, newRefreshToken);
   }
 
   @Transactional

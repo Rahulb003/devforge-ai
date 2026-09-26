@@ -34,6 +34,11 @@ spring:
     password: test
 
 security:
+  login:
+    # Brute-force protection: failures counted per account over a rolling window.
+    # Deliberately not a sticky lock, which would let anyone disable an account.
+    max-failed-attempts: ${DEVFORGE_LOGIN_MAX_FAILED:5}
+    failure-window: ${DEVFORGE_LOGIN_FAILURE_WINDOW:15m}
   jwt:
     issuer: devforge-ai-test
     access-token-ttl: 15m

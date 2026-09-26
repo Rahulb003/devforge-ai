@@ -10,7 +10,9 @@ import com.devforge.ai.authservice.dto.UserProfileResponse;
 import com.devforge.ai.authservice.entity.UserEntity;
 import com.devforge.ai.authservice.security.UserPrincipal;
 import com.devforge.ai.authservice.service.AuthService;
+import com.devforge.ai.authservice.service.AuditService;
 import com.devforge.ai.authservice.service.CustomUserDetailsService;
+import com.devforge.ai.authservice.service.LoginAttemptService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -44,6 +46,8 @@ public class AuthController {
   private final AuthenticationManager authenticationManager;
   private final CustomUserDetailsService userDetailsService;
   private final PasswordEncoder passwordEncoder;
+  private final AuditService auditService;
+  private final LoginAttemptService loginAttemptService;
 
   @PostMapping("/signup")
   public ResponseEntity<ApiResponseDto<UserProfileResponse>> signup(@Valid @RequestBody SignupRequest request) {
@@ -55,8 +59,35 @@ public class AuthController {
         .build());
   }
 
+  /**
+   * Password login.
+   *
+   * <p>Every failure path returns the same body and status. The response must not reveal whether
+   * the username exists, whether the password was wrong, or whether the account is throttled —
+   * each of those would be an enumeration signal. The distinction is recorded in the audit trail
+   * instead, where only operators can see it.
+   */
   @PostMapping("/login")
-  public ResponseEntity<ApiResponseDto<String>> login(@Valid @RequestBody LoginRequest request, HttpServletResponse response) {
+  public ResponseEntity<ApiResponseDto<String>> login(
+      @Valid @RequestBody LoginRequest request,
+      HttpServletRequest httpRequest,
+      HttpServletResponse response) {
+
+    // Resolved up-front so a failed attempt can be attributed to an account. Absent means the
+    // identifier does not exist; that is handled identically below.
+    var existingUser = authService.findByUsernameOrEmail(request.getUsernameOrEmail()).orElse(null);
+
+    if (existingUser != null && loginAttemptService.isBlocked(existingUser.getId())) {
+      auditService.recordLoginAttempt(existingUser, AuditService.LOGIN_TYPE_PASSWORD,
+          AuditService.STATUS_FAILURE, "Blocked: too many recent failures", httpRequest);
+      auditService.record(existingUser, AuditService.ACTION_LOGIN_BLOCKED,
+          auditService.clientIp(httpRequest),
+          "Login refused: more than %d failures within %s."
+              .formatted(loginAttemptService.getMaxFailedAttempts(),
+                  loginAttemptService.getFailureWindow()));
+      return unauthorized();
+    }
+
     try {
       Authentication authentication = authenticationManager.authenticate(
           new UsernamePasswordAuthenticationToken(request.getUsernameOrEmail(), request.getPassword()));
@@ -64,10 +95,29 @@ public class AuthController {
       var user = (UserPrincipal) authentication.getPrincipal();
       var refreshToken = authService.issueAndStoreRefreshToken(user.getId());
       authService.addRefreshCookie(response, refreshToken);
-      return ResponseEntity.ok(ApiResponseDto.<String>builder().success(true).data(accessToken).message("Login successful").build());
+
+      authService.findById(user.getId()).ifPresent(entity -> {
+        auditService.recordLoginAttempt(entity, AuditService.LOGIN_TYPE_PASSWORD,
+            AuditService.STATUS_SUCCESS, null, httpRequest);
+        auditService.record(entity, AuditService.ACTION_LOGIN_SUCCESS,
+            auditService.clientIp(httpRequest), "Password login succeeded.");
+      });
+
+      return ResponseEntity.ok(ApiResponseDto.<String>builder()
+          .success(true).data(accessToken).message("Login successful").build());
     } catch (AuthenticationException ex) {
-      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponseDto.<String>builder().success(false).message("Invalid credentials").build());
+      // Recorded against the account when we know it; this is what the throttle counts.
+      auditService.recordLoginAttempt(existingUser, AuditService.LOGIN_TYPE_PASSWORD,
+          AuditService.STATUS_FAILURE, ex.getClass().getSimpleName(), httpRequest);
+      auditService.record(existingUser, AuditService.ACTION_LOGIN_FAILURE,
+          auditService.clientIp(httpRequest), "Password login failed.");
+      return unauthorized();
     }
+  }
+
+  private ResponseEntity<ApiResponseDto<String>> unauthorized() {
+    return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+        .body(ApiResponseDto.<String>builder().success(false).message("Invalid credentials").build());
   }
 
   /**
@@ -87,16 +137,37 @@ public class AuthController {
     }
     authService.revokeRefreshToken(userPrincipal.getId());
     authService.clearRefreshCookie(response);
+    authService.findById(userPrincipal.getId()).ifPresent(entity ->
+        auditService.record(entity, AuditService.ACTION_LOGOUT, null, "Session revoked."));
     return ResponseEntity.ok(ApiResponseDto.<Void>builder().success(true).message("Logout successful").build());
   }
 
+  /**
+   * Exchanges the refresh cookie for a new access token, rotating the refresh token.
+   *
+   * <p>The response sets a replacement cookie: the presented token is consumed and will not work
+   * again. Replaying it revokes every session for the account, so a stolen token cannot be used
+   * alongside the legitimate client without being noticed.
+   */
   @PostMapping("/refresh")
   public ResponseEntity<ApiResponseDto<String>> refresh(HttpServletRequest request, HttpServletResponse response) {
     var refreshToken = authService.extractRefreshTokenFromRequest(request);
-    if (refreshToken == null || !authService.validateRefreshToken(refreshToken)) {
-      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponseDto.<String>builder().success(false).message("Refresh token invalid").build());
+    if (refreshToken == null) {
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+          .body(ApiResponseDto.<String>builder().success(false).message("Refresh token invalid").build());
     }
-    var newAccessToken = authService.refreshAccessToken(refreshToken);
+
+    final String newAccessToken;
+    try {
+      var tokens = authService.rotateRefreshToken(refreshToken);
+      authService.addRefreshCookie(response, tokens.refreshToken());
+      newAccessToken = tokens.accessToken();
+    } catch (IllegalArgumentException ex) {
+      // Clear the cookie so a client holding a dead token stops replaying it.
+      authService.clearRefreshCookie(response);
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+          .body(ApiResponseDto.<String>builder().success(false).message("Refresh token invalid").build());
+    }
     return ResponseEntity.ok(ApiResponseDto.<String>builder().success(true).data(newAccessToken).message("Token refreshed").build());
   }
 

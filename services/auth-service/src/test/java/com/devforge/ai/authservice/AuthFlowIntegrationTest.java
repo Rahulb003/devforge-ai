@@ -8,7 +8,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.devforge.ai.authservice.model.AccountStatus;
+import com.devforge.ai.authservice.repository.AuditLogRepository;
 import com.devforge.ai.authservice.repository.EmailVerificationTokenRepository;
+import com.devforge.ai.authservice.repository.LoginHistoryRepository;
 import com.devforge.ai.authservice.repository.PasswordResetTokenRepository;
 import com.devforge.ai.authservice.repository.RefreshTokenRepository;
 import com.devforge.ai.authservice.repository.UserRepository;
@@ -57,6 +59,8 @@ class AuthFlowIntegrationTest {
   @Autowired private EmailVerificationTokenRepository emailVerificationTokenRepository;
   @Autowired private PasswordResetTokenRepository passwordResetTokenRepository;
   @Autowired private JwtTokenProvider jwtTokenProvider;
+  @Autowired private LoginHistoryRepository loginHistoryRepository;
+  @Autowired private AuditLogRepository auditLogRepository;
 
   @MockitoBean private EmailService emailService;
 
@@ -71,6 +75,10 @@ class AuthFlowIntegrationTest {
             .springSecurity())
         .build();
 
+    // Audit rows reference users, so they must go first or the user delete
+    // trips the foreign key.
+    loginHistoryRepository.deleteAll();
+    auditLogRepository.deleteAll();
     refreshTokenRepository.deleteAll();
     emailVerificationTokenRepository.deleteAll();
     passwordResetTokenRepository.deleteAll();

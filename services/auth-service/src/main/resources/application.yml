@@ -47,6 +47,11 @@ spring:
             enable: ${MAIL_STARTTLS_ENABLED:true}
 
 security:
+  login:
+    # Brute-force protection: failures counted per account over a rolling window.
+    # Deliberately not a sticky lock, which would let anyone disable an account.
+    max-failed-attempts: ${DEVFORGE_LOGIN_MAX_FAILED:5}
+    failure-window: ${DEVFORGE_LOGIN_FAILURE_WINDOW:15m}
   jwt:
     issuer: ${DEVFORGE_JWT_ISSUER:devforge-ai}
     access-token-ttl: ${DEVFORGE_JWT_ACCESS_TTL:15m}
