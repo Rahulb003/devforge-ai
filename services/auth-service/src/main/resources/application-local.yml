@@ -1,0 +1,58 @@
+# auth-service — LOCAL DEVELOPMENT ONLY.
+#
+# Active only when SPRING_PROFILES_ACTIVE=local. Everything here is a
+# convenience default so a developer can start the service without first
+# populating .env. None of these values is safe anywhere else, and none of
+# them is reachable from the prod or staging profiles.
+spring:
+  datasource:
+    url: ${DEVFORGE_DB_URL:jdbc:postgresql://localhost:5432/devforge}
+    username: ${POSTGRES_USER:devforge}
+    password: ${POSTGRES_PASSWORD:devforge}
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+  mail:
+    # Points at Mailpit/MailHog so verification and reset mails are captured
+    # locally rather than delivered:
+    #   docker run -p 1025:1025 -p 8025:8025 axllent/mailpit
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:1025}
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false
+  jpa:
+    properties:
+      hibernate:
+        format_sql: true
+
+security:
+  jwt:
+    # DEVELOPMENT KEY — not a secret, and intentionally obvious. Production
+    # supplies DEVFORGE_JWT_SIGNING_KEY from a secret manager; the base profile
+    # has no fallback, so a misconfigured prod deployment cannot reach this.
+    signing-key: ${DEVFORGE_JWT_SIGNING_KEY:local-development-only-signing-key-change-me-0123456789abcdef}
+    # localhost is plain HTTP, which cannot carry Secure cookies.
+    cookie-secure: false
+    cookie-same-site: Lax
+
+devforge:
+  app:
+    base-url: ${DEVFORGE_APP_BASE_URL:http://localhost:4173}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, metrics, env, configprops
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.devforge.ai: DEBUG
+    org.springframework.security: DEBUG

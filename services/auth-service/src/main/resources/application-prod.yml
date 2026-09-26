@@ -1,0 +1,52 @@
+# auth-service — production profile.
+#
+# Adds no values of its own: every credential comes from the environment via
+# the base application.yml, which has no fallbacks. This file only tightens
+# what is exposed.
+spring:
+  jpa:
+    properties:
+      hibernate:
+        format_sql: false
+  flyway:
+    # A production database should already be at or above the first migration.
+    # Auto-baselining an unexpected schema risks marking migrations as applied
+    # when they were not, so it is off here.
+    baseline-on-migrate: false
+
+security:
+  jwt:
+    # Restated to make the production posture explicit and reviewable. HTTPS is
+    # assumed; a Secure cookie will not be stored over plain HTTP.
+    cookie-secure: true
+    cookie-same-site: Strict
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+  info:
+    env:
+      enabled: false
+
+server:
+  error:
+    # Never leak stack traces, messages or binding errors to clients.
+    include-stacktrace: never
+    include-message: never
+    include-binding-errors: never
+    include-exception: false
+
+logging:
+  level:
+    root: INFO
+    com.devforge.ai: INFO
+    # SQL logging at production volume is both a performance and a disclosure
+    # problem (bind parameters can contain personal data).
+    org.hibernate.SQL: WARN
