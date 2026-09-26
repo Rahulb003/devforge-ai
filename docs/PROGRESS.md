@@ -13,7 +13,7 @@
 | Gate | Command | Result |
 |---|---|---|
 | Backend compile | `mvn -B -ntp -f backend/pom.xml clean compile` | **PASS** — all 16 modules |
-| Backend tests | `mvn -B -ntp -f backend/pom.xml clean test` | **PASS** — 22 tests, 0 failures |
+| Backend tests | `mvn -B -ntp -f backend/pom.xml clean test` | **PASS** — 32 tests, 0 failures |
 | Frontend install | `npm ci` (in `frontend/`) | **PASS** |
 | Frontend lint | `npm run lint` | **PASS** — 0 errors, 0 warnings |
 | Frontend tests | `npm test` | **PASS** — 3 tests |
@@ -111,7 +111,7 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 |---|---|---|---|
 | 1 | ~~Not a git repository~~ **RESOLVED.** Repo initialised on `main` with `.gitignore` + `.gitattributes`; two commits so far. Note the commits are authored as the machine's global identity (`Rahulb003 <rbhowmik003@gmail.com>`), which may not be intended. | — | Change with `git config user.name` / `user.email` and amend if wrong. |
 | 2 | ~~Placeholder secrets in tracked config~~ **RESOLVED** (commit `b49d7f7`). All credentials are environment-driven with no fallbacks outside the `local` profile; `.env.example` added; k8s `secrets.yaml` is now a template. | — | The k8s Secret still needs wiring to a real secret store (External Secrets / Sealed Secrets) before any cluster deploy. |
-| 3 | Docker images unbuildable/unverifiable here; Dockerfiles still run as **root**, have no `HEALTHCHECK`, and each rebuilds the entire reactor | MEDIUM | Phase 0 §15 hardening outstanding. |
+| 3 | Docker images still **UNVERIFIED**: no Docker daemon here. Images are now non-root with healthchecks and a single shared build stage, but none of it has been executed. | MEDIUM | First run of the `docker` CI job will confirm. |
 | 4 | `api-gateway` is a plain `spring-boot-starter-web` app — not Spring Cloud Gateway, no routes, no filters | MEDIUM | Routing is entirely `MISSING`. |
 | 5 | Theme-toggle button in `AppLayout.tsx` has no accessible name | LOW | Real a11y defect; `jsx-a11y` does not catch it. |
 | 6 | Kafka is entirely absent. Messaging is RabbitMQ (`spring-boot-starter-amqp` in auth-service only) | — | Phase 2, by design not yet started. |
@@ -144,9 +144,9 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 1. ~~git init~~ **DONE** (commit `75548a6`).
 2. ~~Auth integration tests~~ **DONE** (commit `093d648`, 15 tests).
 3. ~~Phase 0 §16 secrets/config~~ **DONE** (commit `b49d7f7`).
-4. **NEXT:** Finish Phase 0 §15: harden Dockerfiles — non-root user, `HEALTHCHECK`, and a shared build stage so 14 images do not each rebuild the whole reactor.
-5. Remaining Phase 1 gaps before calling auth complete: MFA/TOTP, refresh-token **rotation** (currently one static token per user, replaced only on login), login throttling and account lockout, per-device sessions, and real OAuth account persistence. Wire `AuditLogEntity`/`LoginHistoryEntity`, which are mapped but never written to.
-6. Add `@PreAuthorize` enforcement — `@EnableMethodSecurity` is on but **no endpoint carries an authorization annotation**, so RBAC is currently decorative.
+4. ~~Phase 0 §15 Dockerfile hardening~~ **DONE** (commit `8e27355`, UNVERIFIED — no Docker here).
+5. Phase 1: ~~refresh-token rotation, login throttling, audit trail~~ **DONE** (commit `5adfb5b`). Still missing: **MFA/TOTP**, per-device sessions, and real OAuth account persistence.
+6. **NEXT:** Add `@PreAuthorize` enforcement — `@EnableMethodSecurity` is on but **no endpoint carries an authorization annotation**, so RBAC is currently decorative.
 7. Then Phase 2 (Kafka), including the RabbitMQ keep/remove decision required by §18.
 
 ---
