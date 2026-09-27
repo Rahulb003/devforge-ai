@@ -13,11 +13,12 @@
 | Gate | Command | Result |
 |---|---|---|
 | Backend compile | `mvn -B -ntp -f backend/pom.xml clean compile` | **PASS** — all 16 modules |
-| Backend tests | `mvn -B -ntp -f backend/pom.xml clean test` | **PASS** — 97 tests, 0 failures |
+| Backend tests | `mvn -B -ntp -f backend/pom.xml clean test` | **PASS** — 144 tests, 0 failures |
 | Frontend install | `npm ci` (in `frontend/`) | **PASS** |
 | Frontend lint | `npm run lint` | **PASS** — 0 errors, 0 warnings |
-| Frontend tests | `npm test` | **PASS** — 12 tests |
+| Frontend tests | `npm test` | **PASS** — 14 unit tests |
 | Frontend build | `npm run build` | **PASS** |
+| End-to-end tests | `npm run test:e2e` (Playwright, stack running) | **PASS** — 14 tests |
 | YAML validity | js-yaml parse of all 24 YAML files | **PASS** — 0 invalid |
 | Docker image builds | `docker build ...` | **UNVERIFIED** — no Docker daemon in this environment |
 | Testcontainers tests | — | **UNVERIFIED** — requires Docker |
@@ -135,7 +136,8 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 | Multi-tenancy / organizations | `IMPLEMENTED` | Organizations, members, projects, project members; 23 tenant-isolation/IDOR tests |
 | API gateway routing | `MISSING` | — |
 | Kafka / outbox / event envelope | `IMPLEMENTED` | Envelope, outbox, idempotency, DLQ config; 10 tests. Broker publication UNVERIFIED — see docs/EVENT_CATALOG.md §8 |
-| Projects, tasks, sprints, IDE, AI, Git, review, docs, chat, deploy, analytics, RAG, agents | `MISSING` / `SCAFFOLDED` | Health endpoints only |
+| Tasks, Kanban, sprints, comments, labels | `IMPLEMENTED` | task-service, 29 tests. Authorization delegated to project-service |
+| IDE, AI, Git, review, docs, chat, deploy, analytics, RAG, agents | `MISSING` / `SCAFFOLDED` | Health endpoints only |
 | Frontend app shell, routing, theme store | `IMPLEMENTED` | 12 passing tests |
 | Frontend auth screens (login/MFA/signup/verify/forgot/reset) | `IMPLEMENTED` | Driven against the live API; verified end-to-end through the dev proxy |
 | Frontend organization + project screens | `IMPLEMENTED` | List/create, loading/empty/error states |
@@ -150,7 +152,7 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 3. ~~Phase 0 §16 secrets/config~~ **DONE** (commit `b49d7f7`).
 4. ~~Phase 0 §15 Dockerfile hardening~~ **DONE** (commit `8e27355`, UNVERIFIED — no Docker here).
 5. ~~Phase 1~~ **COMPLETE** (commits `5adfb5b`, `aa6713a`): rotation, throttling, audit trail, MFA/TOTP, per-device sessions, OAuth persistence. OAuth remains UNVERIFIED without provider credentials.
-6. ~~RBAC enforcement~~ **DONE** (commit `4d6caa7`): enforced in project-service via membership-derived checks + `@PreAuthorize`. ~~Phase 2~~ **DONE** (commit `0a2f97d`). **NEXT:** Phase 4 (tasks, sprints, Kanban) in task-service, then Phase 3 remainder (project activity feed, org member management endpoints). — `@EnableMethodSecurity` is on but **no endpoint carries an authorization annotation**, so RBAC is currently decorative.
+6. ~~RBAC enforcement~~ **DONE** (commit `4d6caa7`): enforced in project-service via membership-derived checks + `@PreAuthorize`. ~~Phase 2~~ **DONE** (commit `0a2f97d`). ~~Phase 4~~ **DONE** (commit `03c07b0`). **NEXT:** the Kanban board UI in the frontend, so task-service is reachable by clicking; then api-gateway, which is still a single file with no routes. — `@EnableMethodSecurity` is on but **no endpoint carries an authorization annotation**, so RBAC is currently decorative.
 7. Then Phase 2 (Kafka), including the RabbitMQ keep/remove decision required by §18.
 
 ---
