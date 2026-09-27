@@ -1,8 +1,57 @@
+# task-service — base configuration.
+# Credentials come from the environment with no fallbacks; see .env.example.
 server:
-  port: 9003
+  port: ${SERVER_PORT:9003}
+
 spring:
   application:
     name: task-service
+  datasource:
+    url: ${DEVFORGE_DB_URL}
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
+  jpa:
+    hibernate:
+      # Flyway owns the schema; Hibernate only verifies the mapping against it.
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    consumer:
+      group-id: task-service
+      enable-auto-commit: false
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    listener:
+      ack-mode: record
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
+security:
+  jwt:
+    # Must match the auth service: this service only verifies the tokens it issues.
+    issuer: ${DEVFORGE_JWT_ISSUER:devforge-ai}
+    signing-key: ${DEVFORGE_JWT_SIGNING_KEY}
+
+devforge:
+  services:
+    # Project membership is the authority for task access, and it lives here.
+    # No default: a wrong address would silently fail every request closed.
+    project-service-url: ${PROJECT_SERVICE_URL}
+  kafka:
+    enabled: ${DEVFORGE_KAFKA_ENABLED:true}
+  outbox:
+    enabled: ${DEVFORGE_OUTBOX_ENABLED:true}
+    poll-interval-ms: ${DEVFORGE_OUTBOX_POLL_MS:1000}
+    batch-size: ${DEVFORGE_OUTBOX_BATCH_SIZE:100}
+    use-skip-locked: ${DEVFORGE_OUTBOX_SKIP_LOCKED:true}
+
 management:
   endpoints:
     web:
@@ -10,4 +59,4 @@ management:
         include: health, info
   endpoint:
     health:
-      show-details: always
+      show-details: when-authorized

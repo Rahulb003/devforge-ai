@@ -36,6 +36,13 @@ export default defineConfig({
         target: 'http://localhost:9001',
         changeOrigin: true,
       },
+      // task-service. Matched before the project-service rule below because
+      // Vite resolves the longest matching prefix, and tasks and sprints are
+      // nested under the project route but served by a different service.
+      '^/api/v1/organizations/[^/]+/projects/[^/]+/(tasks|sprints)': {
+        target: 'http://localhost:9003',
+        changeOrigin: true,
+      },
       // project-service
       '/api/v1/organizations': {
         target: 'http://localhost:9002',

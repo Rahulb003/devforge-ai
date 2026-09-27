@@ -20,6 +20,7 @@ cd /d "%~dp0"
 
 set AUTH_PORT=9001
 set PROJECT_PORT=9002
+set TASK_PORT=9003
 set WEB_PORT=4173
 set AUTH_JAR=services\auth-service\target\auth-service-0.1.0.jar
 set PROJECT_JAR=services\project-service\target\project-service-0.1.0.jar
@@ -65,6 +66,7 @@ REM Only builds when a jar is missing. Delete the target folders to force a
 REM rebuild, or run: mvn -f backend/pom.xml clean package -DskipTests
 if not exist "%AUTH_JAR%" goto :build
 if not exist "%PROJECT_JAR%" goto :build
+if not exist "%TASK_JAR%" goto :build
 echo   Jars found - skipping build.
 echo   (delete services\*\target to force a rebuild)
 goto :deps
@@ -108,6 +110,9 @@ start "DevForge auth-service" cmd /k "java -jar %AUTH_JAR% --spring.profiles.act
 echo   Starting project-service on port %PROJECT_PORT% ...
 start "DevForge project-service" cmd /k "java -jar %PROJECT_JAR% --spring.profiles.active=standalone"
 
+echo   Starting task-service on port %TASK_PORT% ...
+start "DevForge task-service" cmd /k "java -jar %TASK_JAR% --spring.profiles.active=standalone"
+
 echo   Starting frontend on port %WEB_PORT% ...
 start "DevForge frontend" cmd /k "cd /d "%~dp0frontend" && npm run dev"
 
@@ -118,6 +123,7 @@ echo.
 echo   Waiting for services to become healthy...
 call :waitfor auth-service    "http://localhost:%AUTH_PORT%/actuator/health"    60
 call :waitfor project-service "http://localhost:%PROJECT_PORT%/actuator/health" 60
+call :waitfor task-service    "http://localhost:%TASK_PORT%/actuator/health"    60
 call :waitfor frontend        "http://localhost:%WEB_PORT%/"                    45
 
 echo.
@@ -128,6 +134,7 @@ echo.
 echo   Web app        http://localhost:%WEB_PORT%
 echo   auth-service   http://localhost:%AUTH_PORT%/actuator/health
 echo   project-service http://localhost:%PROJECT_PORT%/actuator/health
+echo   task-service   http://localhost:%TASK_PORT%/actuator/health
 echo   Database UI    http://localhost:%AUTH_PORT%/h2-console
 echo                  JDBC URL: jdbc:h2:file:./data/devforge-auth
 echo                  User: sa     Password: (blank)

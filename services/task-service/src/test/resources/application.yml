@@ -1,0 +1,50 @@
+# Test configuration for task-service.
+#
+# Runs the real Flyway migrations against H2 in PostgreSQL mode, then
+# ddl-auto=validate asserts the JPA mappings match the migrated schema.
+server:
+  port: 0
+
+spring:
+  application:
+    name: task-service
+  datasource:
+    url: jdbc:h2:mem:taskdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password: ''
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+  kafka:
+    bootstrap-servers: localhost:9092
+
+security:
+  jwt:
+    issuer: devforge-ai-test
+    # Test-only key, never used outside the test source set.
+    signing-key: test-only-signing-key-that-is-long-enough-to-satisfy-hs256-256-bit-requirement
+
+devforge:
+  services:
+    # Never reached: ProjectAccessClient is replaced by a mock in the tests, so
+    # they exercise task logic rather than the network between two services.
+    project-service-url: http://localhost:19002
+  kafka:
+    enabled: false
+  outbox:
+    # The recorder still writes rows, which the event assertions check. The
+    # scheduled publisher is off because there is no broker.
+    enabled: false
+    use-skip-locked: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info

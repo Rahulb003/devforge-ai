@@ -132,7 +132,15 @@ services:
     ports:
       - 9003:9003
     environment:
-      SPRING_PROFILES_ACTIVE: local
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-local}
+      DEVFORGE_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-devforge}
+      POSTGRES_USER: ${POSTGRES_USER:-devforge}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-devforge}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      # Project membership is the authority for task access.
+      PROJECT_SERVICE_URL: http://project-service:9002
+      DEVFORGE_JWT_SIGNING_KEY: ${DEVFORGE_JWT_SIGNING_KEY:-local-development-only-signing-key-change-me-0123456789abcdef}
+      DEVFORGE_JWT_ISSUER: ${DEVFORGE_JWT_ISSUER:-devforge-ai}
       SPRING_CLOUD_CONFIG_URI: http://config-server:8888
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
     depends_on:
