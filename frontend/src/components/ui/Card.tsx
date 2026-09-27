@@ -1,10 +1,21 @@
-import type { HTMLAttributes, ReactNode } from 'react';
+import type { ElementType, HTMLAttributes, ReactNode } from 'react';
 
 import { cn } from '@/lib/utils';
 
-export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
+/**
+ * Surface container.
+ *
+ * `as` exists so a card that is a distinct region of a page can render as a
+ * landmark element rather than a div, which gives it a name in the
+ * accessibility tree instead of being an anonymous group.
+ */
+export function Card({
+  className,
+  as: Component = 'div',
+  ...props
+}: HTMLAttributes<HTMLElement> & { as?: ElementType }) {
   return (
-    <div
+    <Component
       className={cn('rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-sm', className)}
       {...props}
     />

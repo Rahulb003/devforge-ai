@@ -11,6 +11,7 @@ import { DevMailboxPage } from './pages/DevMailboxPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { OrganizationDetailPage } from './pages/OrganizationDetailPage';
 import { OrganizationsPage } from './pages/OrganizationsPage';
+import { ProjectBoardPage } from './pages/ProjectBoardPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
 import { LoginPage } from './pages/auth/LoginPage';
@@ -54,6 +55,10 @@ function App() {
               <Route index element={<DashboardPage />} />
               <Route path="organizations" element={<OrganizationsPage />} />
               <Route path="organizations/:organizationId" element={<OrganizationDetailPage />} />
+              <Route
+                path="organizations/:organizationId/projects/:projectId"
+                element={<ProjectBoardPage />}
+              />
               <Route path="settings" element={<SettingsPage />} />
             </Route>
           </Route>

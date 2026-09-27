@@ -1,0 +1,279 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ArrowLeft, Plus } from 'lucide-react';
+import { useState, type DragEvent, type FormEvent } from 'react';
+import { Link, useParams } from 'react-router-dom';
+
+import { projectApi } from '@/api/project.api';
+import { STATUS_LABELS, TASK_STATUSES, taskApi, type Task, type TaskStatus } from '@/api/task.api';
+import { SprintPanel } from '@/components/board/SprintPanel';
+import { TaskCard } from '@/components/board/TaskCard';
+import { TaskDetailDrawer } from '@/components/board/TaskDetailDrawer';
+import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { Input } from '@/components/ui/Input';
+import { ErrorState, Skeleton } from '@/components/ui/states';
+import { describeApiError } from '@/lib/errors';
+import { cn } from '@/lib/utils';
+
+/**
+ * The Kanban board for one project.
+ *
+ * Cards are dragged with a mouse and moved with a select for everyone else;
+ * both call the same endpoint. The whole board arrives in one request, so a
+ * drag does not need a round trip per column.
+ */
+export function ProjectBoardPage() {
+  const { organizationId = '', projectId = '' } = useParams();
+  const queryClient = useQueryClient();
+
+  const [dragged, setDragged] = useState<Task | null>(null);
+  const [dragOverColumn, setDragOverColumn] = useState<TaskStatus | null>(null);
+  const [openTask, setOpenTask] = useState<Task | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [title, setTitle] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  const project = useQuery({
+    queryKey: ['project', organizationId, projectId],
+    queryFn: async () => (await projectApi.getProject(organizationId, projectId)).data.data,
+  });
+
+  const board = useQuery({
+    queryKey: ['board', projectId],
+    queryFn: async () => (await taskApi.board(organizationId, projectId)).data.data,
+  });
+
+  function refreshBoard() {
+    queryClient.invalidateQueries({ queryKey: ['board', projectId] });
+  }
+
+  const createTask = useMutation({
+    mutationFn: (value: string) => taskApi.create(organizationId, projectId, { title: value }),
+    onSuccess: () => {
+      setTitle('');
+      setCreating(false);
+      setError(null);
+      refreshBoard();
+    },
+    onError: (err) => setError(describeApiError(err)),
+  });
+
+  const moveTask = useMutation({
+    mutationFn: ({
+      task,
+      status,
+      position,
+    }: {
+      task: Task;
+      status: TaskStatus;
+      position?: number;
+    }) => taskApi.move(organizationId, projectId, task.id, status, position),
+    onSuccess: () => {
+      setError(null);
+      refreshBoard();
+    },
+    onError: (err) => {
+      setError(describeApiError(err));
+      // The card was moved optimistically in the UI only by the server's
+      // response, so a refresh restores the true order after a failure.
+      refreshBoard();
+    },
+  });
+
+  function handleDrop(event: DragEvent<HTMLElement>, status: TaskStatus) {
+    event.preventDefault();
+    setDragOverColumn(null);
+    if (!dragged) return;
+
+    // Dropping a card back in its own column with no index is a no-op; avoid
+    // the pointless request and the flash of a refetch.
+    if (dragged.status === status) {
+      setDragged(null);
+      return;
+    }
+    moveTask.mutate({ task: dragged, status });
+    setDragged(null);
+  }
+
+  if (project.isError) {
+    return (
+      <ErrorState
+        title="Project not found"
+        message="It may not exist, or you may not have access to it."
+        onRetry={() => project.refetch()}
+      />
+    );
+  }
+
+  const projectKey = project.data?.projectKey ?? '…';
+
+  return (
+    <div className="space-y-6">
+      <Link
+        to={`/organizations/${organizationId}`}
+        className="inline-flex items-center gap-2 text-sm text-slate-400 underline-offset-4 hover:text-slate-200 hover:underline"
+      >
+        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+        Back to projects
+      </Link>
+
+      <header className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          {project.isLoading ? (
+            <Skeleton className="h-8 w-56" />
+          ) : (
+            <>
+              <div className="flex items-center gap-3">
+                <h1 className="text-2xl font-semibold text-white">{project.data?.name}</h1>
+                <Badge tone={project.data?.status === 'ACTIVE' ? 'success' : 'warning'}>
+                  {project.data?.status}
+                </Badge>
+              </div>
+              <p className="mt-1 font-mono text-sm text-slate-500">{projectKey}</p>
+            </>
+          )}
+        </div>
+        {!creating && (
+          <Button leftIcon={<Plus className="h-4 w-4" />} onClick={() => setCreating(true)}>
+            New task
+          </Button>
+        )}
+      </header>
+
+      {error && (
+        <div
+          role="alert"
+          className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300"
+        >
+          {error}
+        </div>
+      )}
+
+      {creating && (
+        <Card>
+          <form
+            onSubmit={(event: FormEvent) => {
+              event.preventDefault();
+              if (title.trim()) createTask.mutate(title.trim());
+            }}
+            className="space-y-4"
+          >
+            <h2 className="text-lg font-semibold text-white">Create a task</h2>
+            <Input
+              label="Title"
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              placeholder="What needs doing?"
+              required
+            />
+            <div className="flex gap-3">
+              <Button type="submit" loading={createTask.isPending}>
+                Create
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => {
+                  setCreating(false);
+                  setError(null);
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
+          </form>
+        </Card>
+      )}
+
+      <SprintPanel organizationId={organizationId} projectId={projectId} />
+
+      {board.isLoading && (
+        <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
+          {TASK_STATUSES.map((status) => (
+            <Skeleton key={status} className="h-64" />
+          ))}
+        </div>
+      )}
+
+      {board.isError && (
+        <ErrorState message={describeApiError(board.error)} onRetry={() => board.refetch()} />
+      )}
+
+      {board.isSuccess && (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+          {TASK_STATUSES.map((status) => {
+            const column = board.data.find((entry) => entry.status === status);
+            const tasks = column?.tasks ?? [];
+
+            return (
+              <section
+                key={status}
+                aria-label={STATUS_LABELS[status]}
+                onDragOver={(event) => {
+                  // Without preventDefault the browser refuses the drop.
+                  event.preventDefault();
+                  setDragOverColumn(status);
+                }}
+                onDragLeave={() => setDragOverColumn(null)}
+                onDrop={(event) => handleDrop(event, status)}
+                className={cn(
+                  'rounded-2xl border bg-slate-900/40 p-3 transition-colors',
+                  dragOverColumn === status
+                    ? 'border-indigo-500/60 bg-indigo-500/5'
+                    : 'border-slate-800',
+                )}
+                data-testid={`column-${status}`}
+              >
+                <header className="mb-3 flex items-center justify-between px-1">
+                  <h2 className="text-sm font-semibold text-slate-300">{STATUS_LABELS[status]}</h2>
+                  <span className="rounded-full bg-slate-800 px-2 py-0.5 text-xs text-slate-400">
+                    {tasks.length}
+                  </span>
+                </header>
+
+                <div className="space-y-2">
+                  {tasks.map((task) => (
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      projectKey={projectKey}
+                      isDragging={dragged?.id === task.id}
+                      onOpen={setOpenTask}
+                      onMoveTo={(movedTask, newStatus) => {
+                        if (movedTask.status !== newStatus) {
+                          moveTask.mutate({ task: movedTask, status: newStatus });
+                        }
+                      }}
+                      onDragStart={setDragged}
+                      onDragEnd={() => setDragged(null)}
+                    />
+                  ))}
+
+                  {tasks.length === 0 && (
+                    <p className="px-1 py-6 text-center text-xs text-slate-600">Nothing here yet</p>
+                  )}
+                </div>
+              </section>
+            );
+          })}
+        </div>
+      )}
+
+      {openTask && (
+        <TaskDetailDrawer
+          organizationId={organizationId}
+          projectId={projectId}
+          projectKey={projectKey}
+          // Re-read from the freshly fetched board so the drawer does not show a
+          // stale copy after a label or comment changes.
+          task={
+            board.data?.flatMap((column) => column.tasks).find((t) => t.id === openTask.id) ??
+            openTask
+          }
+          onClose={() => setOpenTask(null)}
+        />
+      )}
+    </div>
+  );
+}

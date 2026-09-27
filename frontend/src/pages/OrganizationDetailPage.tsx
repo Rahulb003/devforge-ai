@@ -198,23 +198,31 @@ export function OrganizationDetailPage() {
         {projects.isSuccess && projects.data.content.length > 0 && (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {projects.data.content.map((project) => (
-              <Card key={project.id} className="h-full">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-slate-800 font-mono text-xs font-semibold text-indigo-300">
-                    {project.projectKey.slice(0, 4)}
+              <Link
+                key={project.id}
+                to={`/organizations/${organizationId}/projects/${project.id}`}
+                className="rounded-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
+              >
+                <Card className="h-full transition-colors hover:border-slate-700">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-slate-800 font-mono text-xs font-semibold text-indigo-300">
+                      {project.projectKey.slice(0, 4)}
+                    </div>
+                    <div className="flex gap-2">
+                      {project.role && <Badge>{project.role}</Badge>}
+                      <Badge tone={project.status === 'ACTIVE' ? 'success' : 'warning'}>
+                        {project.status}
+                      </Badge>
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    {project.role && <Badge>{project.role}</Badge>}
-                    <Badge tone={project.status === 'ACTIVE' ? 'success' : 'warning'}>
-                      {project.status}
-                    </Badge>
-                  </div>
-                </div>
-                <h3 className="mt-4 font-semibold text-white">{project.name}</h3>
-                {project.description && (
-                  <p className="mt-1 line-clamp-2 text-sm text-slate-400">{project.description}</p>
-                )}
-              </Card>
+                  <h3 className="mt-4 font-semibold text-white">{project.name}</h3>
+                  {project.description && (
+                    <p className="mt-1 line-clamp-2 text-sm text-slate-400">
+                      {project.description}
+                    </p>
+                  )}
+                </Card>
+              </Link>
             ))}
           </div>
         )}
