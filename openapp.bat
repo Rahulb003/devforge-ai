@@ -21,9 +21,12 @@ cd /d "%~dp0"
 set AUTH_PORT=9001
 set PROJECT_PORT=9002
 set TASK_PORT=9003
+set GATEWAY_PORT=8080
 set WEB_PORT=4173
 set AUTH_JAR=services\auth-service\target\auth-service-0.1.0.jar
 set PROJECT_JAR=services\project-service\target\project-service-0.1.0.jar
+set TASK_JAR=services\task-service\target\task-service-0.1.0.jar
+set GATEWAY_JAR=api-gateway\target\api-gateway-0.1.0.jar
 
 echo.
 echo ================================================================
@@ -67,6 +70,7 @@ REM rebuild, or run: mvn -f backend/pom.xml clean package -DskipTests
 if not exist "%AUTH_JAR%" goto :build
 if not exist "%PROJECT_JAR%" goto :build
 if not exist "%TASK_JAR%" goto :build
+if not exist "%GATEWAY_JAR%" goto :build
 echo   Jars found - skipping build.
 echo   (delete services\*\target to force a rebuild)
 goto :deps
@@ -79,7 +83,7 @@ if errorlevel 1 (
   echo         Install Maven, or build once with your IDE.
   goto :fail
 )
-call mvn -B -ntp -f backend\pom.xml -pl ..\services\auth-service,..\services\project-service -am package -DskipTests
+call mvn -B -ntp -f backend\pom.xml -pl ..\services\auth-service,..\services\project-service,..\services\task-service,..\api-gateway -am package -DskipTests
 if errorlevel 1 (
   echo [ERROR] Backend build failed. Scroll up for the Maven output.
   goto :fail
@@ -113,6 +117,9 @@ start "DevForge project-service" cmd /k "java -jar %PROJECT_JAR% --spring.profil
 echo   Starting task-service on port %TASK_PORT% ...
 start "DevForge task-service" cmd /k "java -jar %TASK_JAR% --spring.profiles.active=standalone"
 
+echo   Starting api-gateway on port %GATEWAY_PORT% ...
+start "DevForge api-gateway" cmd /k "java -jar %GATEWAY_JAR% --spring.profiles.active=standalone"
+
 echo   Starting frontend on port %WEB_PORT% ...
 start "DevForge frontend" cmd /k "cd /d "%~dp0frontend" && npm run dev"
 
@@ -124,6 +131,7 @@ echo   Waiting for services to become healthy...
 call :waitfor auth-service    "http://localhost:%AUTH_PORT%/actuator/health"    60
 call :waitfor project-service "http://localhost:%PROJECT_PORT%/actuator/health" 60
 call :waitfor task-service    "http://localhost:%TASK_PORT%/actuator/health"    60
+call :waitfor api-gateway     "http://localhost:%GATEWAY_PORT%/actuator/health" 60
 call :waitfor frontend        "http://localhost:%WEB_PORT%/"                    45
 
 echo.
@@ -135,20 +143,17 @@ echo   Web app        http://localhost:%WEB_PORT%
 echo   auth-service   http://localhost:%AUTH_PORT%/actuator/health
 echo   project-service http://localhost:%PROJECT_PORT%/actuator/health
 echo   task-service   http://localhost:%TASK_PORT%/actuator/health
+echo   api-gateway    http://localhost:%GATEWAY_PORT%/actuator/health  ^(single entry point^)
 echo   Database UI    http://localhost:%AUTH_PORT%/h2-console
 echo                  JDBC URL: jdbc:h2:file:./data/devforge-auth
 echo                  User: sa     Password: (blank)
 echo.
-echo   NOTE: the web app is still an early shell - sidebar, dashboard,
-echo   projects and settings pages. There is no login screen yet, so the
-echo   working auth and project APIs are not reachable from the UI.
-echo   Exercise them directly, for example:
+echo   Everything the web app calls goes through the gateway on port %GATEWAY_PORT%,
+echo   so that is the only port the browser needs. Sign up at the web app and
+echo   sign straight in - there is no email verification step.
 echo.
-echo     curl -X POST http://localhost:%AUTH_PORT%/api/v1/auth/signup ^
-echo       -H "Content-Type: application/json" ^
-echo       -d "{\"firstName\":\"Ada\",\"lastName\":\"Lovelace\",\"username\":\"ada\",\"email\":\"ada@example.com\",\"password\":\"Str0ng-Passw0rd!\",\"organization\":\"DevForge\"}"
-echo.
-echo   The verification link is printed in the auth-service window.
+echo   Accounts live in .\data\ and survive a restart. Delete that folder for a
+echo   clean slate.
 echo.
 echo   Stop everything with stopapp.bat
 echo.

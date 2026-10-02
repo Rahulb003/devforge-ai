@@ -17,7 +17,10 @@ export default defineConfig({
   testDir: './e2e',
   // Generous, because the first request after a cold JVM start can be slow.
   timeout: 45_000,
-  expect: { timeout: 10_000 },
+  // Generous on purpose. The first run after a cold start has five JVMs
+  // warming up behind an extra gateway hop, and two tests raced a 10s budget
+  // while passing in isolation. A flaky suite is worse than a slow one.
+  expect: { timeout: 20_000 },
 
   // Serial locally: the tests create accounts and organizations against one
   // shared database, so parallel workers would interfere with each other.

@@ -4,12 +4,16 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
 /**
- * DevForge is several services, so the dev server proxies by path prefix rather
- * than pointing at one backend. In a deployed environment the API gateway does
- * this job; until it exists, the mapping lives here.
+ * Everything goes through the API gateway.
  *
- * Keys are matched longest-first by Vite, so the ordering below is for readers,
- * not for correctness.
+ * The dev server used to route by path prefix to three separate services. That
+ * worked only because Vite was doing the routing, so nothing deployed behaved
+ * the same way — and the mapping had to be kept in step by hand every time a
+ * service gained a route. The gateway now owns that mapping, and this proxy
+ * exists purely to keep the browser on one origin so the HttpOnly refresh
+ * cookie is sent.
+ *
+ * Set VITE_GATEWAY_URL to point at a gateway somewhere other than localhost.
  */
 export default defineConfig({
   plugins: [react()],
@@ -22,31 +26,12 @@ export default defineConfig({
     port: 4173,
     strictPort: true,
     proxy: {
-      // auth-service
-      '/api/v1/auth': {
-        target: 'http://localhost:9001',
+      '/api': {
+        target: process.env.VITE_GATEWAY_URL ?? 'http://localhost:8080',
         changeOrigin: true,
-        // Cookies must survive the hop: the refresh token is HttpOnly and is
-        // what keeps a session alive across reloads.
+        // The refresh token is HttpOnly and is what keeps a session alive
+        // across reloads, so the cookie must survive the hop.
         cookieDomainRewrite: 'localhost',
-      },
-      // auth-service also serves the development mailbox, which only exists when
-      // it runs with the log mail provider.
-      '/api/v1/dev': {
-        target: 'http://localhost:9001',
-        changeOrigin: true,
-      },
-      // task-service. Matched before the project-service rule below because
-      // Vite resolves the longest matching prefix, and tasks and sprints are
-      // nested under the project route but served by a different service.
-      '^/api/v1/organizations/[^/]+/projects/[^/]+/(tasks|sprints)': {
-        target: 'http://localhost:9003',
-        changeOrigin: true,
-      },
-      // project-service
-      '/api/v1/organizations': {
-        target: 'http://localhost:9002',
-        changeOrigin: true,
       },
     },
   },

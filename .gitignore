@@ -49,9 +49,9 @@ data/
 *.trace.db
 
 # ---- Playwright ----
-frontend/playwright-report/
-frontend/test-results/
-frontend/blob-report/
+playwright-report/
+test-results/
+blob-report/
 
 # ---- Logs / temp ----
 *.log

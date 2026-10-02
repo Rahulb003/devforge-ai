@@ -1,7 +1,8 @@
 # DevForge AI — Progress
 
-**Last updated:** 2026-09-26
-**Phase:** 0 (Foundation Stabilization) — build/test/CI gates complete; config hygiene outstanding.
+**Last updated:** 2026-10-02
+**Phase:** 4 complete (tasks/Kanban/sprints). Phases 0–4 plus the api-gateway are in place;
+Phase 2's event backbone is written but has never run against a real broker.
 
 > Status vocabulary: `IMPLEMENTED`, `PARTIALLY_IMPLEMENTED`, `SCAFFOLDED`, `BROKEN`, `MISSING`.
 > Nothing in this file is marked verified unless a command was actually run and its exit code observed.
@@ -13,12 +14,12 @@
 | Gate | Command | Result |
 |---|---|---|
 | Backend compile | `mvn -B -ntp -f backend/pom.xml clean compile` | **PASS** — all 16 modules |
-| Backend tests | `mvn -B -ntp -f backend/pom.xml clean test` | **PASS** — 144 tests, 0 failures |
+| Backend tests | `mvn -B -ntp -f backend/pom.xml clean test` | **PASS** — 155 tests, 0 failures |
 | Frontend install | `npm ci` (in `frontend/`) | **PASS** |
 | Frontend lint | `npm run lint` | **PASS** — 0 errors, 0 warnings |
 | Frontend tests | `npm test` | **PASS** — 14 unit tests |
 | Frontend build | `npm run build` | **PASS** |
-| End-to-end tests | `npm run test:e2e` (Playwright, stack running) | **PASS** — 14 tests |
+| End-to-end tests | `npm run test:e2e` (Playwright, stack running) | **PASS** — 22 tests, through the gateway |
 | YAML validity | js-yaml parse of all 24 YAML files | **PASS** — 0 invalid |
 | Docker image builds | `docker build ...` | **UNVERIFIED** — no Docker daemon in this environment |
 | Testcontainers tests | — | **UNVERIFIED** — requires Docker |
@@ -134,14 +135,18 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 | Auth: rate limiting | `IMPLEMENTED` | Per-account rolling window on password and MFA attempts |
 | RBAC enforcement | `PARTIALLY_IMPLEMENTED` | Enforced in project-service (org + project roles, server-side, membership-derived). Other services remain skeletons. |
 | Multi-tenancy / organizations | `IMPLEMENTED` | Organizations, members, projects, project members; 23 tenant-isolation/IDOR tests |
-| API gateway routing | `MISSING` | — |
+| API gateway routing | `IMPLEMENTED` | Single entry point on 8080; routes auth, organizations/projects and the nested task/sprint paths. Verified live: signup 201, `/auth/me` 200, create org, create project, create task — all through the gateway |
+| Correlation ids | `IMPLEMENTED` | Gateway generates one per request, reuses a valid inbound id, replaces an unsafe one; 6 tests |
+| CORS | `IMPLEMENTED` | Explicit origin allow-list; a wildcard now fails startup rather than being silently echoed back. 5 tests |
 | Kafka / outbox / event envelope | `IMPLEMENTED` | Envelope, outbox, idempotency, DLQ config; 10 tests. Broker publication UNVERIFIED — see docs/EVENT_CATALOG.md §8 |
 | Tasks, Kanban, sprints, comments, labels | `IMPLEMENTED` | task-service, 29 tests. Authorization delegated to project-service |
 | IDE, AI, Git, review, docs, chat, deploy, analytics, RAG, agents | `MISSING` / `SCAFFOLDED` | Health endpoints only |
 | Frontend app shell, routing, theme store | `IMPLEMENTED` | 12 passing tests |
 | Frontend auth screens (login/MFA/signup/verify/forgot/reset) | `IMPLEMENTED` | Driven against the live API; verified end-to-end through the dev proxy |
 | Frontend organization + project screens | `IMPLEMENTED` | List/create, loading/empty/error states |
-| Frontend task/IDE/AI screens | `MISSING` | Phases 4+ |
+| Frontend Kanban board | `IMPLEMENTED` | Board, columns, task create/move; reachable by clicking from a project |
+| Frontend IDE/AI screens | `MISSING` | Phases 5+ |
+| End-to-end browser tests | `IMPLEMENTED` | 22 Playwright tests through the gateway; `npm run test:e2e` → 22 passed |
 
 ---
 
@@ -152,8 +157,10 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 3. ~~Phase 0 §16 secrets/config~~ **DONE** (commit `b49d7f7`).
 4. ~~Phase 0 §15 Dockerfile hardening~~ **DONE** (commit `8e27355`, UNVERIFIED — no Docker here).
 5. ~~Phase 1~~ **COMPLETE** (commits `5adfb5b`, `aa6713a`): rotation, throttling, audit trail, MFA/TOTP, per-device sessions, OAuth persistence. OAuth remains UNVERIFIED without provider credentials.
-6. ~~RBAC enforcement~~ **DONE** (commit `4d6caa7`): enforced in project-service via membership-derived checks + `@PreAuthorize`. ~~Phase 2~~ **DONE** (commit `0a2f97d`). ~~Phase 4~~ **DONE** (commit `03c07b0`). **NEXT:** the Kanban board UI in the frontend, so task-service is reachable by clicking; then api-gateway, which is still a single file with no routes. — `@EnableMethodSecurity` is on but **no endpoint carries an authorization annotation**, so RBAC is currently decorative.
-7. Then Phase 2 (Kafka), including the RabbitMQ keep/remove decision required by §18.
+6. ~~RBAC enforcement~~ **DONE** (commit `4d6caa7`): enforced in project-service via membership-derived checks + `@PreAuthorize`. ~~Phase 2~~ **DONE** (commit `0a2f97d`). ~~Phase 4~~ **DONE** (commit `03c07b0`). ~~Kanban board UI~~ **DONE** (commit `030bf70`).
+7. ~~api-gateway~~ **DONE**: routes, correlation ids, CORS allow-list. The frontend now talks to one origin and the Vite proxy no longer duplicates the service map.
+8. **NEXT:** Phase 2 remainder — stand up a Kafka broker and verify publication and consumption for real. No consumer exists yet, so the outbox currently writes events nothing reads. This also forces the RabbitMQ keep/remove decision required by §18.
+9. Then the §7 documentation set, which is 2 of 11 files written.
 
 ---
 
@@ -170,6 +177,10 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 | AD-7 | Entities with `@UuidGenerator` must not have ids assigned in application code | Assigning one makes Hibernate treat the instance as detached, silently converting `persist()` into `merge()`. This broke signup and login. Entities using a plain assigned `@Id` (the token entities) still set ids explicitly. |
 | AD-8 | The catch-all exception handler returns a `traceId`, never the exception message | Echoing `ex.getMessage()` leaked raw Hibernate internals to clients. Details are logged server-side against the same id. |
 | AD-9 | The refresh cookie authenticates only at `/api/v1/auth/refresh` | An ambient cookie accepted as a bearer credential on every endpoint, with CSRF disabled, is a CSRF vector. |
+| AD-10 | task-service delegates project authorization to project-service, forwarding the **caller's own** token | Replicating membership would create a second source of truth, and a stale replica in an authorization path is a cross-tenant leak waiting to happen. A service credential would instead grant task-service blanket access to every project. The call fails closed: an unreachable authority yields 503, never access. |
+| AD-11 | The gateway uses `spring-cloud-starter-gateway-mvc`, not the reactive gateway | `common-library` is on every service's classpath and brings `spring-boot-starter-web`. Mixing that with the reactive gateway leaves Boot unable to decide which web stack to start. |
+| AD-12 | Task and sprint routes are declared **before** the organizations route | Those paths are nested under the project path but served by task-service. Declared after the broader `/api/v1/organizations/**` route they would never match. |
+| AD-13 | CORS takes an explicit origin list; `*` throws at startup | `addAllowedOriginPattern("*")` with `allowCredentials(true)` makes Spring echo the caller's Origin back, sidestepping the browser's wildcard-with-credentials rule. Any site could then read a signed-in user's data. Failing to boot is the correct response to that configuration. |
 
 ---
 

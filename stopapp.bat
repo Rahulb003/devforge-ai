@@ -16,6 +16,7 @@ echo.
 call :killport 9001 auth-service
 call :killport 9002 project-service
 call :killport 9003 task-service
+call :killport 8080 api-gateway
 call :killport 4173 frontend
 
 echo.

@@ -1,0 +1,25 @@
+# Test configuration for api-gateway.
+#
+# The service URLs point at ports nothing listens on: these tests check that
+# routes are declared and matched in the right order, not that a downstream
+# service answers. Actually proxying is covered by the end-to-end suite.
+server:
+  port: 0
+
+spring:
+  application:
+    name: api-gateway
+
+devforge:
+  services:
+    auth-service-url: http://localhost:19001
+    project-service-url: http://localhost:19002
+    task-service-url: http://localhost:19003
+  cors:
+    allowed-origins: http://localhost:4173
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info

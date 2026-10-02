@@ -1,8 +1,23 @@
+# api-gateway — the single entry point in front of the platform.
 server:
-  port: 8080
+  port: ${SERVER_PORT:8080}
+
 spring:
   application:
     name: api-gateway
+
+devforge:
+  services:
+    # No defaults: a wrong or missing address would silently route traffic
+    # nowhere, which is harder to diagnose than a refusal to start.
+    auth-service-url: ${AUTH_SERVICE_URL}
+    project-service-url: ${PROJECT_SERVICE_URL}
+    task-service-url: ${TASK_SERVICE_URL}
+  cors:
+    # Explicit origins, never a wildcard: the API is credentialed, and a
+    # wildcard with credentials is both rejected by browsers and unsafe.
+    allowed-origins: ${DEVFORGE_CORS_ORIGINS:http://localhost:4173}
+
 management:
   endpoints:
     web:
@@ -10,4 +25,4 @@ management:
         include: health, info
   endpoint:
     health:
-      show-details: always
+      show-details: when-authorized
