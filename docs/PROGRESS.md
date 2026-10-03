@@ -206,10 +206,26 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 
 ## Documentation Status
 
-Written: `docs/PROGRESS.md` (this file), `docs/EVENT_CATALOG.md`.
+All 11 files required by §7 are written:
 
-Not yet written — required by §7 and still outstanding: `CLAUDE.md`, `docs/ARCHITECTURE.md`,
-`docs/DEVELOPMENT_PLAN.md`, `docs/REQUIREMENTS_MATRIX.md`, `docs/TEST_PLAN.md`,
-`docs/THREAT_MODEL.md`, `docs/API_CONTRACTS.md`, `docs/SECURITY.md`,
-`docs/TESTING.md`. `README.md` and `docs/Setup.md` exist but have **not** been reviewed against
-the repaired build and should be assumed stale.
+| File | Covers |
+|---|---|
+| `CLAUDE.md` | how to work in this repository; the traps that have cost time |
+| `README.md` | what the project is, and honestly what works |
+| `docs/ARCHITECTURE.md` | system shape and the reasoning behind each structural choice |
+| `docs/PROGRESS.md` | this file: status per feature, decision table, build gates |
+| `docs/DEVELOPMENT_PLAN.md` | the order remaining work should be done in, and why |
+| `docs/REQUIREMENTS_MATRIX.md` | every spec section with its status and evidence |
+| `docs/API_CONTRACTS.md` | all 56 endpoints, conventions, error shape |
+| `docs/TEST_PLAN.md` | the bar a feature must meet; gaps in priority order |
+| `docs/TESTING.md` | how the suites are built and why |
+| `docs/SECURITY.md` | implemented controls, how to verify, known gaps |
+| `docs/THREAT_MODEL.md` | assets, trust boundaries, threats, residual risk |
+| `docs/EVENT_CATALOG.md` | every event, its payload, its consumers, verification status |
+
+`docs/Setup.md` predates the build repair and has **not** been reviewed; treat it as stale.
+
+Two things these documents record that are easy to lose and were previously only in code comments or
+commit messages: the numbered architectural decisions (`AD-1`…`AD-18`, above), and the fact that
+`config-server` and `discovery-server` are empty Boot apps with no Spring Cloud dependency, wired up
+by `docker-compose.yml` through environment variables nothing reads.
