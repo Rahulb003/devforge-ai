@@ -4,15 +4,27 @@
 
 ## What is included
 
-- React 19 + Vite frontend shell
-- Java 21 Spring Boot microservice foundation
-- API Gateway, config server, discovery server
-- PostgreSQL, Redis, RabbitMQ, Prometheus, Grafana
-- Docker Compose orchestration
-- Kubernetes manifests for namespace, deployments, services, config maps, secrets, and ingress
-- OpenAPI / Swagger setup
-- Monitoring, health endpoints, logging, and request tracing foundation
-- CI pipeline with lint, test, build, and Docker image packaging
+This is a foundation with three service domains built on it, not a finished platform.
+`docs/PROGRESS.md` tracks exactly what works, and what is only scaffolded, per feature.
+
+**Working end-to-end, with tests:**
+
+- Authentication — signup, sign-in, JWT access/refresh with rotation and reuse detection,
+  TOTP two-factor, per-device sessions, password reset, rate limiting
+- Organizations and projects, with membership-derived authorization and tenant isolation
+- Tasks, a Kanban board, sprints, comments and labels
+- An API gateway as the single entry point, with correlation ids
+- A transactional outbox over Kafka, verified against a real broker
+- React 19 + Vite frontend covering the above
+
+**Scaffolded only — health endpoint, no behaviour yet:** AI, Git, review, documentation,
+chat, notification, deployment and analytics services.
+
+**Present but unverified:** Docker Compose and the Kubernetes manifests have never been
+run here (no Docker daemon available). Treat them as untested.
+
+RabbitMQ was removed: it was declared in five places and called from none. Kafka is the
+event backbone — see `docs/EVENT_CATALOG.md` §1 for the reasoning.
 
 ## Project structure
 

@@ -1,0 +1,56 @@
+# Test configuration for the event-backbone tests.
+#
+# The broker is real: @EmbeddedKafka starts an in-process Kafka in KRaft mode and
+# publishes its address as spring.embedded.kafka.brokers, which is wired into the
+# client below. Nothing here is mocked, so these tests fail if the producer,
+# consumer, serialisation or error handling is actually wrong.
+spring:
+  application:
+    name: event-backbone-test
+  datasource:
+    url: jdbc:h2:mem:devforge_events;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ''
+  jpa:
+    # The outbox tables ship as Flyway migrations in each consuming service, not
+    # in this library, so the schema here is derived from the entities. The
+    # services' own tests are what validate the migrations against them.
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+  flyway:
+    enabled: false
+  kafka:
+    bootstrap-servers: ${spring.embedded.kafka.brokers}
+    consumer:
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      # Tests assert on events produced after the listener is up, but a rebalance
+      # can assign a partition after the first send, so start from the beginning
+      # rather than losing the record to the default 'latest'.
+      auto-offset-reset: earliest
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
+devforge:
+  outbox:
+    # H2 has no FOR UPDATE SKIP LOCKED, so the publisher falls back to an
+    # ordered read. Production runs on PostgreSQL with the skip-locked claim.
+    use-skip-locked: false
+    # Effectively disables the scheduled drain so each test controls exactly when
+    # publication happens. A background tick would otherwise drain the outbox
+    # mid-assertion and make failures look random.
+    poll-interval-ms: 3600000
+    cleanup-interval-ms: 3600000
+
+logging:
+  level:
+    # Quiet the broker's own startup chatter; it buries the test output.
+    kafka: WARN
+    org.apache.kafka: WARN
+    org.apache.zookeeper: WARN
+    state.change.logger: WARN

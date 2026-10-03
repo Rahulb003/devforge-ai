@@ -210,11 +210,35 @@ complexity alone. Revisit when cross-language consumers or payload size make it 
 | Payload carries no credential material | **Verified** |
 | Duplicate handled once per consumer group | **Verified** |
 | Failing handler leaves the event retryable | **Verified** |
-| Publication to a real broker | **UNVERIFIED** — needs Docker/Testcontainers |
-| Retry, backoff and dead-lettering in practice | **UNVERIFIED** — needs a broker |
+| Publication to a real broker | **Verified** — `OutboxPublicationIntegrationTest`, in-process Kafka |
+| Envelope survives the round trip (incl. `Instant` precision) | **Verified** — consumed and re-parsed |
+| Partition key is the tenant; platform events fall back to event id | **Verified** |
+| Ordering within a tenant | **Verified** — staged, drained and consumed in order on one partition |
+| Duplicate delivery runs the handler once | **Verified** — against a broker, not just the guard in isolation |
+| Non-retryable failure is dead-lettered | **Verified** — record lands on `<topic>.dlt` after one attempt |
+| A poison event does not block its partition | **Verified** — the healthy event behind it is still processed |
 | `SKIP LOCKED` behaviour with concurrent publishers | **UNVERIFIED** — needs PostgreSQL |
+| Retry/backoff timing under a transient outage | **UNVERIFIED** — only the non-retryable path is exercised |
 | Consumer lag, rebalance and replay | **UNVERIFIED** |
+| Broker TLS, SASL and ACLs | **UNVERIFIED** — not configured; see §7 |
 
-No consumers exist yet. Producing is wired end-to-end through the outbox; the consuming side is
-configured (error handler, DLT routing, idempotency) but nothing subscribes until Phase 12
-(notifications) and Phase 14 (analytics).
+### How this is verified without Docker
+
+`spring-kafka-test` starts a **real Kafka broker in-process** (KRaft mode), so these tests exercise
+the actual producer configuration, serialisation, error handler and dead-letter recoverer. Nothing
+is mocked. Testcontainers remains the right tool for broker-failover and multi-replica behaviour,
+which an embedded single-broker cluster cannot show — notably `acks=all`, whose whole purpose is
+surviving a leader change.
+
+Two caveats worth keeping in view:
+
+- The tests set `devforge.outbox.use-skip-locked=false`, because H2 has no
+  `FOR UPDATE SKIP LOCKED`. Production runs on PostgreSQL with the skip-locked claim, and
+  **without it concurrent publishers would duplicate every event** — so that path is still
+  unverified.
+- Each test publishes to a topic of its own. Kafka topics are append-only with no per-test
+  truncation, and a fresh consumer group reading from `earliest` on a shared topic replays
+  everything earlier tests left behind, which turns "exactly one event arrived" into a false pass.
+
+No *production* consumer exists yet. The consuming side is proven to work, but the only subscriber
+today is the test listener; real ones arrive with Phase 12 (notifications) and Phase 14 (analytics).

@@ -14,7 +14,7 @@ Phase 2's event backbone is written but has never run against a real broker.
 | Gate | Command | Result |
 |---|---|---|
 | Backend compile | `mvn -B -ntp -f backend/pom.xml clean compile` | **PASS** — all 16 modules |
-| Backend tests | `mvn -B -ntp -f backend/pom.xml clean test` | **PASS** — 155 tests, 0 failures |
+| Backend tests | `mvn -B -ntp -f backend/pom.xml clean test` | **PASS** — 164 tests, 0 failures |
 | Frontend install | `npm ci` (in `frontend/`) | **PASS** |
 | Frontend lint | `npm run lint` | **PASS** — 0 errors, 0 warnings |
 | Frontend tests | `npm test` | **PASS** — 14 unit tests |
@@ -138,7 +138,9 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 | API gateway routing | `IMPLEMENTED` | Single entry point on 8080; routes auth, organizations/projects and the nested task/sprint paths. Verified live: signup 201, `/auth/me` 200, create org, create project, create task — all through the gateway |
 | Correlation ids | `IMPLEMENTED` | Gateway generates one per request, reuses a valid inbound id, replaces an unsafe one; 6 tests |
 | CORS | `IMPLEMENTED` | Explicit origin allow-list; a wildcard now fails startup rather than being silently echoed back. 5 tests |
-| Kafka / outbox / event envelope | `IMPLEMENTED` | Envelope, outbox, idempotency, DLQ config; 10 tests. Broker publication UNVERIFIED — see docs/EVENT_CATALOG.md §8 |
+| Kafka / outbox / event envelope | `IMPLEMENTED` | Envelope, outbox, idempotency, DLQ; 10 staging tests **plus 9 against a real in-process broker** — publication, ordering, dedup on redelivery, dead-lettering, and a poison event not blocking its partition. `SKIP LOCKED` still UNVERIFIED (needs PostgreSQL); see docs/EVENT_CATALOG.md §8 |
+| Kafka consumers in services | `MISSING` | The consuming side is proven to work, but the only subscriber today is a test listener. Real ones arrive with notifications (§12) and analytics (§14) |
+| Kafka TLS / SASL / ACLs | `MISSING` | Not configured |
 | Tasks, Kanban, sprints, comments, labels | `IMPLEMENTED` | task-service, 29 tests. Authorization delegated to project-service |
 | IDE, AI, Git, review, docs, chat, deploy, analytics, RAG, agents | `MISSING` / `SCAFFOLDED` | Health endpoints only |
 | Frontend app shell, routing, theme store | `IMPLEMENTED` | 12 passing tests |
@@ -159,8 +161,13 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 5. ~~Phase 1~~ **COMPLETE** (commits `5adfb5b`, `aa6713a`): rotation, throttling, audit trail, MFA/TOTP, per-device sessions, OAuth persistence. OAuth remains UNVERIFIED without provider credentials.
 6. ~~RBAC enforcement~~ **DONE** (commit `4d6caa7`): enforced in project-service via membership-derived checks + `@PreAuthorize`. ~~Phase 2~~ **DONE** (commit `0a2f97d`). ~~Phase 4~~ **DONE** (commit `03c07b0`). ~~Kanban board UI~~ **DONE** (commit `030bf70`).
 7. ~~api-gateway~~ **DONE**: routes, correlation ids, CORS allow-list. The frontend now talks to one origin and the Vite proxy no longer duplicates the service map.
-8. **NEXT:** Phase 2 remainder — stand up a Kafka broker and verify publication and consumption for real. No consumer exists yet, so the outbox currently writes events nothing reads. This also forces the RabbitMQ keep/remove decision required by §18.
-9. Then the §7 documentation set, which is 2 of 11 files written.
+8. ~~Verify the event backbone against a real broker~~ **DONE**: 9 integration tests on an
+   in-process Kafka prove publication, ordering, deduplication on redelivery and dead-lettering.
+   The §18 RabbitMQ decision was already recorded (removed; `docs/EVENT_CATALOG.md` §1), and the
+   two READMEs that still advertised it have been corrected.
+9. **NEXT:** the first *production* consumer, in notification-service. The outbox still writes
+   events nothing reads, so until a service subscribes, the backbone is proven but unused.
+10. Then the §7 documentation set, which is 2 of 11 files written.
 
 ---
 
@@ -181,6 +188,8 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 | AD-11 | The gateway uses `spring-cloud-starter-gateway-mvc`, not the reactive gateway | `common-library` is on every service's classpath and brings `spring-boot-starter-web`. Mixing that with the reactive gateway leaves Boot unable to decide which web stack to start. |
 | AD-12 | Task and sprint routes are declared **before** the organizations route | Those paths are nested under the project path but served by task-service. Declared after the broader `/api/v1/organizations/**` route they would never match. |
 | AD-13 | CORS takes an explicit origin list; `*` throws at startup | `addAllowedOriginPattern("*")` with `allowCredentials(true)` makes Spring echo the caller's Origin back, sidestepping the browser's wildcard-with-credentials rule. Any site could then read a signed-in user's data. Failing to boot is the correct response to that configuration. |
+| AD-14 | The event backbone is verified with an **in-process Kafka**, not Testcontainers | It is a real broker, so the producer config, serialisation, error handler and DLT recoverer are genuinely exercised with no Docker daemon available. Testcontainers stays the right tool for broker failover and multi-replica behaviour — `acks=all` exists to survive a leader change, which a single embedded broker cannot demonstrate. |
+| AD-15 | Each broker test publishes to its own topic | Kafka topics are append-only and there is no per-test truncation. A fresh consumer group reading from `earliest` on a shared topic replays what earlier tests left behind, so "exactly one event arrived" becomes a false pass. This was a real failure during development, not a hypothetical. |
 
 ---
 
