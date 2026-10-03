@@ -35,6 +35,9 @@ public class GatewayRoutesConfig {
   @Value("${devforge.services.task-service-url}")
   private String taskServiceUrl;
 
+  @Value("${devforge.services.notification-service-url}")
+  private String notificationServiceUrl;
+
   /**
    * Tasks and sprints, which live under the project path but belong to task-service.
    *
@@ -57,6 +60,23 @@ public class GatewayRoutesConfig {
   public RouterFunction<ServerResponse> projectRoutes() {
     return route("projects")
         .route(RequestPredicates.path("/api/v1/organizations/**"), http(projectServiceUrl))
+        .build();
+  }
+
+  /**
+   * The caller's own notifications.
+   *
+   * <p>Not nested under an organization, unlike tasks and projects. A notification can concern the
+   * account itself — a password change, a disabled second factor — which belongs to no tenant, so
+   * forcing these under an organization path would mean inventing one.
+   */
+  @Bean
+  public RouterFunction<ServerResponse> notificationRoutes() {
+    return route("notifications")
+        .route(
+            RequestPredicates.path("/api/v1/notifications")
+                .or(RequestPredicates.path("/api/v1/notifications/**")),
+            http(notificationServiceUrl))
         .build();
   }
 

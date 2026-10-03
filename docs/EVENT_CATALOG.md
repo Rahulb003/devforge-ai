@@ -98,6 +98,49 @@ consumers can straddle, rather than an in-place change that breaks whoever deplo
 | `UserMfaDisabled` | identity | `userId` | MFA turned off |
 | `RefreshTokenReuseDetected` | security | `userId`, `action` | A rotated refresh token was replayed; all sessions revoked |
 
+### Produced today (`task-service`)
+
+Every task event carries `taskId`, `projectId`, `taskNumber`, `title`, `assigneeId` and
+`reporterId`, plus the fields below. The envelope's `tenantId` is the organization and `actorId` is
+the user who performed the action.
+
+| Event | Topic | Extra payload | Trigger |
+|---|---|---|---|
+| `TaskCreated` | tasks | `status`, `priority`, `type` | A task is created |
+| `TaskAssigned` | tasks | `previousAssigneeId` | A task gains an assignee, or is reassigned |
+| `TaskMoved` | tasks | `status`, `previousStatus` | A task changes column |
+| `TaskCompleted` | tasks | `completedAt`, `storyPoints` | A task reaches a terminal status |
+
+`assigneeId` is on every task event rather than only on `TaskAssigned`, because a consumer deciding
+who to tell needs to know who holds the task — and `TaskCompleted` previously carried no way to
+find out.
+
+### Consumed today (`notification-service`)
+
+The platform's first production consumer, in group `notification-service`. It subscribes to
+identity, security and tasks, and writes one notification row per recipient.
+
+| Event | Who is notified | Why |
+|---|---|---|
+| `TaskAssigned` | the new assignee, and the previous one if there was a different one | work moving to or away from someone |
+| `TaskCompleted` | the assignee, unless they completed it themselves | |
+| `UserPasswordReset` | the account the event concerns | the classic way account takeover is noticed |
+| `UserMfaEnabled` / `UserMfaDisabled` | ditto | disabling a second factor is the one that matters |
+| `RefreshTokenReuseDetected` | ditto | the user's sessions were ended; they should know why |
+
+Two rules that are easy to get wrong:
+
+- **The actor is never notified of their own action.** This is the single most common way a feed
+  becomes noise people learn to ignore. It depends on `actorId` being the acting user, which is why
+  task-service passing the *reporter* there was a defect rather than a cosmetic detail.
+- **Security alerts go to the subject, not the actor.** A password reset completed through an
+  emailed link has no authenticated actor at all, and the whole value of the alert is that it
+  reaches the account owner even when someone else triggered it.
+
+An unrecognised event type produces no notifications and does **not** fail. A consumer that
+rejected unknown types would start dead-lettering the moment any producer shipped a new one, and
+"notifications are down" is a worse outcome than "that event notifies nobody yet".
+
 ### Declared, not yet produced
 
 `OrganizationCreated`, `OrganizationDeleted`, `ProjectCreated`, `ProjectUpdated`,
@@ -106,6 +149,10 @@ consumers can straddle, rather than an in-place change that breaks whoever deplo
 
 Constants exist in `EventTypes`; project-service does not yet stage them. Listing them here without
 that caveat would be documenting intent as implementation.
+
+For the same reason notification-service has **no listener** for project events: a handler for an
+event nobody emits is dead code that reads like a feature. `ProjectMemberAdded` is the obvious next
+one — "you were added to a project" — and it needs the producer first.
 
 ---
 

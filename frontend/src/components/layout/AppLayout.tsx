@@ -1,5 +1,16 @@
-import { Building2, LayoutDashboard, LogOut, Moon, Settings, Sparkles, Sun } from 'lucide-react';
+import {
+  Bell,
+  Building2,
+  LayoutDashboard,
+  LogOut,
+  Moon,
+  Settings,
+  Sparkles,
+  Sun,
+} from 'lucide-react';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
+
+import { NotificationBell } from './NotificationBell';
 
 import { authApi } from '@/api/auth.api';
 import { useAuthStore } from '@/stores/authStore';
@@ -8,6 +19,7 @@ import { useThemeStore } from '@/stores/themeStore';
 const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { path: '/organizations', label: 'Organizations', icon: Building2, end: false },
+  { path: '/notifications', label: 'Notifications', icon: Bell, end: false },
   { path: '/settings', label: 'Settings', icon: Settings, end: false },
 ];
 
@@ -80,6 +92,8 @@ export function AppLayout() {
             </div>
 
             <div className="flex items-center gap-3">
+              <NotificationBell />
+
               <button
                 type="button"
                 onClick={toggleTheme}

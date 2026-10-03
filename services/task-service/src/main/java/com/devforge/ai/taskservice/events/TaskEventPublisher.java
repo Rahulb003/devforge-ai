@@ -39,8 +39,8 @@ public class TaskEventPublisher {
   private final OutboxEventRecorder outbox;
 
   @Transactional(propagation = Propagation.MANDATORY)
-  public void taskCreated(TaskEntity task) {
-    record(TASK_CREATED, task, Map.of(
+  public void taskCreated(TaskEntity task, UUID actorId) {
+    record(TASK_CREATED, task, actorId, Map.of(
         "status", task.getStatus().name(),
         "priority", task.getPriority().name(),
         "type", task.getType().name()));
@@ -51,34 +51,45 @@ public class TaskEventPublisher {
    *     can notify the person who lost the task as well as the one who gained it.
    */
   @Transactional(propagation = Propagation.MANDATORY)
-  public void taskAssigned(TaskEntity task, UUID previousAssignee) {
+  public void taskAssigned(TaskEntity task, UUID previousAssignee, UUID actorId) {
     var payload = new HashMap<String, Object>();
-    payload.put("assigneeId", task.getAssigneeId() == null ? null : task.getAssigneeId().toString());
     payload.put("previousAssigneeId", previousAssignee == null ? null : previousAssignee.toString());
-    record(TASK_ASSIGNED, task, payload);
+    record(TASK_ASSIGNED, task, actorId, payload);
   }
 
   @Transactional(propagation = Propagation.MANDATORY)
-  public void taskMoved(TaskEntity task, TaskStatus previousStatus) {
-    record(TASK_MOVED, task, Map.of(
+  public void taskMoved(TaskEntity task, TaskStatus previousStatus, UUID actorId) {
+    record(TASK_MOVED, task, actorId, Map.of(
         "status", task.getStatus().name(),
         "previousStatus", previousStatus.name()));
   }
 
   @Transactional(propagation = Propagation.MANDATORY)
-  public void taskCompleted(TaskEntity task) {
+  public void taskCompleted(TaskEntity task, UUID actorId) {
     var payload = new HashMap<String, Object>();
     payload.put("completedAt", task.getCompletedAt() == null ? null : task.getCompletedAt().toString());
     payload.put("storyPoints", task.getStoryPoints());
-    record(TASK_COMPLETED, task, payload);
+    record(TASK_COMPLETED, task, actorId, payload);
   }
 
-  private void record(String eventType, TaskEntity task, Map<String, Object> extra) {
+  /**
+   * @param actorId the user who performed the action.
+   *     <p>This must be the acting user, not the task's reporter. The envelope's contract is "the
+   *     user who caused the event", and consumers rely on it to avoid telling someone about their
+   *     own action — so passing the reporter here meant anyone acting on a task they had not
+   *     reported was announced as the reporter, and was then notified about what they had just
+   *     done themselves.
+   */
+  private void record(String eventType, TaskEntity task, UUID actorId, Map<String, Object> extra) {
     var payload = new HashMap<String, Object>();
     payload.put("taskId", task.getId().toString());
     payload.put("projectId", task.getProjectId().toString());
     payload.put("taskNumber", task.getTaskNumber());
     payload.put("title", task.getTitle());
+    // On every event, not just assignment: a consumer deciding who to tell needs to know who
+    // holds the task, and TaskCompleted previously carried no way to find out.
+    payload.put("assigneeId", task.getAssigneeId() == null ? null : task.getAssigneeId().toString());
+    payload.put("reporterId", task.getReporterId() == null ? null : task.getReporterId().toString());
     payload.putAll(extra);
 
     outbox.record(
@@ -86,7 +97,7 @@ public class TaskEventPublisher {
         eventType,
         // Keyed by tenant, so one organization's task events stay ordered.
         task.getOrganizationId(),
-        task.getReporterId(),
+        actorId,
         MDC.get("correlationId"),
         payload);
   }

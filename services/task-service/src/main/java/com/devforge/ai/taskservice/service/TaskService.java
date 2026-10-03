@@ -96,9 +96,9 @@ public class TaskService {
         .boardPosition(taskRepository.findMaxBoardPosition(projectId, status) + 1)
         .build());
 
-    events.taskCreated(task);
+    events.taskCreated(task, user.id());
     if (task.getAssigneeId() != null) {
-      events.taskAssigned(task, null);
+      events.taskAssigned(task, null, user.id());
     }
     return toResponse(task);
   }
@@ -224,9 +224,10 @@ public class TaskService {
       }
       taskRepository.saveAll(source);
 
-      events.taskMoved(task, previousStatus);
+      var actor = access.requireCurrentUser().id();
+      events.taskMoved(task, previousStatus, actor);
       if (targetStatus.isTerminal()) {
-        events.taskCompleted(task);
+        events.taskCompleted(task, actor);
       }
     }
 
@@ -259,7 +260,7 @@ public class TaskService {
 
     // Unassigning is not an assignment, so it raises no notification-bearing event.
     if (request.assigneeId() != null && !request.assigneeId().equals(previousAssignee)) {
-      events.taskAssigned(task, previousAssignee);
+      events.taskAssigned(task, previousAssignee, access.requireCurrentUser().id());
     }
     return toResponse(task);
   }

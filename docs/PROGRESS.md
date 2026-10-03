@@ -14,10 +14,10 @@ Phase 2's event backbone is written but has never run against a real broker.
 | Gate | Command | Result |
 |---|---|---|
 | Backend compile | `mvn -B -ntp -f backend/pom.xml clean compile` | **PASS** — all 16 modules |
-| Backend tests | `mvn -B -ntp -f backend/pom.xml clean test` | **PASS** — 164 tests, 0 failures |
+| Backend tests | `mvn -B -ntp -f backend/pom.xml clean test` | **PASS** — 186 tests, 0 failures |
 | Frontend install | `npm ci` (in `frontend/`) | **PASS** |
 | Frontend lint | `npm run lint` | **PASS** — 0 errors, 0 warnings |
-| Frontend tests | `npm test` | **PASS** — 14 unit tests |
+| Frontend tests | `npm test` | **PASS** — 26 unit tests |
 | Frontend build | `npm run build` | **PASS** |
 | End-to-end tests | `npm run test:e2e` (Playwright, stack running) | **PASS** — 22 tests, through the gateway |
 | YAML validity | js-yaml parse of all 24 YAML files | **PASS** — 0 invalid |
@@ -139,14 +139,16 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 | Correlation ids | `IMPLEMENTED` | Gateway generates one per request, reuses a valid inbound id, replaces an unsafe one; 6 tests |
 | CORS | `IMPLEMENTED` | Explicit origin allow-list; a wildcard now fails startup rather than being silently echoed back. 5 tests |
 | Kafka / outbox / event envelope | `IMPLEMENTED` | Envelope, outbox, idempotency, DLQ; 10 staging tests **plus 9 against a real in-process broker** — publication, ordering, dedup on redelivery, dead-lettering, and a poison event not blocking its partition. `SKIP LOCKED` still UNVERIFIED (needs PostgreSQL); see docs/EVENT_CATALOG.md §8 |
-| Kafka consumers in services | `MISSING` | The consuming side is proven to work, but the only subscriber today is a test listener. Real ones arrive with notifications (§12) and analytics (§14) |
+| Kafka consumers in services | `IMPLEMENTED` | notification-service consumes identity, security and task events in group `notification-service`. The platform's first production consumer, so events now drive behaviour rather than accumulating unread |
+| Notifications (§12) | `IMPLEMENTED` | Consumer, per-recipient storage, read/unread/delete API, bell with unread badge and a feed page. 22 backend tests (8 against a real broker) + 12 frontend. Verified live through the gateway |
 | Kafka TLS / SASL / ACLs | `MISSING` | Not configured |
 | Tasks, Kanban, sprints, comments, labels | `IMPLEMENTED` | task-service, 29 tests. Authorization delegated to project-service |
-| IDE, AI, Git, review, docs, chat, deploy, analytics, RAG, agents | `MISSING` / `SCAFFOLDED` | Health endpoints only |
+| IDE, AI, Git, review, docs, chat, deploy, analytics, RAG, agents | `MISSING` / `SCAFFOLDED` | Health endpoints only — 7 services remain 2-file scaffolds |
 | Frontend app shell, routing, theme store | `IMPLEMENTED` | 12 passing tests |
 | Frontend auth screens (login/MFA/signup/verify/forgot/reset) | `IMPLEMENTED` | Driven against the live API; verified end-to-end through the dev proxy |
 | Frontend organization + project screens | `IMPLEMENTED` | List/create, loading/empty/error states |
 | Frontend Kanban board | `IMPLEMENTED` | Board, columns, task create/move; reachable by clicking from a project |
+| Frontend notifications | `IMPLEMENTED` | Bell with unread badge, feed page, read/unread/delete, filter. 12 tests |
 | Frontend IDE/AI screens | `MISSING` | Phases 5+ |
 | End-to-end browser tests | `IMPLEMENTED` | 22 Playwright tests through the gateway; `npm run test:e2e` → 22 passed |
 
@@ -165,9 +167,15 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
    in-process Kafka prove publication, ordering, deduplication on redelivery and dead-lettering.
    The §18 RabbitMQ decision was already recorded (removed; `docs/EVENT_CATALOG.md` §1), and the
    two READMEs that still advertised it have been corrected.
-9. **NEXT:** the first *production* consumer, in notification-service. The outbox still writes
-   events nothing reads, so until a service subscribes, the backbone is proven but unused.
-10. Then the §7 documentation set, which is 2 of 11 files written.
+9. ~~The first production consumer~~ **DONE**: notification-service consumes identity, security
+   and task events and turns them into per-recipient notifications, with a bell and feed in the UI.
+   Two defects in task-service's event publishing were found and fixed on the way — `actorId` was
+   the reporter rather than the acting user, and `TaskCompleted` carried no `assigneeId`.
+10. **NEXT:** the §7 documentation set, which is 2 of 11 files written. `CLAUDE.md` and
+   `ARCHITECTURE.md` matter most: the architectural decisions are currently recorded only in this
+   file's AD table and in code comments.
+11. Then project-service should stage the events its `EventTypes` constants already declare, so
+   "you were added to a project" becomes possible.
 
 ---
 
@@ -190,6 +198,9 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 | AD-13 | CORS takes an explicit origin list; `*` throws at startup | `addAllowedOriginPattern("*")` with `allowCredentials(true)` makes Spring echo the caller's Origin back, sidestepping the browser's wildcard-with-credentials rule. Any site could then read a signed-in user's data. Failing to boot is the correct response to that configuration. |
 | AD-14 | The event backbone is verified with an **in-process Kafka**, not Testcontainers | It is a real broker, so the producer config, serialisation, error handler and DLT recoverer are genuinely exercised with no Docker daemon available. Testcontainers stays the right tool for broker failover and multi-replica behaviour — `acks=all` exists to survive a leader change, which a single embedded broker cannot demonstrate. |
 | AD-15 | Each broker test publishes to its own topic | Kafka topics are append-only and there is no per-test truncation. A fresh consumer group reading from `earliest` on a shared topic replays what earlier tests left behind, so "exactly one event arrived" becomes a false pass. This was a real failure during development, not a hypothetical. |
+| AD-16 | Notifications are one row per recipient, never a shared row with a recipient list | Read state is per-person, so a shared row needs a join table that everyone who reads mutates, and authorization stops being a single column comparison. One row each keeps the authorization check to `recipient_id = token subject`. |
+| AD-17 | No notification endpoint accepts a user id | The recipient comes from the verified token. An endpoint like `/users/{id}/notifications` makes the id something the client sends, and then every method has to remember to check it — the exact shape of the IDOR bug §32 asks to be tested for. A notification belonging to someone else returns 404, not 403, so the API is not an oracle for enumerating ids. |
+| AD-18 | The notification bell polls; it does not hold a socket | A WebSocket delivers faster but is a connection per signed-in tab to maintain and reconnect, and a count up to a minute stale costs the user nothing. When chat (§11) brings a real-time channel, this should move onto it rather than keeping its own. |
 
 ---
 

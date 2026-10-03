@@ -9,6 +9,7 @@ import { ErrorBoundary } from './components/ui/ErrorBoundary';
 import { DashboardPage } from './pages/DashboardPage';
 import { DevMailboxPage } from './pages/DevMailboxPage';
 import { NotFoundPage } from './pages/NotFoundPage';
+import { NotificationsPage } from './pages/NotificationsPage';
 import { OrganizationDetailPage } from './pages/OrganizationDetailPage';
 import { OrganizationsPage } from './pages/OrganizationsPage';
 import { ProjectBoardPage } from './pages/ProjectBoardPage';
@@ -59,6 +60,7 @@ function App() {
                 path="organizations/:organizationId/projects/:projectId"
                 element={<ProjectBoardPage />}
               />
+              <Route path="notifications" element={<NotificationsPage />} />
               <Route path="settings" element={<SettingsPage />} />
             </Route>
           </Route>

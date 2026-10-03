@@ -4,7 +4,7 @@
 
 ## What is included
 
-This is a foundation with three service domains built on it, not a finished platform.
+This is a foundation with four service domains built on it, not a finished platform.
 `docs/PROGRESS.md` tracks exactly what works, and what is only scaffolded, per feature.
 
 **Working end-to-end, with tests:**
@@ -15,10 +15,12 @@ This is a foundation with three service domains built on it, not a finished plat
 - Tasks, a Kanban board, sprints, comments and labels
 - An API gateway as the single entry point, with correlation ids
 - A transactional outbox over Kafka, verified against a real broker
+- Notifications driven by those events: task assignments and security alerts,
+  with an unread badge and a feed
 - React 19 + Vite frontend covering the above
 
 **Scaffolded only — health endpoint, no behaviour yet:** AI, Git, review, documentation,
-chat, notification, deployment and analytics services.
+chat, deployment and analytics services.
 
 **Present but unverified:** Docker Compose and the Kubernetes manifests have never been
 run here (no Docker daemon available). Treat them as untested.

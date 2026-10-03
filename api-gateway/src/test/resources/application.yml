@@ -15,6 +15,7 @@ devforge:
     auth-service-url: http://localhost:19001
     project-service-url: http://localhost:19002
     task-service-url: http://localhost:19003
+    notification-service-url: http://localhost:19011
   cors:
     allowed-origins: http://localhost:4173
 

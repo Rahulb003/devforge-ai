@@ -1,0 +1,64 @@
+# Test configuration for notification-service.
+#
+# Runs the real Flyway migrations against H2 in PostgreSQL mode, then
+# ddl-auto=validate asserts the JPA mappings match the migrated schema.
+server:
+  port: 0
+
+spring:
+  application:
+    name: notification-service
+  datasource:
+    url: jdbc:h2:mem:notificationdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password: ''
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+  kafka:
+    # Overridden to the embedded broker's address by the tests that need one.
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: notification-service
+      enable-auto-commit: false
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    listener:
+      ack-mode: record
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
+security:
+  jwt:
+    issuer: devforge-ai-test
+    # Test-only key, never used outside the test source set.
+    signing-key: test-only-signing-key-that-is-long-enough-to-satisfy-hs256-256-bit-requirement
+
+devforge:
+  kafka:
+    # Off by default so the API tests do not need a broker. The consumer test
+    # switches it on and supplies an embedded one.
+    enabled: false
+  outbox:
+    enabled: false
+    use-skip-locked: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info
+
+logging:
+  level:
+    kafka: WARN
+    org.apache.kafka: WARN
+    state.change.logger: WARN

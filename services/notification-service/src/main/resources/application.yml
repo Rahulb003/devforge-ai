@@ -1,8 +1,60 @@
+# notification-service — base configuration.
+# Credentials come from the environment with no fallbacks; see .env.example.
 server:
-  port: 9011
+  port: ${SERVER_PORT:9011}
+
 spring:
   application:
     name: notification-service
+  datasource:
+    url: ${DEVFORGE_DB_URL}
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
+  jpa:
+    hibernate:
+      # Flyway owns the schema; Hibernate only verifies the mapping against it.
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    consumer:
+      # Must match NotificationEventListener.CONSUMER_GROUP: the deduplication
+      # markers are scoped to this name, so changing it would make every past
+      # event look unprocessed and replay the history as new notifications.
+      group-id: notification-service
+      # Offsets are committed by the container after each record is handled, not
+      # by a background timer, so a crash cannot acknowledge an event that was
+      # never processed.
+      enable-auto-commit: false
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    listener:
+      ack-mode: record
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
+security:
+  jwt:
+    # Must match the auth service: this service only verifies the tokens it issues.
+    issuer: ${DEVFORGE_JWT_ISSUER:devforge-ai}
+    signing-key: ${DEVFORGE_JWT_SIGNING_KEY}
+
+devforge:
+  kafka:
+    enabled: ${DEVFORGE_KAFKA_ENABLED:true}
+  outbox:
+    # This service consumes; it publishes nothing yet. The outbox table exists
+    # only because the shared entities are on the classpath and Hibernate
+    # validates the mapping at startup, so draining it would be a no-op.
+    enabled: false
+    use-skip-locked: ${DEVFORGE_OUTBOX_SKIP_LOCKED:true}
+
 management:
   endpoints:
     web:
@@ -10,4 +62,4 @@ management:
         include: health, info
   endpoint:
     health:
-      show-details: always
+      show-details: when-authorized

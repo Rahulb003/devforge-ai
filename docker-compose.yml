@@ -204,7 +204,7 @@ services:
         ARTIFACT_ID: analytics-service
         SERVICE_PORT: "9010"
     ports:
-      - 9006:9006
+      - 9010:9010
     environment:
       SPRING_PROFILES_ACTIVE: local
       SPRING_CLOUD_CONFIG_URI: http://config-server:8888
@@ -226,7 +226,7 @@ services:
         ARTIFACT_ID: chat-service
         SERVICE_PORT: "9008"
     ports:
-      - 9007:9007
+      - 9008:9008
     environment:
       SPRING_PROFILES_ACTIVE: local
       SPRING_CLOUD_CONFIG_URI: http://config-server:8888
@@ -248,7 +248,7 @@ services:
         ARTIFACT_ID: deployment-service
         SERVICE_PORT: "9009"
     ports:
-      - 9008:9008
+      - 9009:9009
     environment:
       SPRING_PROFILES_ACTIVE: local
       SPRING_CLOUD_CONFIG_URI: http://config-server:8888
@@ -270,7 +270,7 @@ services:
         ARTIFACT_ID: documentation-service
         SERVICE_PORT: "9007"
     ports:
-      - 9009:9009
+      - 9007:9007
     environment:
       SPRING_PROFILES_ACTIVE: local
       SPRING_CLOUD_CONFIG_URI: http://config-server:8888
@@ -292,7 +292,7 @@ services:
         ARTIFACT_ID: notification-service
         SERVICE_PORT: "9011"
     ports:
-      - 9010:9010
+      - 9011:9011
     environment:
       SPRING_PROFILES_ACTIVE: local
       SPRING_CLOUD_CONFIG_URI: http://config-server:8888
@@ -314,7 +314,7 @@ services:
         ARTIFACT_ID: review-service
         SERVICE_PORT: "9006"
     ports:
-      - 9011:9011
+      - 9006:9006
     environment:
       SPRING_PROFILES_ACTIVE: local
       SPRING_CLOUD_CONFIG_URI: http://config-server:8888

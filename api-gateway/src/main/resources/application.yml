@@ -13,6 +13,7 @@ devforge:
     auth-service-url: ${AUTH_SERVICE_URL}
     project-service-url: ${PROJECT_SERVICE_URL}
     task-service-url: ${TASK_SERVICE_URL}
+    notification-service-url: ${NOTIFICATION_SERVICE_URL}
   cors:
     # Explicit origins, never a wildcard: the API is credentialed, and a
     # wildcard with credentials is both rejected by browsers and unsafe.

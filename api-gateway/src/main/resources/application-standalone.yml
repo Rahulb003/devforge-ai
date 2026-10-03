@@ -8,6 +8,7 @@ devforge:
     auth-service-url: ${AUTH_SERVICE_URL:http://localhost:9001}
     project-service-url: ${PROJECT_SERVICE_URL:http://localhost:9002}
     task-service-url: ${TASK_SERVICE_URL:http://localhost:9003}
+    notification-service-url: ${NOTIFICATION_SERVICE_URL:http://localhost:9011}
   cors:
     allowed-origins: ${DEVFORGE_CORS_ORIGINS:http://localhost:4173}
 
