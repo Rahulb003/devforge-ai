@@ -88,7 +88,9 @@ describe('NotificationBell', () => {
 
     renderWith(<NotificationBell />);
 
-    await waitFor(() => expect(screen.getByRole('link', { name: 'Notifications' })).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByRole('link', { name: 'Notifications' })).toBeInTheDocument(),
+    );
     expect(screen.queryByText('0')).not.toBeInTheDocument();
   });
 

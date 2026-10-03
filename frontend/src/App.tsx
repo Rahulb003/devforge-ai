@@ -13,6 +13,8 @@ import { NotificationsPage } from './pages/NotificationsPage';
 import { OrganizationDetailPage } from './pages/OrganizationDetailPage';
 import { OrganizationsPage } from './pages/OrganizationsPage';
 import { ProjectBoardPage } from './pages/ProjectBoardPage';
+import { RepositoriesPage } from './pages/RepositoriesPage';
+import { RepositoryBrowserPage } from './pages/RepositoryBrowserPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
 import { LoginPage } from './pages/auth/LoginPage';
@@ -59,6 +61,19 @@ function App() {
               <Route
                 path="organizations/:organizationId/projects/:projectId"
                 element={<ProjectBoardPage />}
+              />
+              <Route
+                path="organizations/:organizationId/projects/:projectId/repositories"
+                element={<RepositoriesPage />}
+              />
+              {/*
+                The browser keeps the current directory, ref and open file in the
+                query string rather than the path, so a link to a file is one
+                someone else can open and Back walks up the tree.
+              */}
+              <Route
+                path="organizations/:organizationId/projects/:projectId/repositories/:repositoryId"
+                element={<RepositoryBrowserPage />}
               />
               <Route path="notifications" element={<NotificationsPage />} />
               <Route path="settings" element={<SettingsPage />} />

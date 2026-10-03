@@ -140,12 +140,18 @@ test.describe('Kanban board', () => {
     await page.getByRole('button', { name: 'Create', exact: true }).click();
     await expect(sprints.getByText('Sprint 2')).toBeVisible();
 
-    await sprints.getByRole('button', { name: 'Start' }).first().click();
-    await expect(sprints.getByText('ACTIVE')).toBeVisible();
+    // Addressed by name rather than by position. `.first()` depended on the list's order, which
+    // was not stable when two sprints were created in the same millisecond — so this intermittently
+    // started the same sprint twice, which the server allows, and then found no error to assert.
+    const sprintRow = (name: string) =>
+      sprints.locator('li').filter({ hasText: name });
+
+    await sprintRow('Sprint 1').getByRole('button', { name: 'Start' }).click();
+    await expect(sprintRow('Sprint 1').getByText('ACTIVE')).toBeVisible();
 
     // Two concurrent sprints make velocity meaningless, so the server refuses
     // and the UI must show why rather than appearing to do nothing.
-    await sprints.getByRole('button', { name: 'Start' }).first().click();
+    await sprintRow('Sprint 2').getByRole('button', { name: 'Start' }).click();
     await expect(sprints.getByRole('alert')).toContainText(/already active/i);
   });
 });

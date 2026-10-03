@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Plus } from 'lucide-react';
+import { ArrowLeft, GitBranch, Plus } from 'lucide-react';
 import { useState, type DragEvent, type FormEvent } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
@@ -134,11 +134,20 @@ export function ProjectBoardPage() {
             </>
           )}
         </div>
-        {!creating && (
-          <Button leftIcon={<Plus className="h-4 w-4" />} onClick={() => setCreating(true)}>
-            New task
-          </Button>
-        )}
+        <div className="flex items-center gap-3">
+          <Link
+            to={`/organizations/${organizationId}/projects/${projectId}/repositories`}
+            className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-700 bg-slate-800 px-5 text-sm font-medium text-slate-100 transition hover:border-slate-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-400"
+          >
+            <GitBranch className="h-4 w-4" aria-hidden="true" />
+            Repositories
+          </Link>
+          {!creating && (
+            <Button leftIcon={<Plus className="h-4 w-4" />} onClick={() => setCreating(true)}>
+              New task
+            </Button>
+          )}
+        </div>
       </header>
 
       {error && (

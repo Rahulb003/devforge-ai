@@ -55,7 +55,7 @@ public class SprintService {
   @Transactional(readOnly = true)
   public List<SprintResponse> list(UUID organizationId, UUID projectId) {
     access.requireProjectAccess(organizationId, projectId);
-    return sprintRepository.findByProjectIdOrderByCreatedAtDesc(projectId).stream()
+    return sprintRepository.findByProjectIdOrderByCreatedAtDescIdAsc(projectId).stream()
         .map(this::toResponse)
         .toList();
   }

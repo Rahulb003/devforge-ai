@@ -4,11 +4,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.DisplayName;
+import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.filter.CorsFilter;
 
 /**
  * Guards the cross-origin policy.
@@ -46,14 +48,39 @@ class CorsConfigTest {
   }
 
   @Test
-  @DisplayName("no origins are allowed by default")
-  void deniesByDefault() {
-    var config = configurationFor("");
+  @DisplayName("a service with no configured origins registers no CORS filter at all")
+  void noFilterWhenUnconfigured() {
+    // This is the regression that reached a commit. An empty allow-list does not mean "no
+    // cross-origin access" to a CorsFilter — it means "reject anything carrying an Origin header".
+    // Every service behind the gateway inherits this class, and a forwarded browser request still
+    // carries the browser's Origin, so signup answered 403 for real users while curl — which sends
+    // no Origin — worked perfectly.
+    //
+    // Omitting the filter is the safer of the two, because CORS only ever grants access.
+    new ApplicationContextRunner()
+        .withUserConfiguration(CorsConfig.class)
+        .run(context -> assertThat(context).doesNotHaveBean(CorsFilter.class));
 
-    // Same-origin requests are unaffected; this governs only what other origins
-    // may do, and "nobody" is the only safe default for a credentialed API.
-    assertThat(config.getAllowedOrigins()).isEmpty();
-    assertThat(config.checkOrigin("https://evil.example")).isNull();
+    // A present-but-blank value must behave the same, which is why the condition is an expression
+    // rather than @ConditionalOnProperty — the latter counts blank as a match.
+    new ApplicationContextRunner()
+        .withPropertyValues("devforge.cors.allowed-origins=")
+        .withUserConfiguration(CorsConfig.class)
+        .run(context -> assertThat(context).doesNotHaveBean(CorsFilter.class));
+
+    new ApplicationContextRunner()
+        .withPropertyValues("devforge.cors.allowed-origins=   ")
+        .withUserConfiguration(CorsConfig.class)
+        .run(context -> assertThat(context).doesNotHaveBean(CorsFilter.class));
+  }
+
+  @Test
+  @DisplayName("the filter is registered once origins are configured")
+  void filterWhenConfigured() {
+    new ApplicationContextRunner()
+        .withPropertyValues("devforge.cors.allowed-origins=http://localhost:4173")
+        .withUserConfiguration(CorsConfig.class)
+        .run(context -> assertThat(context).hasSingleBean(CorsFilter.class));
   }
 
   @Test

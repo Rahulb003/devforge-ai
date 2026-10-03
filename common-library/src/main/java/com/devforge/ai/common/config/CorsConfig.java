@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.cors.CorsConfiguration;
@@ -23,16 +24,30 @@ import org.springframework.web.filter.CorsFilter;
  *
  * <p>Origins are now an explicit allow-list from configuration, and a wildcard is refused
  * outright while credentials are enabled.
+ *
+ * <p><strong>The filter only exists where origins are actually configured</strong>, which in
+ * practice means the gateway. Behind the gateway, a service never talks to a browser directly: it
+ * receives a forwarded request that still carries the browser's {@code Origin} header. An empty
+ * allow-list does not mean "no cross-origin access" to a {@code CorsFilter} — it means "reject
+ * anything with an Origin header", so every forwarded browser request was answered with 403 while
+ * curl, which sends no Origin, worked perfectly. That bug reached a commit because only a browser
+ * test could see it.
+ *
+ * <p>Omitting the filter is the safer of the two: CORS only ever <em>grants</em> cross-origin
+ * access, so a service with no CORS configuration is one a browser cannot read cross-origin at
+ * all. Rejecting outright, by contrast, breaks the legitimate path through the gateway.
  */
 @Slf4j
 @Configuration
+// Only when at least one origin is configured. Deliberately not @ConditionalOnProperty, which
+// treats a present-but-blank value as a match and would recreate the 403 above.
+@ConditionalOnExpression("!'${devforge.cors.allowed-origins:}'.isBlank()")
 public class CorsConfig {
 
   /**
    * Comma-separated origins permitted to make credentialed requests.
    *
-   * <p>Empty by default. Same-origin requests are unaffected; this only governs what other
-   * origins may do, and defaulting to "nobody" is the only safe default for a credentialed API.
+   * <p>Same-origin requests are unaffected; this only governs what other origins may do.
    */
   @Value("${devforge.cors.allowed-origins:}")
   private String allowedOrigins;
@@ -61,11 +76,7 @@ public class CorsConfig {
     config.setAllowCredentials(true);
     config.setMaxAge(3600L);
 
-    if (origins.isEmpty()) {
-      log.info("CORS: no cross-origin origins allowed. Set devforge.cors.allowed-origins to permit some.");
-    } else {
-      log.info("CORS: allowing credentialed requests from {}", origins);
-    }
+    log.info("CORS: allowing credentialed requests from {}", origins);
 
     var source = new UrlBasedCorsConfigurationSource();
     source.registerCorsConfiguration("/**", config);

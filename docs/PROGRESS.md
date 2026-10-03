@@ -14,12 +14,12 @@ Phase 2's event backbone is written but has never run against a real broker.
 | Gate | Command | Result |
 |---|---|---|
 | Backend compile | `mvn -B -ntp -f backend/pom.xml clean compile` | **PASS** — all 16 modules |
-| Backend tests | `mvn -B -ntp -f backend/pom.xml clean test` | **PASS** — 293 tests, 0 failures |
+| Backend tests | `mvn -B -ntp -f backend/pom.xml clean test` | **PASS** — 294 tests, 0 failures |
 | Frontend install | `npm ci` (in `frontend/`) | **PASS** |
 | Frontend lint | `npm run lint` | **PASS** — 0 errors, 0 warnings |
-| Frontend tests | `npm test` | **PASS** — 26 unit tests |
+| Frontend tests | `npm test` | **PASS** — 46 unit tests |
 | Frontend build | `npm run build` | **PASS** |
-| End-to-end tests | `npm run test:e2e` (Playwright, stack running) | **PASS** — 22 tests, through the gateway |
+| End-to-end tests | `npm run test:e2e` (Playwright, stack running) | **PASS** — 28 tests, through the gateway. Needs a machine not otherwise loaded; see docs/TESTING.md |
 | YAML validity | js-yaml parse of all 24 YAML files | **PASS** — 0 invalid |
 | Docker image builds | `docker build ...` | **UNVERIFIED** — no Docker daemon in this environment |
 | Testcontainers tests | — | **UNVERIFIED** — requires Docker |
@@ -151,6 +151,7 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 | Frontend organization + project screens | `IMPLEMENTED` | List/create, loading/empty/error states |
 | Frontend Kanban board | `IMPLEMENTED` | Board, columns, task create/move; reachable by clicking from a project |
 | Frontend notifications | `IMPLEMENTED` | Bell with unread badge, feed page, read/unread/delete, filter. 12 tests |
+| Frontend code browser | `IMPLEMENTED` | Repository list and create, file tree, file contents with line numbers, commit history, branch switching, and a commit form so a new repository is not a dead end. 20 tests + 6 e2e |
 | Frontend IDE/AI screens | `MISSING` | Phases 5+ |
 | End-to-end browser tests | `IMPLEMENTED` | 22 Playwright tests through the gateway; `npm run test:e2e` → 22 passed |
 
@@ -180,9 +181,14 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
     Found and fixed a Windows portability bug on the way — git writes loose objects read-only,
     and Windows refuses to delete a read-only file, so repository deletion half-succeeded with
     only a warning.
-12. **NEXT:** a frontend code browser over git-service, so repositories are reachable by clicking.
-    Then the §37 sandbox, which gates the IDE and AI phases.
-13. Then project-service should stage the events its `EventTypes` constants already declare, so
+12. ~~A frontend code browser over git-service~~ **DONE**: repositories are now reachable by
+    clicking, including committing a file, so the domain is usable end to end.
+    **This is also where the CORS regression was caught** — see AD-23. The application had been
+    returning 403 to every browser request since the gateway commit, while every `curl` check
+    passed, because `curl` sends no `Origin` header.
+13. **NEXT:** the §37 sandbox, which gates the IDE and AI phases. Nothing executes developer
+    code today, which is correct, but no AI feature can do anything real until it exists.
+14. Then project-service should stage the events its `EventTypes` constants already declare, so
     "you were added to a project" becomes possible.
 
 ---
@@ -208,6 +214,8 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 | AD-15 | Each broker test publishes to its own topic | Kafka topics are append-only and there is no per-test truncation. A fresh consumer group reading from `earliest` on a shared topic replays what earlier tests left behind, so "exactly one event arrived" becomes a false pass. This was a real failure during development, not a hypothetical. |
 | AD-16 | Notifications are one row per recipient, never a shared row with a recipient list | Read state is per-person, so a shared row needs a join table that everyone who reads mutates, and authorization stops being a single column comparison. One row each keeps the authorization check to `recipient_id = token subject`. |
 | AD-17 | No notification endpoint accepts a user id | The recipient comes from the verified token. An endpoint like `/users/{id}/notifications` makes the id something the client sends, and then every method has to remember to check it — the exact shape of the IDOR bug §32 asks to be tested for. A notification belonging to someone else returns 404, not 403, so the API is not an oracle for enumerating ids. |
+| AD-23 | Only the gateway applies a CORS policy; services behind it register no CORS filter | An empty allow-list makes `CorsFilter` **reject** anything carrying an `Origin` header, which is what a gateway forwards — not "allow no cross-origin access". The first CORS hardening left every service with an empty list, so the whole app answered 403 to browsers while passing every `curl` check, because `curl` sends no `Origin`. Omitting the filter is safer: CORS only ever *grants* access. |
+| AD-24 | The repository browser keeps path, ref and open file in the **query string** | A link to a file is then one someone else can open, Back walks up the tree, and a reload lands in the same place. Component state would make all three fail. |
 | AD-19 | git-service uses JGit, never a git binary | Shelling out would build command lines from branch names, paths and commit messages — all attacker-supplied in a product hosting other people's repositories. A library call takes them as arguments, so there is no shell to inject into, and the image needs no git installed. |
 | AD-20 | Repository storage paths are derived from ids, never from names | `<root>/<organizationId>/<repositoryId>.git`. A name-derived path makes repository creation a filesystem write addressed by user input; the id is already unique, so the name buys nothing and costs a traversal surface. A rename also moves no files. |
 | AD-21 | Repositories are hard-deleted, row and objects together | `BaseEntity`'s soft delete would leave a row claiming the repository exists while its files are gone — and keeping the files means storage grows for ever with data the user believes they deleted. |

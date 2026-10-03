@@ -54,6 +54,19 @@ a token the client supplies is a value the client controls.
 
 ## 3. Transport and browser controls
 
+**Only the gateway applies a CORS policy.** Behind it, a service never talks to a browser
+directly — it receives a forwarded request that still carries the browser's `Origin` header.
+A service with no configured allow-list therefore registers **no CORS filter at all**, which is
+the safer of the two options: CORS only ever *grants* cross-origin access, so a service without
+it is one a browser cannot read cross-origin.
+
+The first version of this hardening got that wrong, and the mistake is worth recording. An empty
+allow-list does not mean "no cross-origin access" to a `CorsFilter`; it means "reject anything
+carrying an `Origin` header". Since `CorsConfig` is on every service's classpath and only the
+gateway set the property, **every forwarded browser request was answered 403** — while `curl`,
+which sends no `Origin`, worked perfectly. Six live smoke tests passed against the broken build.
+Only the browser suite caught it. Two tests now assert the filter is absent when unconfigured.
+
 **CORS takes an explicit origin allow-list, and a `*` entry throws at startup.** This was a real
 vulnerability, not a style preference: the original configuration used
 `addAllowedOriginPattern("*")` together with `setAllowCredentials(true)`. A *pattern* makes Spring
@@ -102,7 +115,7 @@ The security-relevant suites specifically:
 | `MfaAndSessionTest` | TOTP enrolment and verification, session revocation |
 | `TenantIsolationTest` | cross-tenant reads and writes, 404-not-403 |
 | `NotificationApiTest` | cross-user reads, writes and deletes |
-| `CorsConfigTest` | explicit origins, wildcard refuses to boot |
+| `CorsConfigTest` | explicit origins, wildcard refuses to boot, **no filter when unconfigured** |
 | `CorrelationIdFilterTest` | untrusted inbound id is replaced |
 | `JwtConfigValidationTest` | a weak or missing signing key refuses to boot |
 

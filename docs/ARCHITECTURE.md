@@ -182,6 +182,17 @@ the error the form had just set; the user saw a blank form reload with no explan
 
 ---
 
+### CORS belongs to the gateway alone
+
+Services behind the gateway register no CORS filter. `CorsConfig` is conditional on
+`devforge.cors.allowed-origins` being non-blank, and only the gateway sets it.
+
+This is not a tidy-up: an empty allow-list makes `CorsFilter` **reject** every request carrying an
+`Origin` header, which is exactly what a gateway forwards. The first version of the CORS hardening
+left every service with an empty list, so the whole application returned 403 to browsers while
+passing every `curl` check. The condition is `@ConditionalOnExpression` rather than
+`@ConditionalOnProperty` because the latter treats a present-but-blank value as a match.
+
 ## 7. Configuration and profiles
 
 | Profile | Database | Broker | Purpose |

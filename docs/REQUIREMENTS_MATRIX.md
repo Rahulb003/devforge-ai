@@ -15,9 +15,9 @@ Status vocabulary: `IMPLEMENTED`, `PARTIALLY_IMPLEMENTED`, `SCAFFOLDED`, `BROKEN
 | Status | Sections |
 |---|---|
 | `IMPLEMENTED` | 28 |
-| `PARTIALLY_IMPLEMENTED` | 10 |
+| `PARTIALLY_IMPLEMENTED` | 11 |
 | `SCAFFOLDED` | 7 |
-| `MISSING` | 93 |
+| `MISSING` | 92 |
 
 **~25% complete, weighted by effort rather than section count.** The weighting matters: §6, §15 and
 §16 (the AI platform) are a larger body of work than everything built so far combined, so a flat
@@ -37,7 +37,7 @@ section count would overstate progress.
 | 7 | Documentation set (11 files) | `IMPLEMENTED` | all 11 present as of this commit |
 | 15 | Container images | `SCAFFOLDED` | Dockerfiles exist, non-root with healthchecks; **UNVERIFIED**, no daemon |
 | 16 | Secrets and configuration hygiene | `IMPLEMENTED` | no fallbacks for credentials in the default profile; secrets gitignored |
-| 17 | Build must be green | `IMPLEMENTED` | 293 backend + 26 frontend + 22 e2e, all passing |
+| 17 | Build must be green | `IMPLEMENTED` | 294 backend + 46 frontend + 28 e2e, all passing |
 | 18 | RabbitMQ removed unless justified | `IMPLEMENTED` | removed from five places; justification in `EVENT_CATALOG.md` §1 |
 
 ## Identity and access
@@ -77,7 +77,7 @@ section count would overstate progress.
 | 6, 15, 16 | AI: generation, review, explanation, RAG, agents | `SCAFFOLDED` | ai-service is a health endpoint. **Largest remaining item** |
 | 7 (svc) | Git: repos, branches, commits, diffs, PRs | `PARTIALLY_IMPLEMENTED` | Real self-hosted repositories via JGit — create, browse, commit, branch, diff; 107 tests, verified live. **No** pull requests, no push over HTTP/SSH, and no GitHub/GitLab integration |
 | 8 | Code review and quality gates | `SCAFFOLDED` | review-service is a health endpoint |
-| 9 | IDE / editor | `MISSING` | no frontend surface |
+| 9 | IDE / editor | `PARTIALLY_IMPLEMENTED` | A read-only code browser plus a single-file commit form exists over git-service. No editor, no execution — §37 gates both |
 | 10 | Documentation generation | `SCAFFOLDED` | documentation-service is a health endpoint |
 | 11 | Chat and collaboration | `SCAFFOLDED` | chat-service is a health endpoint |
 | 12 | Notifications | `IMPLEMENTED` | consumer + API + bell + feed; 22 backend, 12 frontend tests |

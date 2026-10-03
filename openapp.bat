@@ -168,8 +168,16 @@ echo   Everything the web app calls goes through the gateway on port %GATEWAY_PO
 echo   so that is the only port the browser needs. Sign up at the web app and
 echo   sign straight in - there is no email verification step.
 echo.
-echo   Accounts live in .\data\ and survive a restart. Delete that folder for a
-echo   clean slate.
+echo   What to try: sign up, create an organization and a project, then use the
+echo   Kanban board, or Repositories on the board to create a git repository and
+echo   commit a file to it.
+echo.
+echo   NOTE: this profile runs without Kafka, so the notification feed stays empty.
+echo   Notifications are driven by events, and nothing publishes them without a
+echo   broker. Everything else works.
+echo.
+echo   Accounts and git repositories live in .\data\ and survive a restart.
+echo   Delete that folder for a clean slate.
 echo.
 echo   Stop everything with stopapp.bat
 echo.

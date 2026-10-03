@@ -11,16 +11,16 @@ How the suites are built and why they are built that way. What is planned but un
 
 | Suite | Command | Count | Result |
 |---|---|---|---|
-| Backend | `mvn -B -ntp -f backend/pom.xml test` | 293 | PASS |
-| Frontend unit | `cd frontend && npm test` | 26 | PASS |
-| Browser end-to-end | `cd frontend && npm run test:e2e` | 22 | PASS |
+| Backend | `mvn -B -ntp -f backend/pom.xml test` | 294 | PASS |
+| Frontend unit | `cd frontend && npm test` | 46 | PASS |
+| Browser end-to-end | `cd frontend && npm run test:e2e` | 28 | PASS |
 | Testcontainers | — | 0 | **UNVERIFIED** — needs Docker |
 
 Backend, by module:
 
 | Module | Tests |
 |---|---|
-| common-library | 5 |
+| common-library | 6 |
 | common-events | 9 |
 | api-gateway | 6 |
 | auth-service | 92 |
@@ -48,6 +48,10 @@ by reading code.** That is not a slogan; it is the observed history:
 - The app threw on every data-driven screen after sign-in while the unit suite stayed green, because
   the tests supplied a `QueryClientProvider` the real entry point did not have.
 - Task events named the wrong actor. Invisible until something consumed them.
+- Every browser request to the API returned 403 while every `curl` check returned 201. The CORS
+  allow-list was configured only on the gateway, and an empty list means "reject anything with an
+  `Origin` header" rather than "allow no cross-origin access". `curl` sends no `Origin`, so six
+  live smoke tests passed against a build in which signing up was impossible.
 - Deleting a repository half-succeeded on Windows: git writes loose object files read-only, and
   Windows refuses to delete a read-only file. The row vanished, the objects stayed, and the only
   trace was a warning. Found by asserting the directory was gone rather than that the call
@@ -135,6 +139,11 @@ bare blank panel is a bug, and a failure with no retry leaves the user reloading
 
 ## 5. End-to-end
 
+**This is the suite that catches what the others cannot.** The CORS regression above is the
+clearest example: unit tests passed, live `curl` checks passed, and the application was completely
+unusable in a browser. Anything that depends on headers a browser sends and a CLI does not —
+`Origin`, cookies, preflight — is only testable here.
+
 Playwright, Chromium, against a stack that is **already running** (`openapp.bat`). The suite
 deliberately does not start the stack: five JVMs take a while to boot, and a test run that silently
 launches background processes is hard to reason about when it fails.
@@ -146,6 +155,12 @@ Timeouts are generous on purpose — 45s per test, 20s per expectation. The firs
 start has five JVMs warming up behind an extra gateway hop, and two tests raced a 10s budget while
 passing in isolation. A flaky suite is worse than a slow one. `retries` is 0 locally and 1 in CI,
 where a pass-on-retry must be visible rather than smoothed over.
+
+**Run it on a machine that is not otherwise busy.** Six JVMs, a dev server and a browser already
+saturate a laptop; running the unit suite or a production build alongside it pushed signup past
+the 20s expectation and failed two tests that passed on their own moments later. The timeouts
+are not the problem and raising them further would only hide load. `retries: 1` in CI covers
+the same risk there.
 
 Run it with `npm run test:e2e`, not a bare `playwright test` — the config path is explicit because a
 bare invocation globs the Vitest specs and reports "No tests found".
