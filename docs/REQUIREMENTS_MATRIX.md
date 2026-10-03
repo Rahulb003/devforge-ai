@@ -15,8 +15,8 @@ Status vocabulary: `IMPLEMENTED`, `PARTIALLY_IMPLEMENTED`, `SCAFFOLDED`, `BROKEN
 | Status | Sections |
 |---|---|
 | `IMPLEMENTED` | 28 |
-| `PARTIALLY_IMPLEMENTED` | 9 |
-| `SCAFFOLDED` | 8 |
+| `PARTIALLY_IMPLEMENTED` | 10 |
+| `SCAFFOLDED` | 7 |
 | `MISSING` | 93 |
 
 **~25% complete, weighted by effort rather than section count.** The weighting matters: §6, §15 and
@@ -37,7 +37,7 @@ section count would overstate progress.
 | 7 | Documentation set (11 files) | `IMPLEMENTED` | all 11 present as of this commit |
 | 15 | Container images | `SCAFFOLDED` | Dockerfiles exist, non-root with healthchecks; **UNVERIFIED**, no daemon |
 | 16 | Secrets and configuration hygiene | `IMPLEMENTED` | no fallbacks for credentials in the default profile; secrets gitignored |
-| 17 | Build must be green | `IMPLEMENTED` | 186 backend + 26 frontend + 22 e2e, all passing |
+| 17 | Build must be green | `IMPLEMENTED` | 293 backend + 26 frontend + 22 e2e, all passing |
 | 18 | RabbitMQ removed unless justified | `IMPLEMENTED` | removed from five places; justification in `EVENT_CATALOG.md` §1 |
 
 ## Identity and access
@@ -75,7 +75,7 @@ section count would overstate progress.
 | § | Requirement | Status | Evidence |
 |---|---|---|---|
 | 6, 15, 16 | AI: generation, review, explanation, RAG, agents | `SCAFFOLDED` | ai-service is a health endpoint. **Largest remaining item** |
-| 7 (svc) | Git: repos, branches, commits, diffs, PRs | `SCAFFOLDED` | git-service is a health endpoint |
+| 7 (svc) | Git: repos, branches, commits, diffs, PRs | `PARTIALLY_IMPLEMENTED` | Real self-hosted repositories via JGit — create, browse, commit, branch, diff; 107 tests, verified live. **No** pull requests, no push over HTTP/SSH, and no GitHub/GitLab integration |
 | 8 | Code review and quality gates | `SCAFFOLDED` | review-service is a health endpoint |
 | 9 | IDE / editor | `MISSING` | no frontend surface |
 | 10 | Documentation generation | `SCAFFOLDED` | documentation-service is a health endpoint |
@@ -114,8 +114,9 @@ Everything not listed above is `MISSING`, and falls into four groups:
 
 1. **The AI platform** — generation, explanation, refactoring, test generation, review, RAG over a
    codebase, agent orchestration, prompt-injection defence, model routing and cost control.
-2. **The seven scaffolded service domains** — git, review, documentation, chat, deployment,
-   analytics, and the IDE surface that fronts several of them.
+2. **The six scaffolded service domains** — review, documentation, chat, deployment, analytics,
+   and the IDE surface that fronts several of them. Plus, for git: pull requests, push over
+   HTTP/SSH, and third-party provider integration.
 3. **Operational maturity** — tracing, dashboards, alerting, backups, disaster recovery,
    performance budgets, load testing, dependency and container scanning.
 4. **Enterprise concerns** — SSO/SAML, SCIM provisioning, data residency, retention and deletion

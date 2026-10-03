@@ -21,12 +21,14 @@ cd /d "%~dp0"
 set AUTH_PORT=9001
 set PROJECT_PORT=9002
 set TASK_PORT=9003
+set GIT_PORT=9005
 set NOTIFICATION_PORT=9011
 set GATEWAY_PORT=8080
 set WEB_PORT=4173
 set AUTH_JAR=services\auth-service\target\auth-service-0.1.0.jar
 set PROJECT_JAR=services\project-service\target\project-service-0.1.0.jar
 set TASK_JAR=services\task-service\target\task-service-0.1.0.jar
+set GIT_JAR=services\git-service\target\git-service-0.1.0.jar
 set NOTIFICATION_JAR=services\notification-service\target\notification-service-0.1.0.jar
 set GATEWAY_JAR=api-gateway\target\api-gateway-0.1.0.jar
 
@@ -72,6 +74,7 @@ REM rebuild, or run: mvn -f backend/pom.xml clean package -DskipTests
 if not exist "%AUTH_JAR%" goto :build
 if not exist "%PROJECT_JAR%" goto :build
 if not exist "%TASK_JAR%" goto :build
+if not exist "%GIT_JAR%" goto :build
 if not exist "%NOTIFICATION_JAR%" goto :build
 if not exist "%GATEWAY_JAR%" goto :build
 echo   Jars found - skipping build.
@@ -86,7 +89,7 @@ if errorlevel 1 (
   echo         Install Maven, or build once with your IDE.
   goto :fail
 )
-call mvn -B -ntp -f backend\pom.xml -pl ..\services\auth-service,..\services\project-service,..\services\task-service,..\api-gateway,..\services\notification-service -am package -DskipTests
+call mvn -B -ntp -f backend\pom.xml -pl ..\services\auth-service,..\services\project-service,..\services\task-service,..\api-gateway,..\services\notification-service,..\services\git-service -am package -DskipTests
 if errorlevel 1 (
   echo [ERROR] Backend build failed. Scroll up for the Maven output.
   goto :fail
@@ -120,6 +123,9 @@ start "DevForge project-service" cmd /k "java -jar %PROJECT_JAR% --spring.profil
 echo   Starting task-service on port %TASK_PORT% ...
 start "DevForge task-service" cmd /k "java -jar %TASK_JAR% --spring.profiles.active=standalone"
 
+echo   Starting git-service on port %GIT_PORT% ...
+start "DevForge git-service" cmd /k "java -jar %GIT_JAR% --spring.profiles.active=standalone"
+
 echo   Starting notification-service on port %NOTIFICATION_PORT% ...
 start "DevForge notification-service" cmd /k "java -jar %NOTIFICATION_JAR% --spring.profiles.active=standalone"
 
@@ -137,6 +143,7 @@ echo   Waiting for services to become healthy...
 call :waitfor auth-service    "http://localhost:%AUTH_PORT%/actuator/health"    60
 call :waitfor project-service "http://localhost:%PROJECT_PORT%/actuator/health" 60
 call :waitfor task-service    "http://localhost:%TASK_PORT%/actuator/health"    60
+call :waitfor git-service      "http://localhost:%GIT_PORT%/actuator/health"          60
 call :waitfor notification-service "http://localhost:%NOTIFICATION_PORT%/actuator/health" 60
 call :waitfor api-gateway     "http://localhost:%GATEWAY_PORT%/actuator/health" 60
 call :waitfor frontend        "http://localhost:%WEB_PORT%/"                    45
@@ -150,6 +157,7 @@ echo   Web app        http://localhost:%WEB_PORT%
 echo   auth-service   http://localhost:%AUTH_PORT%/actuator/health
 echo   project-service http://localhost:%PROJECT_PORT%/actuator/health
 echo   task-service   http://localhost:%TASK_PORT%/actuator/health
+echo   git-service    http://localhost:%GIT_PORT%/actuator/health
 echo   notification-service http://localhost:%NOTIFICATION_PORT%/actuator/health
 echo   api-gateway    http://localhost:%GATEWAY_PORT%/actuator/health  ^(single entry point^)
 echo   Database UI    http://localhost:%AUTH_PORT%/h2-console

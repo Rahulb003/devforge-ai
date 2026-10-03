@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-10-03
 
-Every endpoint that exists today: 56 real endpoints across four services, plus a health endpoint on
+Every endpoint that exists today: 68 real endpoints across five services, plus a health endpoint on
 each of the eleven. Generated from the controllers and checked against them; if this disagrees with
 the code, the code is right and this is stale.
 
@@ -166,7 +166,41 @@ Priorities: `LOWEST` … `HIGHEST`. Types: `TASK`, `BUG`, `STORY`, `EPIC`.
 
 ---
 
-## 5. notification-service
+## 5. git-service
+
+All under `/api/v1/organizations/{organizationId}/projects/{projectId}/repositories`. Project
+membership is checked with project-service, forwarding the caller's own token; if it is
+unreachable the call fails **closed** with 503.
+
+These are **self-hosted** repositories, served by JGit. This is not a GitHub or GitLab
+integration — that needs provider credentials and does not exist yet.
+
+| Method | Path | Notes |
+|---|---|---|
+| POST | `…/repositories` | 201. `name`, optional `description` and `initialBranch` (default `main`). 409 on a duplicate name within the project |
+| GET | `…/repositories` | paged |
+| GET | `…/repositories/{id}` | `empty` is true until the first commit |
+| PATCH | `…/repositories/{id}` | description only |
+| DELETE | `…/repositories/{id}` | removes the row **and** the git objects |
+| GET | `…/repositories/{id}/branches` | |
+| POST | `…/repositories/{id}/branches` | 201. `name`, optional `fromRef`. 409 if it exists |
+| GET | `…/repositories/{id}/commits?ref=` | newest first, paged |
+| GET | `…/repositories/{id}/tree?ref=&path=` | one directory level, directories first |
+| GET | `…/repositories/{id}/blob?ref=&path=` | `binary` true means `content` is null rather than mangled; `truncated` true past the size limit |
+| GET | `…/repositories/{id}/diff?from=&to=` | per-file change type and line counts |
+| POST | `…/repositories/{id}/files` | 201. Commits one file: `path`, `content`, `message`, optional `branch`. **Not** a substitute for `git push` |
+
+**Refs and paths are query parameters, not path segments.** A file path contains slashes, so a
+path segment would need a wildcard mapping or encoding that Spring normalises before the handler
+sees it — both of which make traversal checks harder to reason about.
+
+Validation is strict and **rejects rather than sanitises**, because sanitising invites the bypass
+where stripping `../` from `....//` yields `../`. A 400 is returned for traversal (`../`, `..`,
+`./`, empty segments), git internals (`.git/…`, any case), absolute and drive-letter paths,
+control characters, and refs using git's own syntax (`^`, `~`, `..`, `@{}`, a leading `-`).
+A leading `/` is treated as repository-relative rather than rejected.
+
+## 6. notification-service
 
 | Method | Path | Notes |
 |---|---|---|
@@ -186,20 +220,21 @@ stored link cannot point off-origin.
 
 ---
 
-## 6. Health
+## 7. Health
 
 | Method | Path | Notes |
 |---|---|---|
 | GET | `/actuator/health` | per service. Details are shown only when authorized, except in `standalone` |
 | GET | `/api/v1/system/health` | present on all eleven services. **On the seven scaffolded ones this is the only endpoint there is** |
 
-Scaffolded services, which answer nothing else: ai (9004), git (9005), review (9006),
-documentation (9007), chat (9008), deployment (9009), analytics (9010).
+Scaffolded services, which answer nothing else: ai (9004), review (9006), documentation (9007),
+chat (9008), deployment (9009), analytics (9010).
 
 ---
 
-## 7. Not yet designed
+## 8. Not yet designed
 
-No contract exists for AI, git, review, documentation, chat, deployment or analytics. When one is
+No contract exists for AI, review, documentation, chat, deployment or analytics, nor for pushing
+over HTTP/SSH or integrating a third-party git provider. When one is
 written it must state its authorization model and its failure behaviour before any endpoint is
 implemented — those are the two things that are expensive to retrofit.

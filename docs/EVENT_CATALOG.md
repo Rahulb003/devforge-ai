@@ -115,6 +115,24 @@ the user who performed the action.
 who to tell needs to know who holds the task — and `TaskCompleted` previously carried no way to
 find out.
 
+### Produced today (`git-service`)
+
+Topic `devforge.repositories.v1`. Tenant is the organization; actor is the user who acted.
+
+| Event | Payload | Trigger |
+|---|---|---|
+| `RepositoryCreated` | `repositoryId`, `projectId`, `name`, `defaultBranch` | A repository is created |
+| `RepositoryDeleted` | `repositoryId`, `projectId`, `name` | A repository is deleted |
+| `RepositoryPushed` | `repositoryId`, `projectId`, `branch`, `commitId`, `path` | A commit is written through the API |
+
+`RepositoryPushed` is named for what it will mean rather than only what it does today: the API
+commits one file at a time, and a real push over HTTP or SSH is a transport this service does not
+yet speak. Consumers should treat it as "the repository gained a commit".
+
+No consumer subscribes to this topic yet. That is the normal direction for the asymmetry — an
+event with no consumer is inert, whereas a consumer for an event nobody emits is dead code that
+reads like a feature.
+
 ### Consumed today (`notification-service`)
 
 The platform's first production consumer, in group `notification-service`. It subscribes to

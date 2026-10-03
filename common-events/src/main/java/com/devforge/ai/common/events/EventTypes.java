@@ -29,6 +29,11 @@ public final class EventTypes {
   public static final String PROJECT_MEMBER_ADDED = "ProjectMemberAdded";
   public static final String PROJECT_MEMBER_REMOVED = "ProjectMemberRemoved";
 
+  // Repositories. Produced by git-service; see docs/EVENT_CATALOG.md.
+  public static final String REPOSITORY_CREATED = "RepositoryCreated";
+  public static final String REPOSITORY_DELETED = "RepositoryDeleted";
+  public static final String REPOSITORY_PUSHED = "RepositoryPushed";
+
   // Security
   public static final String SECURITY_ISSUE_DETECTED = "SecurityIssueDetected";
   public static final String REFRESH_TOKEN_REUSE_DETECTED = "RefreshTokenReuseDetected";

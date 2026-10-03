@@ -50,7 +50,20 @@ phase after it:
 Doing this now rather than later matters because the `repackage` defect proved "it builds" and "it
 runs" are different claims here.
 
-### Then: git-service (§7)
+### ~~Then: git-service (§7)~~ — DONE
+
+Built as a **self-hosted** git backend on JGit: real repositories, browse, commit, branch and
+diff, with 107 tests and a live run through the gateway. The two decisions it forced:
+
+- **JGit, not a git binary.** Shelling out would build command lines from attacker-supplied
+  branch names and paths.
+- **Self-hosted first, provider integration later.** A GitHub integration needs credentials that
+  are not available here, and faking its responses was not an option — so the capability that
+  could be built honestly was built, and the other is still listed as missing.
+
+Still outstanding in this domain: pull requests, push over HTTP/SSH, and third-party providers.
+
+### The original plan for this phase, for reference
 
 The first genuinely new domain, and the right one to take next because almost everything else depends
 on it. AI features need code to read; review needs diffs; documentation needs a repository.

@@ -5,3 +5,4 @@ devforge:
     project-service-url: ${PROJECT_SERVICE_URL:http://localhost:9002}
     task-service-url: ${TASK_SERVICE_URL:http://localhost:9003}
     notification-service-url: ${NOTIFICATION_SERVICE_URL:http://localhost:9011}
+    git-service-url: ${GIT_SERVICE_URL:http://localhost:9005}

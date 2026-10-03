@@ -16,6 +16,7 @@ public final class KafkaTopics {
   public static final String TASKS = "devforge.tasks.v1";
   public static final String SECURITY = "devforge.security.v1";
   public static final String NOTIFICATIONS = "devforge.notifications.v1";
+  public static final String REPOSITORIES = "devforge.repositories.v1";
 
   /**
    * Suffix appended by Spring Kafka's dead-letter recoverer.

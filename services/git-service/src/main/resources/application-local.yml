@@ -1,0 +1,22 @@
+# git-service — LOCAL DEVELOPMENT ONLY.
+spring:
+  datasource:
+    url: ${DEVFORGE_DB_URL:jdbc:postgresql://localhost:5432/devforge}
+    username: ${POSTGRES_USER:devforge}
+    password: ${POSTGRES_PASSWORD:devforge}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+security:
+  jwt:
+    signing-key: ${DEVFORGE_JWT_SIGNING_KEY:local-development-only-signing-key-change-me-0123456789abcdef}
+
+devforge:
+  services:
+    project-service-url: ${PROJECT_SERVICE_URL:http://localhost:9002}
+  git:
+    storage-root: ${DEVFORGE_GIT_STORAGE_ROOT:./data/git-repositories}
+
+logging:
+  level:
+    com.devforge.ai: DEBUG

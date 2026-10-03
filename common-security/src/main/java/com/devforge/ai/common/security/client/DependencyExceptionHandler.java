@@ -1,7 +1,6 @@
-package com.devforge.ai.taskservice.exception;
+package com.devforge.ai.common.security.client;
 
 import com.devforge.ai.common.exception.ApiError;
-import com.devforge.ai.taskservice.client.ProjectAccessClient;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.util.Collections;
@@ -18,9 +17,13 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
  * Reports an unreachable project-service as 503 rather than 500.
  *
  * <p>The distinction matters to a client: 503 says "this may work shortly, retry", while 500 says
- * "this request is broken, do not bother". Task access cannot be verified without project-service,
- * and failing closed is the only safe option — treating an unavailable authority as permission
- * would hand out access during an outage.
+ * "this request is broken, do not bother". Access cannot be verified without project-service, and
+ * failing closed is the only safe option — treating an unavailable authority as permission would
+ * hand out access during an outage.
+ *
+ * <p>Lives beside {@link ProjectAccessClient} rather than in one service, so every service that
+ * delegates authorization reports the outage the same way. Left in a single service, the others
+ * would quietly return 500 for the same condition.
  */
 @Slf4j
 @Order(Ordered.HIGHEST_PRECEDENCE)

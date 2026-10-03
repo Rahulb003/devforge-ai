@@ -30,6 +30,11 @@
     <mapstruct.version>1.6.3</mapstruct.version>
     <springdoc.version>2.7.0</springdoc.version>
     <jjwt.version>0.12.6</jjwt.version>
+    <!-- JGit 7.x requires Java 17+, which this reactor already targets. Used by
+         git-service to perform real git operations rather than shelling out to a
+         git binary, which would be a command-injection surface fed by
+         attacker-supplied branch and file names. -->
+    <jgit.version>7.8.0.202609011348-r</jgit.version>
     <!-- The 2024.0.x train targets Spring Boot 3.4.x. -->
     <spring-cloud.version>2024.0.3</spring-cloud.version>
     <lombok.version>1.18.34</lombok.version>

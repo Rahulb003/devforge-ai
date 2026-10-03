@@ -1,10 +1,11 @@
-package com.devforge.ai.taskservice.client;
+package com.devforge.ai.common.security.client;
 
 import com.devforge.ai.common.exception.ResourceNotFoundException;
 import java.time.Duration;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
@@ -16,12 +17,21 @@ import org.springframework.web.client.RestTemplate;
 /**
  * Decides whether the caller may work in a project, by asking the service that owns projects.
  *
- * <p>Tasks belong to projects, but projects and their membership live in project-service's
- * database. Copying that membership here would mean two sources of truth for who can see what,
- * and a stale replica in an authorization path is a cross-tenant leak waiting to happen. Instead
- * this forwards the caller's own bearer token to project-service and lets the service that owns
- * the rule apply it. A 200 means the caller may read the project; anything else means they may
- * not, and the reason is deliberately not distinguished here.
+ * <p>Several services own data that hangs off a project — tasks, repositories, and in time reviews
+ * and deployments — but projects and their membership live in project-service's database. Copying
+ * that membership into each of them would mean several sources of truth for who can see what, and
+ * a stale replica in an authorization path is a cross-tenant leak waiting to happen. Instead this
+ * forwards the caller's own bearer token to project-service and lets the service that owns the
+ * rule apply it. A 200 means the caller may read the project; anything else means they may not,
+ * and the reason is deliberately not distinguished here.
+ *
+ * <p>It lives in common-security rather than in each service because it is security-critical and
+ * nearly identical everywhere: duplicated, a correction would be applied to one copy and silently
+ * missed in the others.
+ *
+ * <p>Conditional on {@code devforge.services.project-service-url}. Every service scans
+ * {@code com.devforge.ai}, so without the condition this bean would also be created inside
+ * project-service — which is the authority itself and has no such property — and fail its context.
  *
  * <p>The cost is a synchronous hop on the authorization path. That is accepted for now because
  * correctness matters more than latency at this stage; a short-lived per-request cache is the
@@ -30,6 +40,7 @@ import org.springframework.web.client.RestTemplate;
  */
 @Slf4j
 @Component
+@ConditionalOnProperty("devforge.services.project-service-url")
 public class ProjectAccessClient {
 
   private final RestTemplate restTemplate;

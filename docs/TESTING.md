@@ -11,7 +11,7 @@ How the suites are built and why they are built that way. What is planned but un
 
 | Suite | Command | Count | Result |
 |---|---|---|---|
-| Backend | `mvn -B -ntp -f backend/pom.xml test` | 186 | PASS |
+| Backend | `mvn -B -ntp -f backend/pom.xml test` | 293 | PASS |
 | Frontend unit | `cd frontend && npm test` | 26 | PASS |
 | Browser end-to-end | `cd frontend && npm run test:e2e` | 22 | PASS |
 | Testcontainers | — | 0 | **UNVERIFIED** — needs Docker |
@@ -26,9 +26,13 @@ Backend, by module:
 | auth-service | 92 |
 | project-service | 23 |
 | task-service | 29 |
+| git-service | 107 |
 | notification-service | 22 |
 
-Seven services have no tests because they have no behaviour — they are two-file scaffolds.
+Six services have no tests because they have no behaviour — they are two-file scaffolds.
+
+git-service's 107 are mostly validation: 76 cases covering paths, repository names and refs,
+because that is where attacker-supplied text meets the filesystem and the object database.
 
 ---
 
@@ -44,6 +48,10 @@ by reading code.** That is not a slogan; it is the observed history:
 - The app threw on every data-driven screen after sign-in while the unit suite stayed green, because
   the tests supplied a `QueryClientProvider` the real entry point did not have.
 - Task events named the wrong actor. Invisible until something consumed them.
+- Deleting a repository half-succeeded on Windows: git writes loose object files read-only, and
+  Windows refuses to delete a read-only file. The row vanished, the objects stayed, and the only
+  trace was a warning. Found by asserting the directory was gone rather than that the call
+  returned 200.
 
 So the working order is: write the test against real infrastructure, let it find the defect, fix the
 root cause, record the reasoning. Not: write the code, then write a test that agrees with it.

@@ -38,6 +38,9 @@ public class GatewayRoutesConfig {
   @Value("${devforge.services.notification-service-url}")
   private String notificationServiceUrl;
 
+  @Value("${devforge.services.git-service-url}")
+  private String gitServiceUrl;
+
   /**
    * Tasks and sprints, which live under the project path but belong to task-service.
    *
@@ -52,6 +55,22 @@ public class GatewayRoutesConfig {
                 .or(RequestPredicates.path("/api/v1/organizations/*/projects/*/sprints/**"))
                 .or(RequestPredicates.path("/api/v1/organizations/*/projects/*/sprints")),
             http(taskServiceUrl))
+        .build();
+  }
+
+  /**
+   * Repositories, which also live under the project path but belong to git-service.
+   *
+   * <p>Declared before the organizations route for the same reason as tasks: router functions are
+   * matched in declaration order, so the broader pattern would otherwise swallow these.
+   */
+  @Bean
+  public RouterFunction<ServerResponse> repositoryRoutes() {
+    return route("repositories")
+        .route(
+            RequestPredicates.path("/api/v1/organizations/*/projects/*/repositories/**")
+                .or(RequestPredicates.path("/api/v1/organizations/*/projects/*/repositories")),
+            http(gitServiceUrl))
         .build();
   }
 

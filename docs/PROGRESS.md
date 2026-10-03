@@ -14,7 +14,7 @@ Phase 2's event backbone is written but has never run against a real broker.
 | Gate | Command | Result |
 |---|---|---|
 | Backend compile | `mvn -B -ntp -f backend/pom.xml clean compile` | **PASS** — all 16 modules |
-| Backend tests | `mvn -B -ntp -f backend/pom.xml clean test` | **PASS** — 186 tests, 0 failures |
+| Backend tests | `mvn -B -ntp -f backend/pom.xml clean test` | **PASS** — 293 tests, 0 failures |
 | Frontend install | `npm ci` (in `frontend/`) | **PASS** |
 | Frontend lint | `npm run lint` | **PASS** — 0 errors, 0 warnings |
 | Frontend tests | `npm test` | **PASS** — 26 unit tests |
@@ -143,7 +143,9 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 | Notifications (§12) | `IMPLEMENTED` | Consumer, per-recipient storage, read/unread/delete API, bell with unread badge and a feed page. 22 backend tests (8 against a real broker) + 12 frontend. Verified live through the gateway |
 | Kafka TLS / SASL / ACLs | `MISSING` | Not configured |
 | Tasks, Kanban, sprints, comments, labels | `IMPLEMENTED` | task-service, 29 tests. Authorization delegated to project-service |
-| IDE, AI, Git, review, docs, chat, deploy, analytics, RAG, agents | `MISSING` / `SCAFFOLDED` | Health endpoints only — 7 services remain 2-file scaffolds |
+| Git hosting (§7) | `IMPLEMENTED` | git-service hosts real repositories via JGit: create, browse, commit, branch, diff. 107 tests. Verified live through the gateway |
+| GitHub/GitLab integration | `MISSING` | Deliberately separate from the above — it needs provider credentials, and faking it was not an option |
+| IDE, AI, review, docs, chat, deploy, analytics, RAG, agents | `MISSING` / `SCAFFOLDED` | Health endpoints only — 6 services remain 2-file scaffolds |
 | Frontend app shell, routing, theme store | `IMPLEMENTED` | 12 passing tests |
 | Frontend auth screens (login/MFA/signup/verify/forgot/reset) | `IMPLEMENTED` | Driven against the live API; verified end-to-end through the dev proxy |
 | Frontend organization + project screens | `IMPLEMENTED` | List/create, loading/empty/error states |
@@ -174,8 +176,14 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 10. **NEXT:** the §7 documentation set, which is 2 of 11 files written. `CLAUDE.md` and
    `ARCHITECTURE.md` matter most: the architectural decisions are currently recorded only in this
    file's AD table and in code comments.
-11. Then project-service should stage the events its `EventTypes` constants already declare, so
-   "you were added to a project" becomes possible.
+11. ~~git-service~~ **DONE**: real repositories via JGit, with browse, commit, branch and diff.
+    Found and fixed a Windows portability bug on the way — git writes loose objects read-only,
+    and Windows refuses to delete a read-only file, so repository deletion half-succeeded with
+    only a warning.
+12. **NEXT:** a frontend code browser over git-service, so repositories are reachable by clicking.
+    Then the §37 sandbox, which gates the IDE and AI phases.
+13. Then project-service should stage the events its `EventTypes` constants already declare, so
+    "you were added to a project" becomes possible.
 
 ---
 
@@ -200,6 +208,10 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 | AD-15 | Each broker test publishes to its own topic | Kafka topics are append-only and there is no per-test truncation. A fresh consumer group reading from `earliest` on a shared topic replays what earlier tests left behind, so "exactly one event arrived" becomes a false pass. This was a real failure during development, not a hypothetical. |
 | AD-16 | Notifications are one row per recipient, never a shared row with a recipient list | Read state is per-person, so a shared row needs a join table that everyone who reads mutates, and authorization stops being a single column comparison. One row each keeps the authorization check to `recipient_id = token subject`. |
 | AD-17 | No notification endpoint accepts a user id | The recipient comes from the verified token. An endpoint like `/users/{id}/notifications` makes the id something the client sends, and then every method has to remember to check it — the exact shape of the IDOR bug §32 asks to be tested for. A notification belonging to someone else returns 404, not 403, so the API is not an oracle for enumerating ids. |
+| AD-19 | git-service uses JGit, never a git binary | Shelling out would build command lines from branch names, paths and commit messages — all attacker-supplied in a product hosting other people's repositories. A library call takes them as arguments, so there is no shell to inject into, and the image needs no git installed. |
+| AD-20 | Repository storage paths are derived from ids, never from names | `<root>/<organizationId>/<repositoryId>.git`. A name-derived path makes repository creation a filesystem write addressed by user input; the id is already unique, so the name buys nothing and costs a traversal surface. A rename also moves no files. |
+| AD-21 | Repositories are hard-deleted, row and objects together | `BaseEntity`'s soft delete would leave a row claiming the repository exists while its files are gone — and keeping the files means storage grows for ever with data the user believes they deleted. |
+| AD-22 | `ProjectAccessClient` lives in common-security, gated on a property | Three services now delegate project authorization to it. Duplicated, a correction would be applied to one copy and missed in the others. It is `@ConditionalOnProperty` because every service scans `com.devforge.ai`, and project-service — the authority itself — has no such property and would fail its context. |
 | AD-18 | The notification bell polls; it does not hold a socket | A WebSocket delivers faster but is a connection per signed-in tab to maintain and reconnect, and a count up to a minute stale costs the user nothing. When chat (§11) brings a real-time channel, this should move onto it rather than keeping its own. |
 
 ---

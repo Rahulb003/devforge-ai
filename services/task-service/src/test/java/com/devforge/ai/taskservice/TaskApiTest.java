@@ -12,7 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.devforge.ai.common.events.outbox.OutboxEventRepository;
 import com.devforge.ai.common.exception.ResourceNotFoundException;
-import com.devforge.ai.taskservice.client.ProjectAccessClient;
+import com.devforge.ai.common.security.client.ProjectAccessClient;
 import com.devforge.ai.taskservice.repository.SprintRepository;
 import com.devforge.ai.taskservice.repository.TaskCommentRepository;
 import com.devforge.ai.taskservice.repository.TaskLabelRepository;

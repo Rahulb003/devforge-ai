@@ -37,7 +37,7 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>Every public method asserts project access first. That check is delegated to project-service,
  * which owns project membership, so this service never decides tenancy for itself — see
- * {@link com.devforge.ai.taskservice.client.ProjectAccessClient}.
+ * {@link com.devforge.ai.common.security.client.ProjectAccessClient}.
  *
  * <p>Tasks are then resolved with {@code findByIdAndProjectId}, so a task id from another project
  * does not resolve even if the caller has access to the project in the path. That is the second
