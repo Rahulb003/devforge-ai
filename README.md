@@ -31,6 +31,25 @@ deployment and analytics services.
 **Present but unverified:** Docker Compose and the Kubernetes manifests have never been
 run here (no Docker daemon available). Treat them as untested.
 
+## A note on credentials in this repository
+
+This repository is public, and that is safe by design rather than by luck:
+
+- Every credential-shaped value in it is either a `REPLACE_ME` placeholder or an
+  **explicitly labelled development/test-only** value. There are no real secrets.
+- `.env`, `*.pem`, `*.key`, `*.p12`, `*.jks` and the local `data/` directory are
+  gitignored. `.env.example` is tracked on purpose and documents weak local defaults.
+- The `standalone` profile ships a known JWT signing key
+  (`local-development-only-signing-key-change-me-...`). **It is public, deliberately.**
+  It exists so `openapp.bat` works with no setup, and it must never be used anywhere
+  reachable from a network — anyone reading this repository can forge tokens for an
+  instance running with it.
+- Real deployments supply every secret through the environment, and the default profile
+  has **no fallback values**, so a service started without them refuses to boot rather
+  than quietly running on development credentials.
+
+`docs/SECURITY.md` lists the controls that are implemented and, just as importantly, the
+gaps that are not.
 RabbitMQ was removed: it was declared in five places and called from none. Kafka is the
 event backbone — see `docs/EVENT_CATALOG.md` §1 for the reasoning.
 
