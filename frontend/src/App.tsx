@@ -15,6 +15,7 @@ import { OrganizationsPage } from './pages/OrganizationsPage';
 import { ProjectBoardPage } from './pages/ProjectBoardPage';
 import { RepositoriesPage } from './pages/RepositoriesPage';
 import { RepositoryBrowserPage } from './pages/RepositoryBrowserPage';
+import { ReviewPage } from './pages/ReviewPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
 import { LoginPage } from './pages/auth/LoginPage';
@@ -74,6 +75,10 @@ function App() {
               <Route
                 path="organizations/:organizationId/projects/:projectId/repositories/:repositoryId"
                 element={<RepositoryBrowserPage />}
+              />
+              <Route
+                path="organizations/:organizationId/projects/:projectId/repositories/:repositoryId/review"
+                element={<ReviewPage />}
               />
               <Route path="notifications" element={<NotificationsPage />} />
               <Route path="settings" element={<SettingsPage />} />

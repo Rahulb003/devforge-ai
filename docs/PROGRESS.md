@@ -17,7 +17,7 @@ Phase 2's event backbone is written but has never run against a real broker.
 | Backend tests | `mvn -B -ntp -f backend/pom.xml clean test` | **PASS** — 381 tests, 0 failures |
 | Frontend install | `npm ci` (in `frontend/`) | **PASS** |
 | Frontend lint | `npm run lint` | **PASS** — 0 errors, 0 warnings |
-| Frontend tests | `npm test` | **PASS** — 46 unit tests |
+| Frontend tests | `npm test` | **PASS** — 56 unit tests |
 | Frontend build | `npm run build` | **PASS** |
 | End-to-end tests | `npm run test:e2e` (Playwright, stack running) | **PASS** — 28 tests, through the gateway. Needs a machine not otherwise loaded; see docs/TESTING.md |
 | YAML validity | js-yaml parse of all 24 YAML files | **PASS** — 0 invalid |
@@ -153,6 +153,7 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 | Frontend organization + project screens | `IMPLEMENTED` | List/create, loading/empty/error states |
 | Frontend Kanban board | `IMPLEMENTED` | Board, columns, task create/move; reachable by clicking from a project |
 | Frontend notifications | `IMPLEMENTED` | Bell with unread badge, feed page, read/unread/delete, filter. 12 tests |
+| Frontend code review | `IMPLEMENTED` | Gate result, severity counts, findings with redacted snippets, and dismissal with a required reason. Reachable from a repository. 10 tests + 4 e2e |
 | Frontend code browser | `IMPLEMENTED` | Repository list and create, file tree, file contents with line numbers, commit history, branch switching, and a commit form so a new repository is not a dead end. 20 tests + 6 e2e |
 | Frontend IDE/AI screens | `MISSING` | Phases 5+ |
 | End-to-end browser tests | `IMPLEMENTED` | 22 Playwright tests through the gateway; `npm run test:e2e` → 22 passed |

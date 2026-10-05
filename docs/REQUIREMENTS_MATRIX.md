@@ -37,7 +37,7 @@ section count would overstate progress.
 | 7 | Documentation set (11 files) | `IMPLEMENTED` | all 11 present as of this commit |
 | 15 | Container images | `SCAFFOLDED` | Dockerfiles exist, non-root with healthchecks; **UNVERIFIED**, no daemon |
 | 16 | Secrets and configuration hygiene | `IMPLEMENTED` | no fallbacks for credentials in the default profile; secrets gitignored |
-| 17 | Build must be green | `IMPLEMENTED` | 381 backend + 46 frontend + 28 e2e, all passing |
+| 17 | Build must be green | `IMPLEMENTED` | 381 backend + 56 frontend + 32 e2e, all passing |
 | 18 | RabbitMQ removed unless justified | `IMPLEMENTED` | removed from five places; justification in `EVENT_CATALOG.md` §1 |
 
 ## Identity and access

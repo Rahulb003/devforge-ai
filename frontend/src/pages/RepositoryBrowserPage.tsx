@@ -7,6 +7,7 @@ import {
   Folder,
   GitBranch,
   History,
+  ShieldCheck,
 } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
@@ -186,6 +187,16 @@ export function RepositoryBrowserPage() {
         </div>
 
         <div className="flex items-center gap-3">
+          {!isEmpty && repository.isSuccess && (
+            <Link
+              to={`/organizations/${organizationId}/projects/${projectId}/repositories/${repositoryId}/review`}
+              className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-700 bg-slate-800 px-5 text-sm font-medium text-slate-100 transition hover:border-slate-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-400"
+            >
+              <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+              Review
+            </Link>
+          )}
+
           {!isEmpty && !adding && repository.isSuccess && (
             <Button
               variant="secondary"
