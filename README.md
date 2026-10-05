@@ -4,7 +4,7 @@
 
 ## What is included
 
-This is a foundation with five service domains built on it, not a finished platform.
+This is a foundation with six service domains built on it, not a finished platform.
 `docs/PROGRESS.md` tracks exactly what works, and what is only scaffolded, per feature.
 
 **Working end-to-end, with tests:**
@@ -20,10 +20,13 @@ This is a foundation with five service domains built on it, not a finished platf
 - Self-hosted git repositories: create, browse, commit, branch and diff, backed by
   real git objects (JGit). Not a GitHub integration — that needs provider
   credentials and does not exist yet
+- Automated code review over that content: committed credentials, credential files,
+  merge-conflict markers and a few high-signal dangerous patterns, with a
+  configurable quality gate. Not an AI reviewer and not a general SAST engine
 - React 19 + Vite frontend covering the above
 
-**Scaffolded only — health endpoint, no behaviour yet:** AI, review, documentation,
-chat, deployment and analytics services.
+**Scaffolded only — health endpoint, no behaviour yet:** AI, documentation, chat,
+deployment and analytics services.
 
 **Present but unverified:** Docker Compose and the Kubernetes manifests have never been
 run here (no Docker daemon available). Treat them as untested.

@@ -11,7 +11,7 @@ How the suites are built and why they are built that way. What is planned but un
 
 | Suite | Command | Count | Result |
 |---|---|---|---|
-| Backend | `mvn -B -ntp -f backend/pom.xml test` | 294 | PASS |
+| Backend | `mvn -B -ntp -f backend/pom.xml test` | 381 | PASS |
 | Frontend unit | `cd frontend && npm test` | 46 | PASS |
 | Browser end-to-end | `cd frontend && npm run test:e2e` | 28 | PASS |
 | Testcontainers | — | 0 | **UNVERIFIED** — needs Docker |
@@ -22,14 +22,15 @@ Backend, by module:
 |---|---|
 | common-library | 6 |
 | common-events | 9 |
-| api-gateway | 6 |
+| api-gateway | 10 |
 | auth-service | 92 |
 | project-service | 23 |
 | task-service | 29 |
 | git-service | 107 |
+| review-service | 83 |
 | notification-service | 22 |
 
-Six services have no tests because they have no behaviour — they are two-file scaffolds.
+Five services have no tests because they have no behaviour — they are two-file scaffolds.
 
 git-service's 107 are mostly validation: 76 cases covering paths, repository names and refs,
 because that is where attacker-supplied text meets the filesystem and the object database.
@@ -52,6 +53,13 @@ by reading code.** That is not a slogan; it is the observed history:
   allow-list was configured only on the gateway, and an empty list means "reject anything with an
   `Origin` header" rather than "allow no cross-origin access". `curl` sends no `Origin`, so six
   live smoke tests passed against a build in which signing up was impossible.
+- A review of a repository whose content could not be read left no trace at all. The `FAILED` row
+  was saved inside the same transaction that then rethrew, so it rolled back with everything
+  else — and an outage became indistinguishable from nobody having asked for a review. Caught by
+  asserting the row exists, not by asserting the status code.
+- A line containing a run of `x` characters suppressed a real credential, because the
+  placeholder check ran against the whole line instead of the matched value. A false negative
+  in a secret scanner is the worst kind, and only a test with a long minified line found it.
 - Deleting a repository half-succeeded on Windows: git writes loose object files read-only, and
   Windows refuses to delete a read-only file. The row vanished, the objects stayed, and the only
   trace was a warning. Found by asserting the directory was gone rather than that the call

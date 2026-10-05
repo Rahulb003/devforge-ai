@@ -17,6 +17,7 @@ devforge:
     task-service-url: http://localhost:19003
     notification-service-url: http://localhost:19011
     git-service-url: http://localhost:19005
+    review-service-url: http://localhost:19006
   cors:
     allowed-origins: http://localhost:4173
 

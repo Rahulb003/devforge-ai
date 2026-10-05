@@ -6,6 +6,7 @@ import static org.springframework.cloud.gateway.server.mvc.handler.HandlerFuncti
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.web.servlet.function.RequestPredicates;
 import org.springframework.web.servlet.function.RouterFunction;
 import org.springframework.web.servlet.function.ServerResponse;
@@ -17,11 +18,15 @@ import org.springframework.web.servlet.function.ServerResponse;
  * Vite's dev server does the routing. Nothing deployed has a dev server, so the same mapping has
  * to live somewhere real — here.
  *
- * <p>Route order matters and is the subtle part. Tasks and sprints are nested <em>under</em> the
- * project path but served by task-service, so their more specific patterns must be declared before
- * the broader {@code /api/v1/organizations/**} route. Spring evaluates router functions in
- * declaration order, so a broader route declared first would swallow them and send task traffic to
- * project-service.
+ * <p>Route order matters and is the subtle part. Several services own paths nested inside another
+ * service's: tasks and repositories sit under the project path, and reviews sit under a
+ * repository's. A broader pattern matched first would swallow the narrower one and send the
+ * traffic to a service with no such endpoint.
+ *
+ * <p>Precedence is therefore declared with {@link Order}, most specific first, rather than left to
+ * method declaration order. Spring sorts these beans with AnnotationAwareOrderComparator, so
+ * {@code @Order} is deterministic; declaration order happens to work but is not guaranteed, and
+ * reordering two methods during an unrelated edit would silently reroute traffic.
  */
 @Configuration
 public class GatewayRoutesConfig {
@@ -41,12 +46,16 @@ public class GatewayRoutesConfig {
   @Value("${devforge.services.git-service-url}")
   private String gitServiceUrl;
 
+  @Value("${devforge.services.review-service-url}")
+  private String reviewServiceUrl;
+
   /**
    * Tasks and sprints, which live under the project path but belong to task-service.
    *
    * <p>Declared first so the broader organizations route below cannot claim them.
    */
   @Bean
+  @Order(10)
   public RouterFunction<ServerResponse> taskRoutes() {
     return route("tasks")
         .route(
@@ -59,12 +68,33 @@ public class GatewayRoutesConfig {
   }
 
   /**
+   * Reviews, which are addressed under a repository but belong to review-service.
+   *
+   * <p>Declared before the repositories route, not after: the repository pattern ends in
+   * {@code /repositories/**}, which also matches {@code .../repositories/{id}/reviews}. Router
+   * functions match in declaration order, so the broader one would swallow every review
+   * request and send it to git-service, which has no such endpoint.
+   */
+  @Bean
+  @Order(20)
+  public RouterFunction<ServerResponse> reviewRoutes() {
+    return route("reviews")
+        .route(
+            RequestPredicates.path("/api/v1/organizations/*/projects/*/repositories/*/reviews")
+                .or(RequestPredicates.path(
+                    "/api/v1/organizations/*/projects/*/repositories/*/reviews/**")),
+            http(reviewServiceUrl))
+        .build();
+  }
+
+  /**
    * Repositories, which also live under the project path but belong to git-service.
    *
    * <p>Declared before the organizations route for the same reason as tasks: router functions are
    * matched in declaration order, so the broader pattern would otherwise swallow these.
    */
   @Bean
+  @Order(30)
   public RouterFunction<ServerResponse> repositoryRoutes() {
     return route("repositories")
         .route(
@@ -76,6 +106,7 @@ public class GatewayRoutesConfig {
 
   /** Everything else under organizations: the organizations and projects themselves. */
   @Bean
+  @Order(40)
   public RouterFunction<ServerResponse> projectRoutes() {
     return route("projects")
         .route(RequestPredicates.path("/api/v1/organizations/**"), http(projectServiceUrl))
@@ -90,6 +121,7 @@ public class GatewayRoutesConfig {
    * forcing these under an organization path would mean inventing one.
    */
   @Bean
+  @Order(50)
   public RouterFunction<ServerResponse> notificationRoutes() {
     return route("notifications")
         .route(
@@ -106,6 +138,7 @@ public class GatewayRoutesConfig {
    * routing to it here is harmless otherwise, because there is no handler to reach.
    */
   @Bean
+  @Order(60)
   public RouterFunction<ServerResponse> authRoutes() {
     return route("auth")
         .route(

@@ -117,6 +117,9 @@ The security-relevant suites specifically:
 | `NotificationApiTest` | cross-user reads, writes and deletes |
 | `CorsConfigTest` | explicit origins, wildcard refuses to boot, **no filter when unconfigured** |
 | `CorrelationIdFilterTest` | untrusted inbound id is replaced |
+| `SecretRulesTest` | credentials detected, placeholders ignored, findings never quote the secret |
+| `ReviewApiTest` | unreadable content records `FAILED` rather than a pass; dismissal needs a reason |
+| `RoutePrecedenceTest` | a nested path is never routed to the wrong service |
 | `JwtConfigValidationTest` | a weak or missing signing key refuses to boot |
 
 ---
@@ -127,7 +130,9 @@ Ordered by how much they matter.
 
 1. **No code-execution sandbox (§37).** Nothing executes developer code today, which is the correct
    state — but this is a hard prerequisite for the IDE and AI phases, and must never run on the
-   application host.
+   application host. Now specified in `docs/SANDBOX.md`: twelve guarantees, each with the escape
+   attempt that must fail. Not implemented, because no container runtime or hypervisor exists in
+   this environment and a sandbox that cannot isolate is worse than none.
 2. **Kafka has no authentication.** TLS, SASL and ACLs are unconfigured. Any process that can reach
    the broker can read every tenant's events.
 3. **No deliberate security-header policy.** CSP, HSTS and frame-ancestors are unset beyond Spring
