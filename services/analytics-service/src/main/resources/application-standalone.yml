@@ -1,0 +1,59 @@
+# analytics-service — STANDALONE profile.
+# Real analysis over real repository content, on an embedded database,
+# so the platform can be run without PostgreSQL or Kafka. Never use this anywhere real.
+server:
+  port: ${SERVER_PORT:9010}
+
+spring:
+  application:
+    name: analytics-service
+  datasource:
+    url: jdbc:h2:file:./data/devforge-analytics;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;AUTO_SERVER=TRUE
+    username: sa
+    password: ''
+    driver-class-name: org.h2.Driver
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+security:
+  jwt:
+    # Must match auth-service exactly, or every request looks unauthenticated.
+    issuer: devforge-ai
+    signing-key: local-development-only-signing-key-change-me-0123456789abcdef
+
+devforge:
+  services:
+    project-service-url: ${PROJECT_SERVICE_URL:http://localhost:9002}
+  analytics:
+    # Longest window one request may ask for, so a single query cannot pull years of rows.
+    max-range-days: ${DEVFORGE_ANALYTICS_MAX_RANGE_DAYS:366}
+  kafka:
+    # No broker. The outbox still records events, so publishing is inspectable
+    # in the OUTBOX_EVENTS table.
+    enabled: false
+  outbox:
+    enabled: false
+    use-skip-locked: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, metrics
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.devforge.ai: DEBUG

@@ -11,7 +11,7 @@ How the suites are built and why they are built that way. What is planned but un
 
 | Suite | Command | Count | Result |
 |---|---|---|---|
-| Backend | `mvn -B -ntp -f backend/pom.xml test` | 412 | PASS |
+| Backend | `mvn -B -ntp -f backend/pom.xml test` | 426 | PASS |
 | Frontend unit | `cd frontend && npm test` | 64 | PASS |
 | Browser end-to-end | `cd frontend && npm run test:e2e` | 28 | PASS |
 | Testcontainers | — | 0 | **UNVERIFIED** — needs Docker |
@@ -29,9 +29,10 @@ Backend, by module:
 | git-service | 107 |
 | review-service | 83 |
 | documentation-service | 31 |
+| analytics-service | 14 |
 | notification-service | 22 |
 
-Four services have no tests because they have no behaviour — they are two-file scaffolds.
+Three services have no tests because they have no behaviour — they are two-file scaffolds.
 
 git-service's 107 are mostly validation: 76 cases covering paths, repository names and refs,
 because that is where attacker-supplied text meets the filesystem and the object database.

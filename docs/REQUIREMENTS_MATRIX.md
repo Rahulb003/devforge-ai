@@ -14,9 +14,9 @@ Status vocabulary: `IMPLEMENTED`, `PARTIALLY_IMPLEMENTED`, `SCAFFOLDED`, `BROKEN
 
 | Status | Sections |
 |---|---|
-| `IMPLEMENTED` | 30 |
+| `IMPLEMENTED` | 31 |
 | `PARTIALLY_IMPLEMENTED` | 11 |
-| `SCAFFOLDED` | 5 |
+| `SCAFFOLDED` | 4 |
 | `MISSING` | 92 |
 
 **~25% complete, weighted by effort rather than section count.** The weighting matters: §6, §15 and
@@ -37,7 +37,7 @@ section count would overstate progress.
 | 7 | Documentation set (11 files) | `IMPLEMENTED` | all 11 present as of this commit |
 | 15 | Container images | `SCAFFOLDED` | Dockerfiles exist, non-root with healthchecks; **UNVERIFIED**, no daemon |
 | 16 | Secrets and configuration hygiene | `IMPLEMENTED` | no fallbacks for credentials in the default profile; secrets gitignored |
-| 17 | Build must be green | `IMPLEMENTED` | 412 backend + 56 frontend + 32 e2e, all passing |
+| 17 | Build must be green | `IMPLEMENTED` | 426 backend + 64 frontend + 34 e2e, all passing |
 | 18 | RabbitMQ removed unless justified | `IMPLEMENTED` | removed from five places; justification in `EVENT_CATALOG.md` §1 |
 
 ## Identity and access
@@ -82,7 +82,7 @@ section count would overstate progress.
 | 11 | Chat and collaboration | `SCAFFOLDED` | chat-service is a health endpoint |
 | 12 | Notifications | `IMPLEMENTED` | consumer + API + bell + feed; 22 backend, 12 frontend tests |
 | 13 | Deployments and pipelines | `SCAFFOLDED` | deployment-service is a health endpoint |
-| 14 | Analytics | `SCAFFOLDED` | analytics-service is a health endpoint |
+| 14 | Analytics | `IMPLEMENTED` | Daily per-project counters built by consuming task and repository events, with a read API. Counts only what was published after it began consuming, which the response states |
 
 ## Frontend
 

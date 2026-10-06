@@ -8,3 +8,4 @@ devforge:
     git-service-url: ${GIT_SERVICE_URL:http://localhost:9005}
     review-service-url: ${REVIEW_SERVICE_URL:http://localhost:9006}
     documentation-service-url: ${DOCUMENTATION_SERVICE_URL:http://localhost:9007}
+    analytics-service-url: ${ANALYTICS_SERVICE_URL:http://localhost:9010}

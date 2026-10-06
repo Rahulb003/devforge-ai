@@ -14,7 +14,7 @@ Phase 2's event backbone is written but has never run against a real broker.
 | Gate | Command | Result |
 |---|---|---|
 | Backend compile | `mvn -B -ntp -f backend/pom.xml clean compile` | **PASS** — all 16 modules |
-| Backend tests | `mvn -B -ntp -f backend/pom.xml clean test` | **PASS** — 412 tests, 0 failures |
+| Backend tests | `mvn -B -ntp -f backend/pom.xml clean test` | **PASS** — 426 tests, 0 failures |
 | Frontend install | `npm ci` (in `frontend/`) | **PASS** |
 | Frontend lint | `npm run lint` | **PASS** — 0 errors, 0 warnings |
 | Frontend tests | `npm test` | **PASS** — 64 unit tests |
@@ -139,16 +139,17 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 | Correlation ids | `IMPLEMENTED` | Gateway generates one per request, reuses a valid inbound id, replaces an unsafe one; 6 tests |
 | CORS | `IMPLEMENTED` | Explicit origin allow-list; a wildcard now fails startup rather than being silently echoed back. 5 tests |
 | Kafka / outbox / event envelope | `IMPLEMENTED` | Envelope, outbox, idempotency, DLQ; 10 staging tests **plus 9 against a real in-process broker** — publication, ordering, dedup on redelivery, dead-lettering, and a poison event not blocking its partition. `SKIP LOCKED` still UNVERIFIED (needs PostgreSQL); see docs/EVENT_CATALOG.md §8 |
-| Kafka consumers in services | `IMPLEMENTED` | notification-service consumes identity, security and task events in group `notification-service`. The platform's first production consumer, so events now drive behaviour rather than accumulating unread |
+| Kafka consumers in services | `IMPLEMENTED` | Two now: notification-service (identity, security, tasks) and analytics-service (tasks, repositories), each in its own consumer group so neither can starve the other |
 | Notifications (§12) | `IMPLEMENTED` | Consumer, per-recipient storage, read/unread/delete API, bell with unread badge and a feed page. 22 backend tests (8 against a real broker) + 12 frontend. Verified live through the gateway |
 | Kafka TLS / SASL / ACLs | `MISSING` | Not configured |
 | Tasks, Kanban, sprints, comments, labels | `IMPLEMENTED` | task-service, 29 tests. Authorization delegated to project-service |
 | Git hosting (§7) | `IMPLEMENTED` | git-service hosts real repositories via JGit: create, browse, commit, branch, diff. 107 tests. Verified live through the gateway |
 | GitHub/GitLab integration | `MISSING` | Deliberately separate from the above — it needs provider credentials, and faking it was not an option |
 | Code review and quality gates (§8) | `IMPLEMENTED` | review-service: secret detection, credential files, merge-conflict markers, dangerous patterns; severities, a configurable gate, and dismissal with a recorded reason. 83 tests. Verified live against a repository with a planted credential |
+| Analytics (§14) | `IMPLEMENTED` | analytics-service consumes task and repository events into daily per-project counters, with a read API. The platform's second production consumer. 14 tests, 5 against a real broker |
 | Documentation generation (§10) | `IMPLEMENTED` | documentation-service: repository overview, API surface and doc-coverage documents generated from real content. 31 tests. Not AI-written — every statement is derived from files that exist |
 | Code-execution sandbox (§37) | `MISSING` | **Designed, deliberately not built** — see docs/SANDBOX.md. No container, VM or hypervisor is available here, and a sandbox that cannot isolate is worse than none because people trust it |
-| IDE, AI, chat, deploy, analytics, RAG, agents | `MISSING` / `SCAFFOLDED` | Health endpoints only — 4 services remain 2-file scaffolds |
+| IDE, AI, chat, deploy, RAG, agents | `MISSING` / `SCAFFOLDED` | Health endpoints only — 3 services remain 2-file scaffolds |
 | Frontend app shell, routing, theme store | `IMPLEMENTED` | 12 passing tests |
 | Frontend auth screens (login/MFA/signup/verify/forgot/reset) | `IMPLEMENTED` | Driven against the live API; verified end-to-end through the dev proxy |
 | Frontend organization + project screens | `IMPLEMENTED` | List/create, loading/empty/error states |
@@ -231,6 +232,8 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 | AD-23 | Only the gateway applies a CORS policy; services behind it register no CORS filter | An empty allow-list makes `CorsFilter` **reject** anything carrying an `Origin` header, which is what a gateway forwards — not "allow no cross-origin access". The first CORS hardening left every service with an empty list, so the whole app answered 403 to browsers while passing every `curl` check, because `curl` sends no `Origin`. Omitting the filter is safer: CORS only ever *grants* access. |
 | AD-24 | The repository browser keeps path, ref and open file in the **query string** | A link to a file is then one someone else can open, Back walks up the tree, and a reload lands in the same place. Component state would make all three fail. |
 | AD-30 | `GitContentClient` and `RepositoryFile` live in common-library | review-service and documentation-service both read repository content. The parts worth getting right — the fetch bounds and failing closed when content is unreadable — are exactly the parts that rot when copied. Conditional on `devforge.services.git-service-url`, so services that never read content do not fail to start for want of a property they have no reason to set. |
+| AD-33 | Analytics stores pre-aggregated day buckets, not one row per event | The questions it answers are all "how much happened, and when" at day resolution. A row per event would grow without bound to serve a query that never needs it, and the events themselves remain in Kafka for anything that does. |
+| AD-34 | Activity is bucketed by the event's own timestamp, not by when it was consumed | Otherwise every consumer outage leaves a visible spike on the wrong date, and a replay rewrites history. |
 | AD-32 | Generated documents are rendered as preformatted text, never parsed to HTML | The content is derived from repository files, which are attacker-supplied. A crafted README reaches the page through the overview document, so rendering it as HTML would turn it into stored XSS. Plain text cannot. |
 | AD-31 | A generator produces no document rather than an empty one | A document that says nothing is indistinguishable from one whose generator failed. Absence is honest; an empty page is not. |
 | AD-25 | review-service asks git-service for content; it never opens a repository itself | git-service owns the object database and is the single place paths and refs are validated. A second reader is a second place that validation can drift, and path validation is exactly where a traversal bug lives. |

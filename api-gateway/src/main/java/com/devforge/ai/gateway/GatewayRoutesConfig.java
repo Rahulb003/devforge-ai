@@ -52,6 +52,9 @@ public class GatewayRoutesConfig {
   @Value("${devforge.services.documentation-service-url}")
   private String documentationServiceUrl;
 
+  @Value("${devforge.services.analytics-service-url}")
+  private String analyticsServiceUrl;
+
   /**
    * Tasks and sprints, which live under the project path but belong to task-service.
    *
@@ -122,6 +125,22 @@ public class GatewayRoutesConfig {
             RequestPredicates.path("/api/v1/organizations/*/projects/*/repositories/**")
                 .or(RequestPredicates.path("/api/v1/organizations/*/projects/*/repositories")),
             http(gitServiceUrl))
+        .build();
+  }
+
+  /**
+   * Project analytics, which sit under the project path like tasks.
+   *
+   * <p>Before the organizations route for the usual reason: the broader pattern also matches it.
+   */
+  @Bean
+  @Order(35)
+  public RouterFunction<ServerResponse> analyticsRoutes() {
+    return route("analytics")
+        .route(
+            RequestPredicates.path("/api/v1/organizations/*/projects/*/analytics")
+                .or(RequestPredicates.path("/api/v1/organizations/*/projects/*/analytics/**")),
+            http(analyticsServiceUrl))
         .build();
   }
 

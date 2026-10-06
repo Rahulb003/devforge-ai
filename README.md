@@ -4,7 +4,7 @@
 
 ## What is included
 
-This is a foundation with seven service domains built on it, not a finished platform.
+This is a foundation with eight service domains built on it, not a finished platform.
 `docs/PROGRESS.md` tracks exactly what works, and what is only scaffolded, per feature.
 
 **Working end-to-end, with tests:**
@@ -26,10 +26,12 @@ This is a foundation with seven service domains built on it, not a finished plat
 - Generated documentation from that content: a repository overview, the HTTP API
   surface found in the source, and documentation coverage. Pattern-based, not
   AI-written, and each document states its own limits
+- Project analytics built by consuming those events: tasks created, completed and
+  assigned, and commits, as a daily series
 - React 19 + Vite frontend covering the above
 
-**Scaffolded only — health endpoint, no behaviour yet:** AI, chat, deployment and
-analytics services.
+**Scaffolded only — health endpoint, no behaviour yet:** AI, chat and deployment
+services.
 
 **Present but unverified:** Docker Compose and the Kubernetes manifests have never been
 run here (no Docker daemon available). Treat them as untested.

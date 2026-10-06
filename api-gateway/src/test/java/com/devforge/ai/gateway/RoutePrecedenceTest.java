@@ -65,6 +65,9 @@ class RoutePrecedenceTest {
     assertThat(routeFor(project + "/tasks/board")).contains("tasks");
     assertThat(routeFor(project + "/sprints")).contains("tasks");
 
+    // Analytics nests under a project the same way.
+    assertThat(routeFor(project + "/analytics")).contains("analytics");
+
     // The broader route still claims everything else under organizations.
     assertThat(routeFor(organization)).contains("projects");
     assertThat(routeFor(organization + "/projects")).contains("projects");
