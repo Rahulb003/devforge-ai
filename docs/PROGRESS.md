@@ -17,7 +17,7 @@ Phase 2's event backbone is written but has never run against a real broker.
 | Backend tests | `mvn -B -ntp -f backend/pom.xml clean test` | **PASS** — 412 tests, 0 failures |
 | Frontend install | `npm ci` (in `frontend/`) | **PASS** |
 | Frontend lint | `npm run lint` | **PASS** — 0 errors, 0 warnings |
-| Frontend tests | `npm test` | **PASS** — 56 unit tests |
+| Frontend tests | `npm test` | **PASS** — 64 unit tests |
 | Frontend build | `npm run build` | **PASS** |
 | End-to-end tests | `npm run test:e2e` (Playwright, stack running) | **PASS** — 28 tests, through the gateway. Needs a machine not otherwise loaded; see docs/TESTING.md |
 | YAML validity | js-yaml parse of all 24 YAML files | **PASS** — 0 invalid |
@@ -154,6 +154,7 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 | Frontend organization + project screens | `IMPLEMENTED` | List/create, loading/empty/error states |
 | Frontend Kanban board | `IMPLEMENTED` | Board, columns, task create/move; reachable by clicking from a project |
 | Frontend notifications | `IMPLEMENTED` | Bell with unread badge, feed page, read/unread/delete, filter. 12 tests |
+| Frontend documentation | `IMPLEMENTED` | Generate, tab per document, Markdown rendered as text. Reachable from a repository. 8 tests + 2 e2e |
 | Frontend code review | `IMPLEMENTED` | Gate result, severity counts, findings with redacted snippets, and dismissal with a required reason. Reachable from a repository. 10 tests + 4 e2e |
 | Frontend code browser | `IMPLEMENTED` | Repository list and create, file tree, file contents with line numbers, commit history, branch switching, and a commit form so a new repository is not a dead end. 20 tests + 6 e2e |
 | Frontend IDE/AI screens | `MISSING` | Phases 5+ |
@@ -230,6 +231,7 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 | AD-23 | Only the gateway applies a CORS policy; services behind it register no CORS filter | An empty allow-list makes `CorsFilter` **reject** anything carrying an `Origin` header, which is what a gateway forwards — not "allow no cross-origin access". The first CORS hardening left every service with an empty list, so the whole app answered 403 to browsers while passing every `curl` check, because `curl` sends no `Origin`. Omitting the filter is safer: CORS only ever *grants* access. |
 | AD-24 | The repository browser keeps path, ref and open file in the **query string** | A link to a file is then one someone else can open, Back walks up the tree, and a reload lands in the same place. Component state would make all three fail. |
 | AD-30 | `GitContentClient` and `RepositoryFile` live in common-library | review-service and documentation-service both read repository content. The parts worth getting right — the fetch bounds and failing closed when content is unreadable — are exactly the parts that rot when copied. Conditional on `devforge.services.git-service-url`, so services that never read content do not fail to start for want of a property they have no reason to set. |
+| AD-32 | Generated documents are rendered as preformatted text, never parsed to HTML | The content is derived from repository files, which are attacker-supplied. A crafted README reaches the page through the overview document, so rendering it as HTML would turn it into stored XSS. Plain text cannot. |
 | AD-31 | A generator produces no document rather than an empty one | A document that says nothing is indistinguishable from one whose generator failed. Absence is honest; an empty page is not. |
 | AD-25 | review-service asks git-service for content; it never opens a repository itself | git-service owns the object database and is the single place paths and refs are validated. A second reader is a second place that validation can drift, and path validation is exactly where a traversal bug lives. |
 | AD-26 | A review that cannot read the code is recorded `FAILED`, never `PASS` | "No problems found" when the content was unreachable is indistinguishable from a clean repository, and would be trusted as a pass. The failure row is written by a separate bean in its own transaction — saving it inline and rethrowing rolled it back, leaving an outage with no trace at all. |

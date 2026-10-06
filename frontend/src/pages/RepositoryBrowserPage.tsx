@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft,
+  BookText,
   File as FileIcon,
   FilePlus,
   FileWarning,
@@ -194,6 +195,16 @@ export function RepositoryBrowserPage() {
             >
               <ShieldCheck className="h-4 w-4" aria-hidden="true" />
               Review
+            </Link>
+          )}
+
+          {!isEmpty && repository.isSuccess && (
+            <Link
+              to={`/organizations/${organizationId}/projects/${projectId}/repositories/${repositoryId}/docs`}
+              className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-700 bg-slate-800 px-5 text-sm font-medium text-slate-100 transition hover:border-slate-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-400"
+            >
+              <BookText className="h-4 w-4" aria-hidden="true" />
+              Docs
             </Link>
           )}
 
