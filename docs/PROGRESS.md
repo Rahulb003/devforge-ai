@@ -14,7 +14,7 @@ Phase 2's event backbone is written but has never run against a real broker.
 | Gate | Command | Result |
 |---|---|---|
 | Backend compile | `mvn -B -ntp -f backend/pom.xml clean compile` | **PASS** — all 16 modules |
-| Backend tests | `mvn -B -ntp -f backend/pom.xml clean test` | **PASS** — 381 tests, 0 failures |
+| Backend tests | `mvn -B -ntp -f backend/pom.xml clean test` | **PASS** — 412 tests, 0 failures |
 | Frontend install | `npm ci` (in `frontend/`) | **PASS** |
 | Frontend lint | `npm run lint` | **PASS** — 0 errors, 0 warnings |
 | Frontend tests | `npm test` | **PASS** — 56 unit tests |
@@ -146,8 +146,9 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 | Git hosting (§7) | `IMPLEMENTED` | git-service hosts real repositories via JGit: create, browse, commit, branch, diff. 107 tests. Verified live through the gateway |
 | GitHub/GitLab integration | `MISSING` | Deliberately separate from the above — it needs provider credentials, and faking it was not an option |
 | Code review and quality gates (§8) | `IMPLEMENTED` | review-service: secret detection, credential files, merge-conflict markers, dangerous patterns; severities, a configurable gate, and dismissal with a recorded reason. 83 tests. Verified live against a repository with a planted credential |
+| Documentation generation (§10) | `IMPLEMENTED` | documentation-service: repository overview, API surface and doc-coverage documents generated from real content. 31 tests. Not AI-written — every statement is derived from files that exist |
 | Code-execution sandbox (§37) | `MISSING` | **Designed, deliberately not built** — see docs/SANDBOX.md. No container, VM or hypervisor is available here, and a sandbox that cannot isolate is worse than none because people trust it |
-| IDE, AI, docs, chat, deploy, analytics, RAG, agents | `MISSING` / `SCAFFOLDED` | Health endpoints only — 5 services remain 2-file scaffolds |
+| IDE, AI, chat, deploy, analytics, RAG, agents | `MISSING` / `SCAFFOLDED` | Health endpoints only — 4 services remain 2-file scaffolds |
 | Frontend app shell, routing, theme store | `IMPLEMENTED` | 12 passing tests |
 | Frontend auth screens (login/MFA/signup/verify/forgot/reset) | `IMPLEMENTED` | Driven against the live API; verified end-to-end through the dev proxy |
 | Frontend organization + project screens | `IMPLEMENTED` | List/create, loading/empty/error states |
@@ -228,6 +229,8 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 | AD-17 | No notification endpoint accepts a user id | The recipient comes from the verified token. An endpoint like `/users/{id}/notifications` makes the id something the client sends, and then every method has to remember to check it — the exact shape of the IDOR bug §32 asks to be tested for. A notification belonging to someone else returns 404, not 403, so the API is not an oracle for enumerating ids. |
 | AD-23 | Only the gateway applies a CORS policy; services behind it register no CORS filter | An empty allow-list makes `CorsFilter` **reject** anything carrying an `Origin` header, which is what a gateway forwards — not "allow no cross-origin access". The first CORS hardening left every service with an empty list, so the whole app answered 403 to browsers while passing every `curl` check, because `curl` sends no `Origin`. Omitting the filter is safer: CORS only ever *grants* access. |
 | AD-24 | The repository browser keeps path, ref and open file in the **query string** | A link to a file is then one someone else can open, Back walks up the tree, and a reload lands in the same place. Component state would make all three fail. |
+| AD-30 | `GitContentClient` and `RepositoryFile` live in common-library | review-service and documentation-service both read repository content. The parts worth getting right — the fetch bounds and failing closed when content is unreadable — are exactly the parts that rot when copied. Conditional on `devforge.services.git-service-url`, so services that never read content do not fail to start for want of a property they have no reason to set. |
+| AD-31 | A generator produces no document rather than an empty one | A document that says nothing is indistinguishable from one whose generator failed. Absence is honest; an empty page is not. |
 | AD-25 | review-service asks git-service for content; it never opens a repository itself | git-service owns the object database and is the single place paths and refs are validated. A second reader is a second place that validation can drift, and path validation is exactly where a traversal bug lives. |
 | AD-26 | A review that cannot read the code is recorded `FAILED`, never `PASS` | "No problems found" when the content was unreachable is indistinguishable from a clean repository, and would be trusted as a pass. The failure row is written by a separate bean in its own transaction — saving it inline and rethrowing rolled it back, leaving an outage with no trace at all. |
 | AD-27 | Findings never quote the credential they found | A finding is stored, returned by the API and written to logs. Echoing the secret would create three new copies of it, turning a detection into a leak. Only the first four characters survive, which is enough to know which key to rotate. |

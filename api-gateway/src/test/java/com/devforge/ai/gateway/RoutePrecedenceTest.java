@@ -85,6 +85,12 @@ class RoutePrecedenceTest {
     assertThat(routeFor(repository + "/reviews/55555555-5555-5555-5555-555555555555/findings"))
         .contains("reviews");
 
+    // Generated documentation nests the same way and must not be claimed by git-service either.
+    assertThat(routeFor(repository + "/docs")).contains("docs");
+    assertThat(routeFor(repository + "/docs/latest")).contains("docs");
+    assertThat(routeFor(repository + "/docs/66666666-6666-6666-6666-666666666666/documents/OVERVIEW"))
+        .contains("docs");
+
     // And git-service keeps the rest of the repository surface.
     assertThat(routeFor(project + "/repositories")).contains("repositories");
     assertThat(routeFor(repository)).contains("repositories");

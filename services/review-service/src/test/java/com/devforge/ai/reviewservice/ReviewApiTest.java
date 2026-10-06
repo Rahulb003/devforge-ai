@@ -12,8 +12,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.devforge.ai.common.exception.ResourceNotFoundException;
 import com.devforge.ai.common.security.client.ProjectAccessClient;
-import com.devforge.ai.reviewservice.analysis.AnalysedFile;
-import com.devforge.ai.reviewservice.client.GitContentClient;
+import com.devforge.ai.common.git.RepositoryFile;
+import com.devforge.ai.common.git.GitContentClient;
 import com.devforge.ai.reviewservice.model.ReviewModel.ReviewStatus;
 import com.devforge.ai.reviewservice.repository.FindingRepository;
 import com.devforge.ai.reviewservice.repository.ReviewRepository;
@@ -74,12 +74,12 @@ class ReviewApiTest {
     when(gitContentClient.defaultBranch(any(), any())).thenReturn("main");
   }
 
-  private void repositoryContains(AnalysedFile... files) {
+  private void repositoryContains(RepositoryFile... files) {
     when(gitContentClient.filesToAnalyse(any(), any(), any(), any())).thenReturn(List.of(files));
   }
 
-  private static AnalysedFile file(String path, String content) {
-    return AnalysedFile.of(path, content.length(), false, false, content);
+  private static RepositoryFile file(String path, String content) {
+    return RepositoryFile.of(path, content.length(), false, false, content);
   }
 
   /** Runs a review and returns its id. */

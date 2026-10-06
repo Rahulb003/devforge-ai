@@ -1,5 +1,6 @@
 package com.devforge.ai.reviewservice.analysis;
 
+import com.devforge.ai.common.git.RepositoryFile;
 import java.util.List;
 
 /**
@@ -16,5 +17,5 @@ import java.util.List;
  */
 public interface AnalysisRule {
 
-  List<Finding> analyse(AnalysedFile file);
+  List<Finding> analyse(RepositoryFile file);
 }

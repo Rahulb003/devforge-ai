@@ -1,5 +1,6 @@
 package com.devforge.ai.reviewservice.analysis;
 
+import com.devforge.ai.common.git.RepositoryFile;
 import com.devforge.ai.reviewservice.model.ReviewModel.GateResult;
 import com.devforge.ai.reviewservice.model.ReviewModel.Severity;
 import java.util.ArrayList;
@@ -41,7 +42,7 @@ public class AnalysisEngine {
   @Value("${devforge.review.max-findings-per-review:1000}")
   private int maxFindingsPerReview;
 
-  public Result analyse(List<AnalysedFile> files) {
+  public Result analyse(List<RepositoryFile> files) {
     var all = new ArrayList<Finding>();
     var truncated = false;
 

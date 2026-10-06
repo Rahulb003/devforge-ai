@@ -1,5 +1,6 @@
 package com.devforge.ai.reviewservice.analysis;
 
+import com.devforge.ai.common.git.RepositoryFile;
 import com.devforge.ai.reviewservice.model.ReviewModel.FindingCategory;
 import com.devforge.ai.reviewservice.model.ReviewModel.Severity;
 import java.util.ArrayList;
@@ -77,7 +78,7 @@ public class DangerousPatternRules implements AnalysisRule {
           ANY));
 
   @Override
-  public List<Finding> analyse(AnalysedFile file) {
+  public List<Finding> analyse(RepositoryFile file) {
     if (file.binary()) {
       return List.of();
     }

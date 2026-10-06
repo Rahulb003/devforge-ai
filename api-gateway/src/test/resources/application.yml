@@ -18,6 +18,7 @@ devforge:
     notification-service-url: http://localhost:19011
     git-service-url: http://localhost:19005
     review-service-url: http://localhost:19006
+    documentation-service-url: http://localhost:19007
   cors:
     allowed-origins: http://localhost:4173
 

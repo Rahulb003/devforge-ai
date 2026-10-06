@@ -1,5 +1,6 @@
 package com.devforge.ai.reviewservice.analysis;
 
+import com.devforge.ai.common.git.RepositoryFile;
 import com.devforge.ai.reviewservice.model.ReviewModel.FindingCategory;
 import com.devforge.ai.reviewservice.model.ReviewModel.Severity;
 import java.util.ArrayList;
@@ -84,7 +85,7 @@ public class SecretRules implements AnalysisRule {
           + "|todo|sample|not[_-]?a[_-]?real|fake|test[_-]?only)");
 
   @Override
-  public List<Finding> analyse(AnalysedFile file) {
+  public List<Finding> analyse(RepositoryFile file) {
     var findings = new ArrayList<Finding>();
     var lines = file.lines();
 

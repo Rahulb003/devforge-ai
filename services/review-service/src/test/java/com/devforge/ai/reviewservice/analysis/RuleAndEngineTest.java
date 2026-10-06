@@ -1,5 +1,6 @@
 package com.devforge.ai.reviewservice.analysis;
 
+import com.devforge.ai.common.git.RepositoryFile;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.devforge.ai.reviewservice.model.ReviewModel.FindingCategory;
@@ -28,8 +29,8 @@ class RuleAndEngineTest {
     dangerous = new DangerousPatternRules();
   }
 
-  private static AnalysedFile file(String path, String content) {
-    return AnalysedFile.of(path, content.length(), false, false, content);
+  private static RepositoryFile file(String path, String content) {
+    return RepositoryFile.of(path, content.length(), false, false, content);
   }
 
   @Nested
@@ -106,7 +107,7 @@ class RuleAndEngineTest {
     @Test
     @DisplayName("flags a large file by size, including a binary one")
     void flagsLargeFiles() {
-      var big = AnalysedFile.of("assets/video.mp4", 20L * 1024 * 1024, false, true, "");
+      var big = RepositoryFile.of("assets/video.mp4", 20L * 1024 * 1024, false, true, "");
       var findings = hygiene.analyse(big);
 
       assertThat(findings).hasSize(1);
@@ -120,7 +121,7 @@ class RuleAndEngineTest {
     void credentialFileBeatsBinary() {
       // A .p12 is binary by nature. Skipping binaries for line rules must not skip the filename
       // rule, or the most obvious credential file of all would go unreported.
-      var findings = hygiene.analyse(AnalysedFile.of("certs/client.p12", 2048, false, true, ""));
+      var findings = hygiene.analyse(RepositoryFile.of("certs/client.p12", 2048, false, true, ""));
 
       assertThat(findings).anyMatch(f -> f.ruleId().equals("CREDENTIAL_FILE_COMMITTED"));
     }
@@ -195,7 +196,7 @@ class RuleAndEngineTest {
     @Test
     @DisplayName("skips binary content")
     void skipsBinary() {
-      assertThat(dangerous.analyse(AnalysedFile.of("a.png", 100, false, true, ""))).isEmpty();
+      assertThat(dangerous.analyse(RepositoryFile.of("a.png", 100, false, true, ""))).isEmpty();
     }
   }
 
@@ -279,7 +280,7 @@ class RuleAndEngineTest {
     @Test
     @DisplayName("stops at the per-review limit")
     void truncatesPerReview() {
-      var files = new java.util.ArrayList<AnalysedFile>();
+      var files = new java.util.ArrayList<RepositoryFile>();
       for (int i = 0; i < 20; i++) {
         files.add(file("src/f" + i + ".js", "const r = eval(x);"));
       }

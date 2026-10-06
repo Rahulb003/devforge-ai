@@ -1,5 +1,6 @@
 package com.devforge.ai.reviewservice.analysis;
 
+import com.devforge.ai.common.git.RepositoryFile;
 import com.devforge.ai.reviewservice.model.ReviewModel.FindingCategory;
 import com.devforge.ai.reviewservice.model.ReviewModel.Severity;
 import java.util.ArrayList;
@@ -45,7 +46,7 @@ public class HygieneRules implements AnalysisRule {
   private long largeFileBytes;
 
   @Override
-  public List<Finding> analyse(AnalysedFile file) {
+  public List<Finding> analyse(RepositoryFile file) {
     var findings = new ArrayList<Finding>();
     var name = file.fileName().toLowerCase(Locale.ROOT);
 

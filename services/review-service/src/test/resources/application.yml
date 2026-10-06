@@ -38,11 +38,14 @@ devforge:
     # Never reached: GitContentClient is replaced by a mock in the tests, so
     # they exercise analysis rather than the network between two services.
     git-service-url: http://localhost:19005
-  review:
-    # Small on purpose, so the truncation paths are cheap to exercise.
+  git-content:
+    # Never reached either, for the same reason, but set so the shared client
+    # binds cleanly if a test ever uses the real one.
     max-files: 50
     max-directories: 20
     max-file-bytes: 4096
+  review:
+    # Small on purpose, so the truncation paths are cheap to exercise.
     large-file-bytes: 1024
     max-findings-per-file: 5
     max-findings-per-review: 100

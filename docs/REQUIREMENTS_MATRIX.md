@@ -14,9 +14,9 @@ Status vocabulary: `IMPLEMENTED`, `PARTIALLY_IMPLEMENTED`, `SCAFFOLDED`, `BROKEN
 
 | Status | Sections |
 |---|---|
-| `IMPLEMENTED` | 29 |
+| `IMPLEMENTED` | 30 |
 | `PARTIALLY_IMPLEMENTED` | 11 |
-| `SCAFFOLDED` | 6 |
+| `SCAFFOLDED` | 5 |
 | `MISSING` | 92 |
 
 **~25% complete, weighted by effort rather than section count.** The weighting matters: §6, §15 and
@@ -37,7 +37,7 @@ section count would overstate progress.
 | 7 | Documentation set (11 files) | `IMPLEMENTED` | all 11 present as of this commit |
 | 15 | Container images | `SCAFFOLDED` | Dockerfiles exist, non-root with healthchecks; **UNVERIFIED**, no daemon |
 | 16 | Secrets and configuration hygiene | `IMPLEMENTED` | no fallbacks for credentials in the default profile; secrets gitignored |
-| 17 | Build must be green | `IMPLEMENTED` | 381 backend + 56 frontend + 32 e2e, all passing |
+| 17 | Build must be green | `IMPLEMENTED` | 412 backend + 56 frontend + 32 e2e, all passing |
 | 18 | RabbitMQ removed unless justified | `IMPLEMENTED` | removed from five places; justification in `EVENT_CATALOG.md` §1 |
 
 ## Identity and access
@@ -78,7 +78,7 @@ section count would overstate progress.
 | 7 (svc) | Git: repos, branches, commits, diffs, PRs | `PARTIALLY_IMPLEMENTED` | Real self-hosted repositories via JGit — create, browse, commit, branch, diff; 107 tests, verified live. **No** pull requests, no push over HTTP/SSH, and no GitHub/GitLab integration |
 | 8 | Code review and quality gates | `IMPLEMENTED` | Secret detection, credential files, conflict markers, dangerous patterns; severities, configurable gate, dismissal with a recorded reason. 83 tests, verified live. **Not** an AI reviewer and not a general SAST engine — a focused, high-signal rule set |
 | 9 | IDE / editor | `PARTIALLY_IMPLEMENTED` | A read-only code browser plus a single-file commit form exists over git-service. No editor, no execution — §37 gates both |
-| 10 | Documentation generation | `SCAFFOLDED` | documentation-service is a health endpoint |
+| 10 | Documentation generation | `IMPLEMENTED` | Repository overview, API surface and documentation coverage, generated from real file content. 31 tests. Pattern-based, not AI-written, and each document states its own limits |
 | 11 | Chat and collaboration | `SCAFFOLDED` | chat-service is a health endpoint |
 | 12 | Notifications | `IMPLEMENTED` | consumer + API + bell + feed; 22 backend, 12 frontend tests |
 | 13 | Deployments and pipelines | `SCAFFOLDED` | deployment-service is a health endpoint |

@@ -1,7 +1,7 @@
 package com.devforge.ai.reviewservice.exception;
 
 import com.devforge.ai.common.exception.ApiError;
-import com.devforge.ai.reviewservice.client.GitContentClient;
+import com.devforge.ai.common.git.GitContentClient;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.util.Collections;

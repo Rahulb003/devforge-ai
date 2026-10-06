@@ -1,7 +1,6 @@
-package com.devforge.ai.reviewservice.client;
+package com.devforge.ai.common.git;
 
 import com.devforge.ai.common.exception.ResourceNotFoundException;
-import com.devforge.ai.reviewservice.analysis.AnalysedFile;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.time.Duration;
 import java.util.ArrayDeque;
@@ -10,6 +9,7 @@ import java.util.List;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -23,10 +23,13 @@ import org.springframework.web.util.UriComponentsBuilder;
 /**
  * Fetches repository content from git-service.
  *
- * <p>review-service deliberately does not open repositories itself. git-service owns the object
- * database and is the single place repository paths and refs are validated; a second reader would
- * be a second place for that validation to drift, and path validation is exactly where a traversal
- * bug lives.
+ * <p>Nothing here opens a repository. git-service owns the object database and is the single place
+ * repository paths and refs are validated; a second reader would be a second place for that
+ * validation to drift, and path validation is exactly where a traversal bug lives.
+ *
+ * <p>Lives in common-library because review-service and documentation-service both need it, and
+ * the parts worth getting right — the fetch bounds, and failing closed when content is
+ * unreadable — are exactly the parts that rot when copied.
  *
  * <p>The caller's own bearer token is forwarded, for the same reason as everywhere else: the
  * decision is about the user who asked, not about this service. A service credential would let
@@ -34,21 +37,25 @@ import org.springframework.web.util.UriComponentsBuilder;
  */
 @Slf4j
 @Component
+// Conditional because every service scans com.devforge.ai. Without this, services that never
+// read repository content — auth, project, task — would fail to start for want of a property
+// they have no reason to set. The same lesson as ProjectAccessClient.
+@ConditionalOnProperty("devforge.services.git-service-url")
 public class GitContentClient {
 
   private final RestTemplate restTemplate;
   private final String gitServiceBaseUrl;
 
   /** Files fetched per review. A review of a 50,000-file repository is not worth the fetch. */
-  @Value("${devforge.review.max-files:400}")
+  @Value("${devforge.git-content.max-files:400}")
   private int maxFiles;
 
   /** Directories walked, as a second bound: a deep tree can hold few files per level. */
-  @Value("${devforge.review.max-directories:200}")
+  @Value("${devforge.git-content.max-directories:200}")
   private int maxDirectories;
 
   /** Files above this are recorded but not fetched; their size alone can still raise a finding. */
-  @Value("${devforge.review.max-file-bytes:262144}")
+  @Value("${devforge.git-content.max-file-bytes:262144}")
   private long maxFileBytes;
 
   public GitContentClient(
@@ -68,14 +75,14 @@ public class GitContentClient {
    * <p>With a {@code baseRef}, only what changed between the two refs — which is what a review of a
    * proposed change should look at. Without one, the whole tree at {@code ref}.
    */
-  public List<AnalysedFile> filesToAnalyse(
+  public List<RepositoryFile> filesToAnalyse(
       Context context, String ref, String baseRef, String bearerToken) {
 
     var paths = baseRef == null
         ? listTree(context, ref, bearerToken)
         : changedPaths(context, baseRef, ref, bearerToken);
 
-    var files = new ArrayList<AnalysedFile>(paths.size());
+    var files = new ArrayList<RepositoryFile>(paths.size());
     for (var path : paths) {
       var file = fetchBlob(context, ref, path, bearerToken);
       if (file != null) {
@@ -178,7 +185,7 @@ public class GitContentClient {
     return files;
   }
 
-  private AnalysedFile fetchBlob(Context context, String ref, String path, String bearerToken) {
+  private RepositoryFile fetchBlob(Context context, String ref, String path, String bearerToken) {
     var url = UriComponentsBuilder.fromHttpUrl(base(context) + "/blob")
         .queryParam("ref", ref)
         .queryParam("path", path)
@@ -192,11 +199,11 @@ public class GitContentClient {
       if (size > maxFileBytes) {
         // Recorded without content: the size itself can raise a finding, and fetching a 200 MB
         // blob to run regexes over it is not a good trade.
-        return AnalysedFile.of(path, size, true, binary, "");
+        return RepositoryFile.of(path, size, true, binary, "");
       }
 
       var content = data.path("content").isNull() ? "" : data.path("content").asText();
-      return AnalysedFile.of(path, size, data.path("truncated").asBoolean(), binary, content);
+      return RepositoryFile.of(path, size, data.path("truncated").asBoolean(), binary, content);
     } catch (ResourceNotFoundException ex) {
       // Listed a moment ago, gone now — a concurrent push. Skipped rather than failing the review.
       log.debug("File {} was not found at {}", path, ref);

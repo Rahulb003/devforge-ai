@@ -16,6 +16,7 @@ devforge:
     notification-service-url: ${NOTIFICATION_SERVICE_URL}
     git-service-url: ${GIT_SERVICE_URL}
     review-service-url: ${REVIEW_SERVICE_URL}
+    documentation-service-url: ${DOCUMENTATION_SERVICE_URL}
   cors:
     # Explicit origins, never a wildcard: the API is credentialed, and a
     # wildcard with credentials is both rejected by browsers and unsafe.

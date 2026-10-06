@@ -1,5 +1,6 @@
 package com.devforge.ai.reviewservice.analysis;
 
+import com.devforge.ai.common.git.RepositoryFile;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.devforge.ai.reviewservice.model.ReviewModel.FindingCategory;
@@ -24,7 +25,7 @@ class SecretRulesTest {
   private final SecretRules rules = new SecretRules();
 
   private List<Finding> analyse(String path, String content) {
-    return rules.analyse(AnalysedFile.of(path, content.length(), false, false, content));
+    return rules.analyse(RepositoryFile.of(path, content.length(), false, false, content));
   }
 
   @Nested
@@ -161,7 +162,7 @@ class SecretRulesTest {
     @Test
     @DisplayName("binary content")
     void skipsBinary() {
-      var file = AnalysedFile.of("logo.png", 1024, false, true, "");
+      var file = RepositoryFile.of("logo.png", 1024, false, true, "");
       assertThat(rules.analyse(file)).isEmpty();
     }
   }

@@ -18,6 +18,7 @@ call :killport 9002 project-service
 call :killport 9003 task-service
 call :killport 9005 git-service
 call :killport 9006 review-service
+call :killport 9007 documentation-service
 call :killport 9011 notification-service
 call :killport 8080 api-gateway
 call :killport 4173 frontend

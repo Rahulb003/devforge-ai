@@ -1,0 +1,59 @@
+# Test configuration for documentation-service.
+#
+# Runs the real Flyway migrations against H2 in PostgreSQL mode, then
+# ddl-auto=validate asserts the JPA mappings match the migrated schema.
+server:
+  port: 0
+
+spring:
+  application:
+    name: documentation-service
+  datasource:
+    url: jdbc:h2:mem:docsdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password: ''
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+  kafka:
+    bootstrap-servers: localhost:9092
+
+security:
+  jwt:
+    issuer: devforge-ai-test
+    # Test-only key, never used outside the test source set.
+    signing-key: test-only-signing-key-that-is-long-enough-to-satisfy-hs256-256-bit-requirement
+
+devforge:
+  services:
+    # Never reached: ProjectAccessClient is replaced by a mock in the tests, so
+    # they exercise documentation logic rather than the network between two services.
+    project-service-url: http://localhost:19002
+    # Never reached: GitContentClient is replaced by a mock in the tests, so
+    # they exercise generation rather than the network between two services.
+    git-service-url: http://localhost:19005
+  git-content:
+    # Never reached either, for the same reason, but set so the shared client
+    # binds cleanly if a test ever uses the real one.
+    max-files: 50
+    max-directories: 20
+    max-file-bytes: 4096
+  kafka:
+    enabled: false
+  outbox:
+    # The recorder still writes rows, which the event assertions check. The
+    # scheduled publisher is off because there is no broker.
+    enabled: false
+    use-skip-locked: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info

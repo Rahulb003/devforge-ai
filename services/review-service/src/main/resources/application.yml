@@ -53,12 +53,13 @@ devforge:
     # Repository content is read from git-service, which owns the object
     # database. No default: a wrong address would make every review fail.
     git-service-url: ${GIT_SERVICE_URL}
+  git-content:
+    # Bounds on what one fetch will pull from git-service. A repository is
+    # untrusted input, so every walk and read is capped rather than trusted.
+    max-files: ${DEVFORGE_GIT_CONTENT_MAX_FILES:400}
+    max-directories: ${DEVFORGE_GIT_CONTENT_MAX_DIRECTORIES:200}
+    max-file-bytes: ${DEVFORGE_GIT_CONTENT_MAX_FILE_BYTES:262144}
   review:
-    # Bounds on what one review will fetch. A repository is untrusted input, so
-    # every walk and read is capped rather than trusted to be reasonable.
-    max-files: ${DEVFORGE_REVIEW_MAX_FILES:400}
-    max-directories: ${DEVFORGE_REVIEW_MAX_DIRECTORIES:200}
-    max-file-bytes: ${DEVFORGE_REVIEW_MAX_FILE_BYTES:262144}
     large-file-bytes: ${DEVFORGE_REVIEW_LARGE_FILE_BYTES:5242880}
     # A generated file can match a pattern on every line; without these one
     # review could hold tens of thousands of rows describing one problem.

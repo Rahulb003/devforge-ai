@@ -49,6 +49,9 @@ public class GatewayRoutesConfig {
   @Value("${devforge.services.review-service-url}")
   private String reviewServiceUrl;
 
+  @Value("${devforge.services.documentation-service-url}")
+  private String documentationServiceUrl;
+
   /**
    * Tasks and sprints, which live under the project path but belong to task-service.
    *
@@ -84,6 +87,24 @@ public class GatewayRoutesConfig {
                 .or(RequestPredicates.path(
                     "/api/v1/organizations/*/projects/*/repositories/*/reviews/**")),
             http(reviewServiceUrl))
+        .build();
+  }
+
+  /**
+   * Generated documentation, nested under a repository like reviews.
+   *
+   * <p>Before the repositories route for the same reason: {@code /repositories/**} also matches
+   * every path beneath a repository.
+   */
+  @Bean
+  @Order(25)
+  public RouterFunction<ServerResponse> documentationRoutes() {
+    return route("docs")
+        .route(
+            RequestPredicates.path("/api/v1/organizations/*/projects/*/repositories/*/docs")
+                .or(RequestPredicates.path(
+                    "/api/v1/organizations/*/projects/*/repositories/*/docs/**")),
+            http(documentationServiceUrl))
         .build();
   }
 

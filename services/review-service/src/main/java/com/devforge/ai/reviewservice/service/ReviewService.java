@@ -1,11 +1,12 @@
 package com.devforge.ai.reviewservice.service;
 
+import com.devforge.ai.common.git.RepositoryFile;
 import com.devforge.ai.common.exception.ResourceConflictException;
 import com.devforge.ai.common.exception.ResourceNotFoundException;
 import com.devforge.ai.common.security.AuthenticatedUser;
 import com.devforge.ai.common.security.client.ProjectAccessClient;
 import com.devforge.ai.reviewservice.analysis.AnalysisEngine;
-import com.devforge.ai.reviewservice.client.GitContentClient;
+import com.devforge.ai.common.git.GitContentClient;
 import com.devforge.ai.reviewservice.dto.ReviewDtos.DismissFindingRequest;
 import com.devforge.ai.reviewservice.dto.ReviewDtos.FindingResponse;
 import com.devforge.ai.reviewservice.dto.ReviewDtos.ReviewResponse;
@@ -93,7 +94,7 @@ public class ReviewService {
 
     var context = new GitContentClient.Context(organizationId, projectId, repositoryId);
 
-    List<com.devforge.ai.reviewservice.analysis.AnalysedFile> files;
+    List<RepositoryFile> files;
     try {
       files = gitContent.filesToAnalyse(context, resolvedRef, baseRef, token);
     } catch (GitContentClient.GitServiceUnavailableException ex) {
