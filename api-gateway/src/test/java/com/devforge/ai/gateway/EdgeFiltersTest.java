@@ -171,4 +171,79 @@ class EdgeFiltersTest {
       assertThat(headersFor(true).getHeader("Strict-Transport-Security")).contains("max-age=");
     }
   }
+
+  @Nested
+  @DisplayName("AccessCookieFilter")
+  class AccessCookie {
+
+    private final AccessCookieFilter filter = new AccessCookieFilter("DEVFORGE_REFRESH_TOKEN");
+
+    /** Runs the filter and returns what the next hop saw as Authorization, or the refusal. */
+    private Object[] run(MockHttpServletRequest request) throws Exception {
+      var response = new MockHttpServletResponse();
+      var chain = new MockFilterChain();
+      filter.doFilter(request, response, chain);
+      var forwarded = chain.getRequest() == null
+          ? null
+          : ((jakarta.servlet.http.HttpServletRequest) chain.getRequest()).getHeader("Authorization");
+      return new Object[] {response.getStatus(), forwarded};
+    }
+
+    @Test
+    @DisplayName("turns the access cookie into a bearer header")
+    void cookieBecomesBearer() throws Exception {
+      var request = new MockHttpServletRequest("GET", "/api/v1/projects");
+      request.setCookies(new jakarta.servlet.http.Cookie("DEVFORGE_ACCESS_TOKEN", "abc"));
+
+      assertThat(run(request)).containsExactly(200, "Bearer abc");
+    }
+
+    @Test
+    @DisplayName("prefers an explicit Authorization header")
+    void explicitHeaderWins() throws Exception {
+      var request = new MockHttpServletRequest("GET", "/api/v1/projects");
+      request.setCookies(new jakarta.servlet.http.Cookie("DEVFORGE_ACCESS_TOKEN", "abc"));
+      request.addHeader("Authorization", "Bearer explicit");
+
+      assertThat(run(request)).containsExactly(200, "Bearer explicit");
+    }
+
+    @Test
+    @DisplayName("refuses a cookie-carrying write without X-Requested-With")
+    void csrfRefused() throws Exception {
+      // What a forged cross-site form post looks like: the browser attaches the cookie, but
+      // another origin cannot add the header.
+      var request = new MockHttpServletRequest("POST", "/api/v1/projects");
+      request.setCookies(new jakarta.servlet.http.Cookie("DEVFORGE_ACCESS_TOKEN", "abc"));
+
+      assertThat(run(request)).containsExactly(403, null);
+    }
+
+    @Test
+    @DisplayName("treats the refresh cookie the same, so refresh cannot be forged")
+    void refreshCsrfRefused() throws Exception {
+      var request = new MockHttpServletRequest("POST", "/api/v1/auth/refresh");
+      request.setCookies(new jakarta.servlet.http.Cookie("DEVFORGE_REFRESH_TOKEN", "r"));
+
+      assertThat(run(request)).containsExactly(403, null);
+    }
+
+    @Test
+    @DisplayName("lets the SPA's writes through")
+    void headerPresentAllowed() throws Exception {
+      var request = new MockHttpServletRequest("POST", "/api/v1/projects");
+      request.setCookies(new jakarta.servlet.http.Cookie("DEVFORGE_ACCESS_TOKEN", "abc"));
+      request.addHeader("X-Requested-With", "XMLHttpRequest");
+
+      assertThat(run(request)).containsExactly(200, "Bearer abc");
+    }
+
+    @Test
+    @DisplayName("leaves cookieless clients alone")
+    void noCookieNoCheck() throws Exception {
+      var request = new MockHttpServletRequest("POST", "/api/v1/auth/login");
+
+      assertThat(run(request)).containsExactly(200, null);
+    }
+  }
 }

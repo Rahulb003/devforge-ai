@@ -46,15 +46,15 @@ trust boundary purely by network placement.
 | Account lockout used as denial of service | the window expires; a permanent lock would let anyone who knows an email disable the account |
 | Stolen refresh token replayed | rotation on use; a replayed token revokes the whole session family and raises an event the user is notified about |
 | Refresh token used as an access token | separate `typ` claim, rejected in both directions, tested |
-| Token theft via XSS | the refresh token is `HttpOnly`, so script cannot read it. The **access token is reachable by script** — see the residual risk below |
-| CSRF on the refresh endpoint | `SameSite=Strict`, and the cookie authenticates only at `/refresh` |
+| Token theft via XSS | both tokens are `HttpOnly` cookies, and a browser never receives either in a response body |
+| CSRF using those cookies | `SameSite`, plus the gateway refusing cookie-carrying writes without `X-Requested-With` |
+| CSRF on the refresh endpoint | as above, and the refresh cookie authenticates only at `/refresh` |
 | Session fixation across devices | sessions are per-device and individually revocable |
 | Phishing | MFA reduces but does not remove it; nothing here stops a convincing credential-entry page |
 
-**Residual risk:** the access token lives in JavaScript-reachable storage, so a successful XSS gets a
-15-minute token. The mitigation is that it expires quickly and the refresh token — the long-lived
-credential — stays out of reach. A full fix means moving the access token into an `HttpOnly` cookie
-and adding CSRF tokens, which has not been done.
+**Residual risk:** an XSS can no longer carry a token away, but it can still act as the user while
+the page is open, through the user's own cookies. The defence against that is not having the XSS:
+React escapes by default, and a CSP for the SPA's HTML is the next control.
 
 ---
 
@@ -147,5 +147,5 @@ never reachable from code the platform is asked to analyse.
 
 1. A code-execution sandbox, before any feature needs one.
 2. Broker authentication and ACLs.
-3. Moving the access token out of script-reachable storage, and a CSP for the single-page app itself.
+3. A CSP for the single-page app itself.
 4. Dependency and container scanning in CI.

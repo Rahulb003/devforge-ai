@@ -92,7 +92,6 @@ describe('Signed-in shell', () => {
     vi.clearAllMocks();
 
     // What authStore.initializeAuth reads back to restore a session.
-    localStorage.setItem('access_token', 'a-token');
     localStorage.setItem(
       'user',
       JSON.stringify({

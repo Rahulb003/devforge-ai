@@ -5,6 +5,10 @@ const api = axios.create({
   timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
+    // Marks a request as the app's own. The gateway refuses cookie-authenticated writes without
+    // it, which is what stops another site from forging them; it also tells auth-service to keep
+    // the access token out of response bodies, so it only ever exists in the HttpOnly cookie.
+    'X-Requested-With': 'XMLHttpRequest',
   },
   withCredentials: true,
 });
@@ -26,16 +30,17 @@ const processQueue = (error: AxiosError | null) => {
   failedQueue = [];
 };
 
-api.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
-    const token = localStorage.getItem('access_token');
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error),
-);
+/**
+ * Exchanges the refresh cookie for a new access cookie. Nothing comes back to script: both tokens
+ * live in HttpOnly cookies.
+ */
+export async function refreshSession(): Promise<void> {
+  await axios.post(
+    '/api/v1/auth/refresh',
+    {},
+    { withCredentials: true, headers: { 'X-Requested-With': 'XMLHttpRequest' } },
+  );
+}
 
 /**
  * Endpoints where a 401 is a legitimate answer rather than an expired session.
@@ -81,14 +86,11 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const { data } = await axios.post('/api/v1/auth/refresh', {}, { withCredentials: true });
-        const newToken = data.data;
-        localStorage.setItem('access_token', newToken);
+        await refreshSession();
         processQueue(null);
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError as AxiosError);
-        localStorage.removeItem('access_token');
         localStorage.removeItem('user');
         window.location.href = '/login';
         return Promise.reject(refreshError);

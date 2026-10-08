@@ -391,4 +391,64 @@ class MfaAndSessionTest {
       mockMvc.perform(post(SESSIONS + "/revoke-others")).andExpect(status().isUnauthorized());
     }
   }
+
+  @Nested
+  @DisplayName("browser cookie delivery")
+  class BrowserCookie {
+
+    private static final String ACCESS = "DEVFORGE_ACCESS_TOKEN";
+
+    private MvcResult browserLogin() throws Exception {
+      var body = objectMapper.writeValueAsString(
+          Map.of("usernameOrEmail", USERNAME, "password", PASSWORD));
+      return mockMvc.perform(post(LOGIN).contentType(MediaType.APPLICATION_JSON).content(body)
+              .header("X-Requested-With", "XMLHttpRequest"))
+          .andExpect(status().isOk()).andReturn();
+    }
+
+    @Test
+    @DisplayName("a browser login gets the token as an HttpOnly cookie and not in the body")
+    void browserLoginWithholdsTokenFromBody() throws Exception {
+      var result = browserLogin();
+
+      // In the body, script could read it and the cookie would protect nothing.
+      assertThat(dataOf(result).get("accessToken").isNull()).isTrue();
+      var cookie = result.getResponse().getCookie(ACCESS);
+      assertThat(cookie).isNotNull();
+      assertThat(cookie.isHttpOnly()).isTrue();
+      assertThat(cookie.getPath()).isEqualTo("/api");
+      // The cookie value is a working access token, which the gateway forwards as a bearer.
+      mockMvc.perform(get(SESSIONS).header("Authorization", "Bearer " + cookie.getValue()))
+          .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("a browser refresh renews the cookie and returns no token")
+    void browserRefreshWithholdsToken() throws Exception {
+      var refresh = browserLogin().getResponse().getCookie(COOKIE).getValue();
+
+      var result = mockMvc.perform(post("/api/v1/auth/refresh")
+              .header("X-Requested-With", "XMLHttpRequest")
+              .cookie(new jakarta.servlet.http.Cookie(COOKIE, refresh)))
+          .andExpect(status().isOk()).andReturn();
+
+      assertThat(dataOf(result).isNull()).isTrue();
+      assertThat(result.getResponse().getCookie(ACCESS).getValue()).isNotBlank();
+    }
+
+    @Test
+    @DisplayName("an API client still gets the token in the body")
+    void apiClientUnchanged() throws Exception {
+      assertThat(loginAndReadAccessToken(null)).isNotBlank();
+    }
+
+    @Test
+    @DisplayName("logout expires the access cookie")
+    void logoutClearsAccessCookie() throws Exception {
+      var result = mockMvc.perform(post("/api/v1/auth/logout").header("Authorization", bearer()))
+          .andExpect(status().isOk()).andReturn();
+
+      assertThat(result.getResponse().getCookie(ACCESS).getMaxAge()).isZero();
+    }
+  }
 }

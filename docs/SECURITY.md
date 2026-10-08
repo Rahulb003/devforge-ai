@@ -20,6 +20,8 @@ marked **UNVERIFIED** have been written but never executed in this environment.
 | Reuse of a rotated refresh token revokes the session family | Implemented | `SessionRevocationService` |
 | Refresh cookie `HttpOnly` + `Secure` + `SameSite=Strict` | Implemented; relaxed only in the test profile, which runs over plain HTTP | auth-service config |
 | Refresh cookie accepted **only** at `/api/v1/auth/refresh` | Implemented | auth-service security config |
+| Access token in an `HttpOnly` cookie for the browser, never in script-readable storage or a browser response body | Implemented; verified in the browser suite | `JwtTokenProvider`, `AccessCookieFilter` |
+| Cookie-authenticated writes require `X-Requested-With` (CSRF) | Implemented, refresh included | `AccessCookieFilter` |
 | TOTP second factor (RFC 6238) | Implemented, verified against the published test vectors | `TotpService` |
 | MFA recovery codes, single-use | Implemented | `MfaBackupCode` |
 | Per-account rate limiting on password and MFA attempts | Implemented, time-windowed | `LoginAttemptService` |
@@ -75,8 +77,29 @@ wildcard with credentials — so **any website could read a signed-in user's dat
 every service's classpath, so it applied to all of them. Five tests cover it, including that a
 wildcard refuses to boot.
 
-Other headers and settings are inherited from Spring Security defaults. A deliberate CSP, HSTS and
-frame-ancestors policy has **not** been written — see §6.
+Response headers are set at the gateway — see below.
+
+### Access token cookie and CSRF
+
+The access token used to sit in `localStorage`, so any injected script could read it and use it
+from anywhere for its 15-minute life. It is now an `HttpOnly` cookie, path `/api`, that script
+cannot read. auth-service sets it; the gateway's `AccessCookieFilter` copies it into the
+`Authorization` header, so no service and no service-to-service call changed.
+
+A cookie the browser attaches by itself brings CSRF back, so the same filter refuses any
+non-GET request that carries either auth cookie but not `X-Requested-With: XMLHttpRequest`. Another
+site cannot add that header: a form cannot, and a cross-origin fetch needs a preflight the CORS
+allow-list refuses. `SameSite` on the cookies is the first layer, this the second.
+
+The token is also kept out of response bodies for the browser, or the cookie would protect
+nothing: a script could call `/refresh` and read the new token. The SPA sends the header, and
+auth-service omits the token from the body when it is present. A script that leaves the header off
+to get the token back is refused by the gateway first, because refresh always carries the refresh
+cookie. API clients that send no header and no cookie get the token in the body as before.
+
+What this does **not** do: an XSS can still make requests as the user while the page is open. It
+can no longer take the credential away. A CSP for the SPA's own HTML is the next layer and is not
+written.
 
 ---
 
@@ -161,12 +184,12 @@ Ordered by how much they matter.
    this environment and a sandbox that cannot isolate is worse than none.
 2. **Kafka has no authentication.** TLS, SASL and ACLs are unconfigured. Any process that can reach
    the broker can read every tenant's events.
-4. **No secret-management integration.** Secrets come from environment variables; there is no vault,
+3. **No secret-management integration.** Secrets come from environment variables; there is no vault,
    and no rotation story.
-5. **Docker and Kubernetes hardening is UNVERIFIED.** The images are non-root with healthchecks on
+4. **Docker and Kubernetes hardening is UNVERIFIED.** The images are non-root with healthchecks on
    paper; none has ever been built or run here.
-6. **No automated dependency or container scanning** in CI.
-7. **Audit logging exists for auth events only.** There is no audit trail for project, task or
+5. **No automated dependency or container scanning** in CI.
+6. **Audit logging exists for auth events only.** There is no audit trail for project, task or
    notification changes.
 
 ---

@@ -4,33 +4,28 @@ import type { UserProfile } from '@/api/auth.api';
 
 interface AuthState {
   user: UserProfile | null;
-  accessToken: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   sessionExpiresAt: number | null;
 
-  setAuth: (user: UserProfile, accessToken: string, expiresIn?: number) => void;
+  setAuth: (user: UserProfile, expiresIn?: number) => void;
   clearAuth: () => void;
   updateUser: (updates: Partial<UserProfile>) => void;
-  setToken: (token: string) => void;
   setLoading: (loading: boolean) => void;
   initializeAuth: () => void;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
-  accessToken: null,
   isAuthenticated: false,
   isLoading: true,
   sessionExpiresAt: null,
 
-  setAuth: (user, accessToken, expiresIn) => {
-    localStorage.setItem('access_token', accessToken);
+  setAuth: (user, expiresIn) => {
     localStorage.setItem('user', JSON.stringify(user));
     const expiresAt = expiresIn ? Date.now() + expiresIn * 1000 : null;
     set({
       user,
-      accessToken,
       isAuthenticated: true,
       isLoading: false,
       sessionExpiresAt: expiresAt,
@@ -38,11 +33,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   clearAuth: () => {
-    localStorage.removeItem('access_token');
     localStorage.removeItem('user');
     set({
       user: null,
-      accessToken: null,
       isAuthenticated: false,
       isLoading: false,
       sessionExpiresAt: null,
@@ -58,22 +51,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  setToken: (token) => {
-    localStorage.setItem('access_token', token);
-    set({ accessToken: token });
-  },
-
   setLoading: (loading) => set({ isLoading: loading }),
 
   initializeAuth: () => {
-    const token = localStorage.getItem('access_token');
+    // Earlier versions kept the access token here, where any script could read it. It now lives
+    // only in an HttpOnly cookie; a copy left behind by an old version is removed, not used.
+    localStorage.removeItem('access_token');
+    // The stored profile is only for rendering the shell. Whether the session is still valid is
+    // the server's call: an expired cookie answers 401, and the interceptor refreshes or sends the
+    // user to sign in.
     const userJson = localStorage.getItem('user');
-    if (token && userJson) {
+    if (userJson) {
       try {
         const user = JSON.parse(userJson) as UserProfile;
         set({
           user,
-          accessToken: token,
           isAuthenticated: true,
           isLoading: false,
         });

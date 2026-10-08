@@ -11,6 +11,53 @@ test.describe('Authentication', () => {
     await expectNoErrorBoundary(page);
   });
 
+  test('the session tokens are out of reach of page script', async ({ page, context }) => {
+    const account = uniqueAccount();
+    await signUp(page, account);
+    await signIn(page, account.email, account.password);
+
+    // What an injected script could reach: storage and document.cookie.
+    const visible = await page.evaluate(() => ({
+      storage: JSON.stringify({ ...localStorage, ...sessionStorage }),
+      cookies: document.cookie,
+    }));
+    expect(visible.storage).not.toMatch(/eyJ/);
+    expect(visible.cookies).not.toContain('DEVFORGE_');
+
+    const cookies = await context.cookies();
+    const access = cookies.find((c) => c.name === 'DEVFORGE_ACCESS_TOKEN');
+    expect(access?.httpOnly).toBe(true);
+    expect(cookies.find((c) => c.name === 'DEVFORGE_REFRESH_TOKEN')?.httpOnly).toBe(true);
+
+    // A write without the app's header is what a forged cross-site request looks like.
+    const forged = await page.evaluate(async () => {
+      const response = await fetch('/api/v1/organizations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'forged', slug: 'forged-org' }),
+      });
+      return response.status;
+    });
+    expect(forged).toBe(403);
+
+    // Refresh as the app does it: a new access cookie, and nothing in the body for script to take.
+    const before = access?.value;
+    const refreshed = await page.evaluate(async () => {
+      const response = await fetch('/api/v1/auth/refresh', {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      });
+      return { status: response.status, body: await response.text() };
+    });
+    expect(refreshed.status).toBe(200);
+    expect(refreshed.body).not.toMatch(/eyJ/);
+    const after = (await context.cookies()).find((c) => c.name === 'DEVFORGE_ACCESS_TOKEN');
+    expect(after?.value).toBeTruthy();
+    expect(after?.value).not.toBe(before);
+    const me = await page.evaluate(async () => (await fetch('/api/v1/auth/me')).status);
+    expect(me).toBe(200);
+  });
+
   test('sign up, then sign in and reach the dashboard', async ({ page }) => {
     const account = uniqueAccount();
 

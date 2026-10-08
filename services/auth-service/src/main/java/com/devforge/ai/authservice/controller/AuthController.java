@@ -116,7 +116,8 @@ public class AuthController {
       recordLoginSuccess(entity, httpRequest);
 
       return ResponseEntity.ok(ApiResponseDto.<LoginResult>builder()
-          .success(true).data(LoginResult.authenticated(accessToken)).message("Login successful")
+          .success(true).data(LoginResult.authenticated(deliverAccessToken(httpRequest, response, accessToken)))
+          .message("Login successful")
           .build());
     } catch (AuthenticationException ex) {
       // Recorded against the account when we know it; this is what the throttle counts.
@@ -180,8 +181,22 @@ public class AuthController {
     recordLoginSuccess(entity, httpRequest);
 
     return ResponseEntity.ok(ApiResponseDto.<LoginResult>builder()
-        .success(true).data(LoginResult.authenticated(accessToken))
+        .success(true).data(LoginResult.authenticated(deliverAccessToken(httpRequest, response, accessToken)))
         .message("Login successful").build());
+  }
+
+  /**
+   * Sets the access cookie, and returns the token for the body only to non-browser clients.
+   *
+   * <p>A browser gets the token as an HttpOnly cookie and nothing else, or script could read it from
+   * the body and the cookie would protect nothing. The SPA marks itself with X-Requested-With. A
+   * script that leaves the header off to get the token back is refused by the gateway first: it
+   * rejects any cookie-carrying write without that header, and refresh always carries one.
+   */
+  private String deliverAccessToken(
+      HttpServletRequest request, HttpServletResponse response, String token) {
+    authService.addAccessCookie(response, token);
+    return "XMLHttpRequest".equals(request.getHeader("X-Requested-With")) ? null : token;
   }
 
   /** Creates a device-scoped session and sets the refresh cookie. */
@@ -221,6 +236,7 @@ public class AuthController {
     }
     authService.revokeRefreshToken(userPrincipal.getId());
     authService.clearRefreshCookie(response);
+    authService.clearAccessCookie(response);
     authService.findById(userPrincipal.getId()).ifPresent(entity ->
         auditService.record(entity, AuditService.ACTION_LOGOUT, null, "Session revoked."));
     return ResponseEntity.ok(ApiResponseDto.<Void>builder().success(true).message("Logout successful").build());
@@ -247,12 +263,13 @@ public class AuthController {
       authService.addRefreshCookie(response, tokens.refreshToken());
       newAccessToken = tokens.accessToken();
     } catch (IllegalArgumentException ex) {
-      // Clear the cookie so a client holding a dead token stops replaying it.
+      // Clear the cookies so a client holding a dead token stops replaying it.
       authService.clearRefreshCookie(response);
+      authService.clearAccessCookie(response);
       return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
           .body(ApiResponseDto.<String>builder().success(false).message("Refresh token invalid").build());
     }
-    return ResponseEntity.ok(ApiResponseDto.<String>builder().success(true).data(newAccessToken).message("Token refreshed").build());
+    return ResponseEntity.ok(ApiResponseDto.<String>builder().success(true).data(deliverAccessToken(request, response, newAccessToken)).message("Token refreshed").build());
   }
 
   @PostMapping("/forgot-password")

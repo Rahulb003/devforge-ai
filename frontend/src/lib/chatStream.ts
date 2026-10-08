@@ -1,17 +1,17 @@
 import { useEffect, useState } from 'react';
 
-import { useAuthStore } from '@/stores/authStore';
+import { refreshSession } from '@/lib/axios';
 
 export type StreamStatus = 'connecting' | 'live' | 'reconnecting';
 
 /**
  * Subscribes to a project's chat stream and calls `onEvent` for each message pushed.
  *
- * Uses `fetch` rather than `EventSource`, because `EventSource` cannot send an Authorization
- * header, and the only alternative — the token in the URL — leaks it into access logs.
+ * Uses `fetch` rather than `EventSource` because `EventSource` hides the response status, and a 401
+ * here is the signal to renew the access cookie before reconnecting.
  *
  * The server closes the stream when the access token would expire, so this reconnects with
- * backoff, picking up the current token each time. That is also what re-checks that the user still
+ * backoff, sending the current cookie each time. That is also what re-checks that the user still
  * belongs to the project.
  */
 export function useChatStream(
@@ -20,7 +20,6 @@ export function useChatStream(
   onEvent: () => void,
 ): StreamStatus {
   const [status, setStatus] = useState<StreamStatus>('connecting');
-  const token = useAuthStore((s) => s.accessToken);
 
   useEffect(() => {
     if (!organizationId || !projectId) return;
@@ -35,11 +34,13 @@ export function useChatStream(
             {
               headers: {
                 Accept: 'text/event-stream',
-                ...(token ? { Authorization: `Bearer ${token}` } : {}),
               },
+              credentials: 'same-origin',
               signal: abort.signal,
             },
           );
+          // The stream closes when the access cookie expires; renew it before reconnecting.
+          if (response.status === 401) await refreshSession();
           if (!response.ok || !response.body) throw new Error(`stream ${response.status}`);
 
           setStatus('live');
@@ -69,7 +70,7 @@ export function useChatStream(
     return () => abort.abort();
     // onEvent is intentionally excluded: a new function each render would reconnect every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [organizationId, projectId, token]);
+  }, [organizationId, projectId]);
 
   return status;
 }

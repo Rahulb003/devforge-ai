@@ -310,6 +310,14 @@ public class AuthService {
     jwtTokenProvider.addRefreshTokenCookie(response, token);
   }
 
+  public void addAccessCookie(HttpServletResponse response, String token) {
+    jwtTokenProvider.addAccessTokenCookie(response, token);
+  }
+
+  public void clearAccessCookie(HttpServletResponse response) {
+    jwtTokenProvider.clearAccessTokenCookie(response);
+  }
+
   public void clearRefreshCookie(HttpServletResponse response) {
     jwtTokenProvider.clearRefreshTokenCookie(response);
   }

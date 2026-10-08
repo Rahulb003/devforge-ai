@@ -31,11 +31,11 @@ export function LoginPage() {
   // Where the user was heading before being bounced to login.
   const from = (location.state as { from?: string } | null)?.from ?? '/';
 
-  async function completeLogin(accessToken: string) {
-    // The token alone is not a profile; fetch the user so the shell can render
-    // a name and roles without decoding the JWT client-side.
+  async function completeLogin() {
+    // The session is an HttpOnly cookie the page cannot see, so the profile is fetched to render a
+    // name and roles; that call is also the proof the cookie took.
     const profile = await authApi.me();
-    setAuth(profile.data.data, accessToken);
+    setAuth(profile.data.data);
     navigate(from, { replace: true });
   }
 
@@ -46,10 +46,8 @@ export function LoginPage() {
 
     try {
       if (challengeToken) {
-        const { data } = await authApi.verifyMfa({ challengeToken, code });
-        if (data.data.accessToken) {
-          await completeLogin(data.data.accessToken);
-        }
+        await authApi.verifyMfa({ challengeToken, code });
+        await completeLogin();
         return;
       }
 
@@ -61,9 +59,7 @@ export function LoginPage() {
         return;
       }
 
-      if (data.data.accessToken) {
-        await completeLogin(data.data.accessToken);
-      }
+      await completeLogin();
     } catch (err) {
       setError(describeApiError(err));
     } finally {

@@ -33,6 +33,9 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class JwtTokenProvider {
 
+  /** Must match the name api-gateway reads. */
+  public static final String ACCESS_COOKIE_NAME = "DEVFORGE_ACCESS_TOKEN";
+
   /** Value of the {@code typ} claim on short-lived API access tokens. */
   public static final String TOKEN_TYPE_ACCESS = "access";
 
@@ -186,6 +189,32 @@ public class JwtTokenProvider {
         .sameSite(jwtConfig.getCookieSameSite())
         .build();
     response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+  }
+
+  /**
+   * The access token as an HttpOnly cookie, for the browser.
+   *
+   * <p>Script cannot read it, so an XSS can act inside the page but cannot carry the token away and
+   * use it elsewhere. The gateway turns it into the Authorization header, so services behind it see
+   * a bearer token exactly as before. SameSite and the gateway's custom-header check together stop
+   * another site from riding it.
+   */
+  public void addAccessTokenCookie(HttpServletResponse response, String token) {
+    response.addHeader(HttpHeaders.SET_COOKIE, accessCookie(token, jwtConfig.getAccessTokenTtl()).toString());
+  }
+
+  public void clearAccessTokenCookie(HttpServletResponse response) {
+    response.addHeader(HttpHeaders.SET_COOKIE, accessCookie("", java.time.Duration.ZERO).toString());
+  }
+
+  private ResponseCookie accessCookie(String value, java.time.Duration maxAge) {
+    return ResponseCookie.from(ACCESS_COOKIE_NAME, value)
+        .httpOnly(true)
+        .secure(jwtConfig.isCookieSecure())
+        .path("/api")
+        .maxAge(maxAge)
+        .sameSite(jwtConfig.getCookieSameSite())
+        .build();
   }
 
   public void clearRefreshTokenCookie(HttpServletResponse response) {

@@ -7,6 +7,9 @@ spring:
     name: api-gateway
 
 devforge:
+  auth:
+    # Must match auth-service security.jwt.cookie-name: writes carrying it need X-Requested-With.
+    refresh-cookie-name: ${DEVFORGE_COOKIE_NAME:DEVFORGE_REFRESH_TOKEN}
   rate-limit:
     # Per client address, per minute, on the unauthenticated auth endpoints.
     auth-per-minute: ${DEVFORGE_RATE_LIMIT_AUTH_PER_MINUTE:30}
