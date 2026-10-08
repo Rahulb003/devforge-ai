@@ -207,8 +207,10 @@ Ordered by how much they matter.
    of them can read or write any topic. Local and standalone runs use an open broker.
 3. **No secret-management integration.** Secrets come from environment variables; there is no vault,
    and no rotation story.
-4. **Docker and Kubernetes hardening is UNVERIFIED.** The images are non-root with healthchecks on
-   paper; none has ever been built or run here.
+4. **Container runtime hardening is mostly UNVERIFIED.** CI builds every image and confirms it runs
+   as non-root; Trivy reports 64 high/critical advisories in auth-service's image, all from
+   Spring Boot 3.4.0-era libraries. No container has
+   been started.
 5. **Dependency scanning blocks only on shipped frontend code.** CI fails on a high or critical
    advisory in the frontend production dependencies, and Dependabot proposes weekly updates. Trivy
    scans the Maven and npm trees and the auth-service image but only reports. The frontend dev

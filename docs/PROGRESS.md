@@ -21,7 +21,7 @@ Phase 2's event backbone is written but has never run against a real broker.
 | Frontend build | `npm run build` | **PASS** |
 | End-to-end tests | `npm run test:e2e` (Playwright, stack running) | **PASS** — 28 tests, through the gateway. Needs a machine not otherwise loaded; see docs/TESTING.md |
 | YAML validity | js-yaml parse of all 24 YAML files | **PASS** — 0 invalid |
-| Docker image builds | `docker build ...` | **UNVERIFIED** — no Docker daemon in this environment |
+| Docker image builds | CI `docker` job | **PASS in CI** — all 15 images build; non-root checked. Containers never started: **UNVERIFIED** |
 | Testcontainers tests | — | **UNVERIFIED** — requires Docker |
 | CI workflow end-to-end | GitHub Actions | **UNVERIFIED** — not executed here |
 
@@ -113,7 +113,7 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 |---|---|---|---|
 | 1 | ~~Not a git repository~~ **RESOLVED.** Repo initialised on `main` with `.gitignore` + `.gitattributes`; two commits so far. Note the commits are authored as the machine's global identity (`Rahulb003 <rbhowmik003@gmail.com>`), which may not be intended. | — | Change with `git config user.name` / `user.email` and amend if wrong. |
 | 2 | ~~Placeholder secrets in tracked config~~ **RESOLVED** (commit `b49d7f7`). All credentials are environment-driven with no fallbacks outside the `local` profile; `.env.example` added; k8s `secrets.yaml` is now a template. | — | The k8s Secret still needs wiring to a real secret store (External Secrets / Sealed Secrets) before any cluster deploy. |
-| 3 | Docker images still **UNVERIFIED**: no Docker daemon here. Images are now non-root with healthchecks and a single shared build stage, but none of it has been executed. | MEDIUM | First run of the `docker` CI job will confirm. |
+| 3 | Docker images **build in CI** (first run found the Dockerfile missing two modules). Running them is still **UNVERIFIED**. Images are now non-root with healthchecks and a single shared build stage, but none of it has been executed. | MEDIUM | First run of the `docker` CI job will confirm. |
 | 4 | `api-gateway` is a plain `spring-boot-starter-web` app — not Spring Cloud Gateway, no routes, no filters | MEDIUM | Routing is entirely `MISSING`. |
 | 5 | ~~Theme toggle had no accessible name~~ **RESOLVED** (commit `33a649f`). | — | Icon-only controls now all carry accessible names. |
 | 6 | ~~Kafka absent / RabbitMQ unused~~ **RESOLVED** (commit `0a2f97d`). RabbitMQ removed; Kafka + outbox + idempotency implemented. **Broker itself UNVERIFIED** (no Docker), and Kafka has no TLS/SASL/ACLs configured yet. | MEDIUM | Production needs broker auth before deploy. |
