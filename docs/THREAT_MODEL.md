@@ -148,4 +148,4 @@ never reachable from code the platform is asked to analyse.
 1. A code-execution sandbox, before any feature needs one.
 2. Broker authentication and ACLs.
 3. Moving the access token out of script-reachable storage, and a CSP for the single-page app itself.
-5. Dependency and container scanning in CI.
+4. Dependency and container scanning in CI.
