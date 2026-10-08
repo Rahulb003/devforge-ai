@@ -45,6 +45,7 @@ class SignupWithoutVerificationTest {
   private static final String PASSWORD = "Str0ng-Passw0rd!";
 
   @Autowired private MockMvc mockMvc;
+  @Autowired private org.springframework.context.ApplicationContext applicationContext;
   @Autowired private ObjectMapper objectMapper;
   @Autowired private UserRepository userRepository;
   @Autowired private RefreshTokenRepository refreshTokenRepository;
@@ -56,11 +57,7 @@ class SignupWithoutVerificationTest {
 
   @BeforeEach
   void setUp() {
-    loginHistoryRepository.deleteAll();
-    auditLogRepository.deleteAll();
-    refreshTokenRepository.deleteAll();
-    emailVerificationTokenRepository.deleteAll();
-    userRepository.deleteAll();
+    AuthTestData.clear(applicationContext);
   }
 
   private void signup() throws Exception {

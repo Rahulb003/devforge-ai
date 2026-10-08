@@ -1,0 +1,27 @@
+# Weekly update PRs, so a vulnerable dependency shows up as a reviewable change rather than only as
+# a scan finding. Grouped per ecosystem to keep the PR count manageable.
+version: 2
+updates:
+  - package-ecosystem: maven
+    directory: /backend
+    schedule:
+      interval: weekly
+    groups:
+      maven:
+        patterns: ["*"]
+        update-types: [minor, patch]
+
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+    groups:
+      npm:
+        patterns: ["*"]
+        update-types: [minor, patch]
+
+  # Actions are pinned to commit SHAs where it matters; this keeps those pins current.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

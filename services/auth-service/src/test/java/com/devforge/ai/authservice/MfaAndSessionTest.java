@@ -54,6 +54,7 @@ class MfaAndSessionTest {
   private static final String PASSWORD = "Str0ng-Passw0rd!";
 
   @Autowired private MockMvc mockMvc;
+  @Autowired private org.springframework.context.ApplicationContext applicationContext;
   @Autowired private ObjectMapper objectMapper;
   @Autowired private TotpService totpService;
   @Autowired private UserRepository userRepository;
@@ -70,13 +71,7 @@ class MfaAndSessionTest {
 
   @BeforeEach
   void setUp() throws Exception {
-    backupCodeRepository.deleteAll();
-    loginHistoryRepository.deleteAll();
-    auditLogRepository.deleteAll();
-    refreshTokenRepository.deleteAll();
-    emailVerificationTokenRepository.deleteAll();
-    passwordResetTokenRepository.deleteAll();
-    userRepository.deleteAll();
+    AuthTestData.clear(applicationContext);
 
     var body = objectMapper.writeValueAsString(Map.of(
         "firstName", "Mfa", "lastName", "User", "username", USERNAME,

@@ -53,6 +53,7 @@ class OutboxEventTest {
   private static final String PASSWORD = "Str0ng-Passw0rd!";
 
   @Autowired private MockMvc mockMvc;
+  @Autowired private org.springframework.context.ApplicationContext applicationContext;
   @Autowired private ObjectMapper objectMapper;
   @Autowired private OutboxEventRepository outboxEventRepository;
   @Autowired private ProcessedEventRepository processedEventRepository;
@@ -73,13 +74,7 @@ class OutboxEventTest {
   void setUp() {
     outboxEventRepository.deleteAll();
     processedEventRepository.deleteAll();
-    backupCodeRepository.deleteAll();
-    loginHistoryRepository.deleteAll();
-    auditLogRepository.deleteAll();
-    refreshTokenRepository.deleteAll();
-    emailVerificationTokenRepository.deleteAll();
-    passwordResetTokenRepository.deleteAll();
-    userRepository.deleteAll();
+    AuthTestData.clear(applicationContext);
   }
 
   private void signup() throws Exception {

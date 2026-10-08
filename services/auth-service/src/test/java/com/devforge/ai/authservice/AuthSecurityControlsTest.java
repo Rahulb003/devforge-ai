@@ -46,6 +46,7 @@ class AuthSecurityControlsTest {
   private static final String PASSWORD = "Str0ng-Passw0rd!";
 
   @Autowired private WebApplicationContext context;
+  @Autowired private org.springframework.context.ApplicationContext applicationContext;
   @Autowired private ObjectMapper objectMapper;
   @Autowired private UserRepository userRepository;
   @Autowired private RefreshTokenRepository refreshTokenRepository;
@@ -64,12 +65,7 @@ class AuthSecurityControlsTest {
         .apply(SecurityMockMvcConfigurers.springSecurity())
         .build();
 
-    loginHistoryRepository.deleteAll();
-    auditLogRepository.deleteAll();
-    refreshTokenRepository.deleteAll();
-    emailVerificationTokenRepository.deleteAll();
-    passwordResetTokenRepository.deleteAll();
-    userRepository.deleteAll();
+    AuthTestData.clear(applicationContext);
 
     registerVerifiedUser();
   }

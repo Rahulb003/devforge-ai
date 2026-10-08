@@ -209,7 +209,12 @@ Ordered by how much they matter.
    and no rotation story.
 4. **Docker and Kubernetes hardening is UNVERIFIED.** The images are non-root with healthchecks on
    paper; none has ever been built or run here.
-5. **No automated dependency or container scanning** in CI.
+5. **Dependency scanning blocks only on shipped frontend code.** CI fails on a high or critical
+   advisory in the frontend production dependencies, and Dependabot proposes weekly updates. Trivy
+   scans the Maven and npm trees and the auth-service image but only reports. The frontend dev
+   tooling carries high and critical advisories (vite, vitest, tailwind, typescript-eslint), all
+   needing major upgrades; none of it ships to a browser. The shipped code has two moderate
+   react-router advisories, also behind a major upgrade.
 6. **Audit logging exists for auth events only.** There is no audit trail for project, task or
    notification changes.
 

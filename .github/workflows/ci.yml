@@ -40,6 +40,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Blocks on high or critical advisories in what ships to the browser. Dev tooling is left out
+      # here: its findings (vite, vitest, tailwind, typescript-eslint) all need major upgrades and are
+      # tracked in docs/SECURITY.md, and none of it reaches a user.
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
       - name: Lint
         run: npm run lint
 
@@ -257,7 +263,7 @@ jobs:
           done
 
       - name: Scan auth-service image
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: devforge-ai/auth-service:${{ github.sha }}
           format: table
@@ -276,7 +282,7 @@ jobs:
       # plus hard-coded secrets. exit-code is 0 for now so the scan reports without
       # blocking; tighten to 1 once the current findings are triaged.
       - name: Trivy filesystem scan
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: fs
           scanners: vuln,secret
