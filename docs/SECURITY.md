@@ -80,6 +80,32 @@ frame-ancestors policy has **not** been written — see §6.
 
 ---
 
+### Gateway rate limiting
+
+The unauthenticated auth endpoints (login, MFA, signup, password reset, resend) are limited **per
+client address**, 30 a minute by default, answering 429 with `Retry-After`. auth-service already
+limits per *account*, which stops guessing one password but not spraying one password across
+thousands of accounts, nor a signup or reset-email flood; this covers those. Verified live.
+
+Two limitations, stated: the count is per gateway instance, and `X-Forwarded-For` is ignored unless
+`devforge.rate-limit.trust-forwarded-for` is set, because a client can write that header itself and
+would otherwise choose its own bucket. Behind a load balancer, enable it only if the balancer
+overwrites the header. The standalone profile raises the limit to 1000, since every browser test
+signs in from 127.0.0.1.
+
+### Response headers
+
+Every gateway response carries `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`,
+`Content-Security-Policy: default-src 'none'; frame-ancestors 'none'`, `Referrer-Policy: no-referrer`
+and `Cache-Control: no-store`, plus HSTS when served over TLS. These are for API responses; the
+single-page app's HTML is not served by the gateway, and whatever serves it needs its own CSP.
+
+Two defects found by checking the live response rather than the unit test: the 429 carried none of
+these headers, because the rate limiter answered before the headers filter ran; and proxied
+responses carried each header twice, once from the gateway and once from the service's Spring
+Security. A repeated `X-Frame-Options` can be treated as invalid and ignored. Both are fixed: the
+headers filter runs first, and these header names replace rather than append.
+
 ## 4. Data handling
 
 - **Events carry no credential material.** `UserPasswordReset` carries only the user id and the
@@ -135,8 +161,6 @@ Ordered by how much they matter.
    this environment and a sandbox that cannot isolate is worse than none.
 2. **Kafka has no authentication.** TLS, SASL and ACLs are unconfigured. Any process that can reach
    the broker can read every tenant's events.
-3. **No deliberate security-header policy.** CSP, HSTS and frame-ancestors are unset beyond Spring
-   defaults.
 4. **No secret-management integration.** Secrets come from environment variables; there is no vault,
    and no rotation story.
 5. **Docker and Kubernetes hardening is UNVERIFIED.** The images are non-root with healthchecks on
@@ -144,8 +168,6 @@ Ordered by how much they matter.
 6. **No automated dependency or container scanning** in CI.
 7. **Audit logging exists for auth events only.** There is no audit trail for project, task or
    notification changes.
-8. **No rate limiting at the gateway.** Limits are per-account inside auth-service, so an
-   unauthenticated flood is unthrottled.
 
 ---
 

@@ -137,7 +137,7 @@ never reachable from code the platform is asked to analyse.
 - **Infrastructure and network security.** No Docker or Kubernetes deployment has ever been run
   here, so pod security, network policy and ingress TLS are all unassessed.
 - **Physical and insider threats.**
-- **Denial of service.** There is no gateway rate limiting; an unauthenticated flood is unthrottled.
+- **Volumetric denial of service.** The gateway limits the unauthenticated auth endpoints per address, which blunts credential spraying and signup floods, but it is not a DDoS defence: that belongs in front of the gateway.
 - **Supply chain.** No dependency or container scanning in CI, and no lockfile policy beyond
   `package-lock.json` being committed.
 
@@ -147,6 +147,5 @@ never reachable from code the platform is asked to analyse.
 
 1. A code-execution sandbox, before any feature needs one.
 2. Broker authentication and ACLs.
-3. Gateway rate limiting, so abuse is throttled before it reaches a service.
-4. A deliberate CSP, and moving the access token out of script-reachable storage.
+3. Moving the access token out of script-reachable storage, and a CSP for the single-page app itself.
 5. Dependency and container scanning in CI.

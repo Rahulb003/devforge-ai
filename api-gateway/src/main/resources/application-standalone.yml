@@ -4,6 +4,10 @@ server:
   port: ${SERVER_PORT:8080}
 
 devforge:
+  rate-limit:
+    # Raised for local use only. Every browser test signs up and signs in from 127.0.0.1, so
+    # the production limit would throttle the test suite itself.
+    auth-per-minute: 1000
   services:
     auth-service-url: ${AUTH_SERVICE_URL:http://localhost:9001}
     project-service-url: ${PROJECT_SERVICE_URL:http://localhost:9002}

@@ -7,6 +7,11 @@ spring:
     name: api-gateway
 
 devforge:
+  rate-limit:
+    # Per client address, per minute, on the unauthenticated auth endpoints.
+    auth-per-minute: ${DEVFORGE_RATE_LIMIT_AUTH_PER_MINUTE:30}
+    # Only behind a proxy that overwrites X-Forwarded-For; otherwise a client picks its own bucket.
+    trust-forwarded-for: ${DEVFORGE_RATE_LIMIT_TRUST_FORWARDED_FOR:false}
   services:
     # No defaults: a wrong or missing address would silently route traffic
     # nowhere, which is harder to diagnose than a refusal to start.
