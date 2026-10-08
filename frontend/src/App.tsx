@@ -15,6 +15,8 @@ import { OrganizationsPage } from './pages/OrganizationsPage';
 import { ProjectBoardPage } from './pages/ProjectBoardPage';
 import { RepositoriesPage } from './pages/RepositoriesPage';
 import { RepositoryBrowserPage } from './pages/RepositoryBrowserPage';
+import { AnalyticsPage } from './pages/AnalyticsPage';
+import { ChatPage } from './pages/ChatPage';
 import { DocsPage } from './pages/DocsPage';
 import { ReviewPage } from './pages/ReviewPage';
 import { SettingsPage } from './pages/SettingsPage';
@@ -67,6 +69,14 @@ function App() {
               <Route
                 path="organizations/:organizationId/projects/:projectId/repositories"
                 element={<RepositoriesPage />}
+              />
+              <Route
+                path="organizations/:organizationId/projects/:projectId/chat"
+                element={<ChatPage />}
+              />
+              <Route
+                path="organizations/:organizationId/projects/:projectId/analytics"
+                element={<AnalyticsPage />}
               />
               {/*
                 The browser keeps the current directory, ref and open file in the
