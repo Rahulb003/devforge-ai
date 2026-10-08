@@ -118,10 +118,12 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
+      # Every screen goes through the gateway, so the suite needs all of it. This job used to start
+      # only auth and project, from before the gateway and the later services existed.
       - name: Build service jars
         run: >
           mvn -B -ntp -f backend/pom.xml
-          -pl ../services/auth-service,../services/project-service
+          -pl ../api-gateway,../services/auth-service,../services/project-service,../services/task-service,../services/git-service,../services/review-service,../services/documentation-service,../services/analytics-service,../services/chat-service,../services/notification-service
           -am package -DskipTests
 
       # The standalone profile runs the real application code against an
@@ -129,10 +131,13 @@ jobs:
       # service container.
       - name: Start backend services
         run: |
-          java -jar services/auth-service/target/auth-service-0.1.0.jar \
-            --spring.profiles.active=standalone > auth.log 2>&1 &
-          java -jar services/project-service/target/project-service-0.1.0.jar \
-            --spring.profiles.active=standalone > project.log 2>&1 &
+          mkdir -p logs
+          for m in auth-service project-service task-service git-service review-service documentation-service analytics-service chat-service notification-service; do
+            java -jar "services/$m/target/$m-0.1.0.jar" \
+              --spring.profiles.active=standalone > "logs/$m.log" 2>&1 &
+          done
+          java -jar api-gateway/target/api-gateway-0.1.0.jar \
+            --spring.profiles.active=standalone > logs/api-gateway.log 2>&1 &
 
       - name: Install frontend dependencies
         working-directory: frontend
@@ -162,8 +167,9 @@ jobs:
             echo "::error::timed out waiting for $url"
             return 1
           }
-          wait_for http://localhost:9001/actuator/health
-          wait_for http://localhost:9002/actuator/health
+          for port in 9001 9002 9003 9005 9006 9007 9008 9010 9011 8080; do
+            wait_for "http://localhost:$port/actuator/health"
+          done
           wait_for http://localhost:4173/
 
       # Browser-level tests. The unit suite cannot replace these: it once
@@ -187,8 +193,7 @@ jobs:
         with:
           name: e2e-service-logs
           path: |
-            auth.log
-            project.log
+            logs/
             frontend/vite.log
           retention-days: 7
 
