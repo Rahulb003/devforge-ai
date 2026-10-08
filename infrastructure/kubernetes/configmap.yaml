@@ -22,6 +22,11 @@ data:
   REDIS_PORT: "6379"
 
   KAFKA_BOOTSTRAP_SERVERS: kafka.devforge-ai.svc.cluster.local:9092
+  # Every Kafka client authenticates; a service missing its credentials refuses to start rather
+  # than connecting anonymously. Credentials come from the devforge-ai-kafka Secret.
+  DEVFORGE_KAFKA_REQUIRE_AUTHENTICATION: "true"
+  DEVFORGE_KAFKA_SECURITY_PROTOCOL: SASL_SSL
+  DEVFORGE_KAFKA_SASL_MECHANISM: SCRAM-SHA-512
 
   DEVFORGE_JWT_ISSUER: devforge-ai
   DEVFORGE_JWT_ACCESS_TTL: 15m

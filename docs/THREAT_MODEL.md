@@ -30,11 +30,13 @@ the features do not, and they are here so the controls arrive with the features 
 | Gateway → service | trusted → trusted | the caller's token, forwarded unchanged |
 | Service → service | trusted → trusted | the **caller's** token, never a service credential |
 | Service → its own database | trusted | nothing crosses a service's schema boundary |
-| Service → Kafka | trusted → **unauthenticated** | domain events, in clear text |
+| Service → Kafka | trusted → trusted, **when configured** | domain events; SASL authenticated, TLS by default |
 | Repository content → anything | **untrusted** → trusted | not yet reachable; see §7 |
 
-The honest weak point today is Kafka: there is no authentication on the broker, so it sits inside the
-trust boundary purely by network placement.
+Kafka clients authenticate with SASL when credentials are configured, and a deployment that sets
+`devforge.kafka.require-authentication` refuses to start without them. The weak point that remains
+is authorization: every service shares one identity and there are no topic ACLs, so a compromised
+service can write any topic. Local and standalone runs still use an open broker.
 
 ---
 
@@ -89,10 +91,11 @@ accident.
 | A duplicate event causing a duplicate side effect | consumers deduplicate on `(eventId, consumerGroup)`; notification-service additionally checks `(sourceEventId, recipientId)` so a deliberate topic replay is harmless |
 | A poison event blocking its partition | bounded retry, then the dead-letter topic |
 | Secrets leaking through an event payload | payloads carry ids and the minimum a consumer needs; reviewed per event in `docs/EVENT_CATALOG.md` |
-| An attacker reading or writing events directly | **nothing.** No TLS, SASL or ACLs on the broker |
+| An attacker reading or writing events directly | SASL authentication (SCRAM over TLS by default), tested against a real SASL broker. **No ACLs** |
 
-**Residual risk:** the last row is the real one. Anything that can reach the broker can read every
-tenant's events and inject forged ones, and a forged event is accepted as fact by every consumer.
+**Residual risk:** an outsider without credentials is now refused, but any service holding the
+shared credential can read every topic and forge events onto any of them, and a forged event is
+accepted as fact by every consumer. Per-service identities with topic ACLs close that.
 
 ---
 
@@ -146,6 +149,6 @@ never reachable from code the platform is asked to analyse.
 ## 9. Highest-value next controls
 
 1. A code-execution sandbox, before any feature needs one.
-2. Broker authentication and ACLs.
+2. Per-service Kafka identities and topic ACLs.
 3. A CSP for the single-page app itself.
 4. Dependency and container scanning in CI.

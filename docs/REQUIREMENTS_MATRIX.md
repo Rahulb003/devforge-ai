@@ -37,7 +37,7 @@ section count would overstate progress.
 | 7 | Documentation set (11 files) | `IMPLEMENTED` | all 11 present as of this commit |
 | 15 | Container images | `SCAFFOLDED` | Dockerfiles exist, non-root with healthchecks; **UNVERIFIED**, no daemon |
 | 16 | Secrets and configuration hygiene | `IMPLEMENTED` | no fallbacks for credentials in the default profile; secrets gitignored |
-| 17 | Build must be green | `IMPLEMENTED` | 455 backend + 74 frontend + 38 e2e, all passing |
+| 17 | Build must be green | `IMPLEMENTED` | 465 backend + 74 frontend + 38 e2e, all passing |
 | 18 | RabbitMQ removed unless justified | `IMPLEMENTED` | removed from five places; justification in `EVENT_CATALOG.md` §1 |
 
 ## Identity and access
@@ -68,7 +68,7 @@ section count would overstate progress.
 | 35 | Observability | `PARTIALLY_IMPLEMENTED` | health and metrics endpoints, structured logs; no tracing backend, no dashboards verified |
 | 36 | Error handling and problem responses | `IMPLEMENTED` | `ApiError` with a traceId, never an exception message |
 | 37 | Code-execution sandbox | `MISSING` | **nothing executes developer code today.** Designed in `docs/SANDBOX.md` with twelve required guarantees and an escape-attempt suite; not built, because no container runtime or hypervisor is available here. Hard prerequisite for §6 and the IDE phases |
-| 38 | Kafka security (TLS/SASL/ACL) | `MISSING` | unconfigured |
+| 38 | Kafka security (TLS/SASL/ACL) | `PARTIALLY_IMPLEMENTED` | SASL client authentication for every service, SCRAM over TLS by default, fail-closed when required; tested against a real SASL broker. No ACLs or per-service identities. Production TLS UNVERIFIED |
 
 ## Product surface
 

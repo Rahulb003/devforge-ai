@@ -103,6 +103,27 @@ written.
 
 ---
 
+### Kafka authentication
+
+Every Kafka client — producer, consumer and admin — authenticates with SASL when
+`devforge.kafka.sasl.username` and `.password` are set. The default is SCRAM-SHA-512 over TLS
+(`SASL_SSL`); PLAIN over plain TCP would send the password in the clear. One
+`EnvironmentPostProcessor` in common-events applies it to every service, and builds the JAAS line
+itself, escaped, so a quote in a password cannot add options to it.
+
+`devforge.kafka.require-authentication=true` makes a service refuse to start without credentials
+instead of connecting anonymously; the Kubernetes ConfigMap sets it. Verified against a real
+broker running with SASL required: valid credentials publish and consume, no credentials and a
+wrong password are refused, and a real service jar refuses to start when credentials are missing.
+
+The first version of that test passed against a broker with **no** authentication: Spring's
+embedded broker silently replaced the SASL listener with PLAINTEXT, and the "refused" case
+failed for an unrelated reason. The test now sets the listener per node and asserts *why* the
+unauthenticated client fails.
+
+**UNVERIFIED:** TLS and SCRAM against a production broker, and the Kubernetes wiring, since no
+cluster has run here.
+
 ### Gateway rate limiting
 
 The unauthenticated auth endpoints (login, MFA, signup, password reset, resend) are limited **per
@@ -182,8 +203,8 @@ Ordered by how much they matter.
    application host. Now specified in `docs/SANDBOX.md`: twelve guarantees, each with the escape
    attempt that must fail. Not implemented, because no container runtime or hypervisor exists in
    this environment and a sandbox that cannot isolate is worse than none.
-2. **Kafka has no authentication.** TLS, SASL and ACLs are unconfigured. Any process that can reach
-   the broker can read every tenant's events.
+2. **Kafka has no ACLs.** Clients authenticate (below), but all services share one identity and any
+   of them can read or write any topic. Local and standalone runs use an open broker.
 3. **No secret-management integration.** Secrets come from environment variables; there is no vault,
    and no rotation story.
 4. **Docker and Kubernetes hardening is UNVERIFIED.** The images are non-root with healthchecks on
