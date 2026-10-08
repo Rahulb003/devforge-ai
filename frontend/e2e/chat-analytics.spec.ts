@@ -46,4 +46,24 @@ test.describe('Chat and activity', () => {
     await expect(page.getByText(/Counted from domain events/)).toBeVisible();
     await expectNoErrorBoundary(page);
   });
+  test('a message appears for another viewer live, without reloading', async ({ page, browser }) => {
+    await openBoard(page);
+    await page.getByRole('link', { name: 'Chat' }).click();
+    await expect(page.getByText(/new messages appear as they are sent/i)).toBeVisible();
+    const chatUrl = page.url();
+
+    // A second, independent session posting into the same channel. Same account, so no invite flow
+    // is needed - what matters is that the first window is told without reloading.
+    const storage = await page.context().storageState();
+    const other = await browser.newContext({ storageState: storage });
+    const otherPage = await other.newPage();
+    await otherPage.goto(chatUrl);
+    await otherPage.getByLabel('Message').fill('pushed to the other window');
+    await otherPage.getByRole('button', { name: 'Send' }).click();
+
+    // 10s, well under the 30s fallback poll: arriving within it proves the stream delivered it,
+    // through both the dev proxy and the gateway, rather than the poll catching up.
+    await expect(page.getByText('pushed to the other window')).toBeVisible({ timeout: 10_000 });
+    await other.close();
+  });
 });

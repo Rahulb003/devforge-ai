@@ -31,7 +31,7 @@ This is a foundation with eight service domains built on it, not a finished plat
 - React 19 + Vite frontend covering the above
 
 **Scaffolded only — health endpoint, no behaviour yet:** AI and deployment services.
-Chat has a working API (per-project channels, polling) but no UI or real-time delivery yet.
+Chat is live: per-project channels with messages pushed over Server-Sent Events.
 
 **Present but unverified:** Docker Compose and the Kubernetes manifests have never been
 run here (no Docker daemon available). Treat them as untested.

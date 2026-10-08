@@ -11,9 +11,9 @@ How the suites are built and why they are built that way. What is planned but un
 
 | Suite | Command | Count | Result |
 |---|---|---|---|
-| Backend | `mvn -B -ntp -f backend/pom.xml test` | 434 | PASS |
-| Frontend unit | `cd frontend && npm test` | 73 | PASS |
-| Browser end-to-end | `cd frontend && npm run test:e2e` | 28 | PASS |
+| Backend | `mvn -B -ntp -f backend/pom.xml test` | 436 | PASS |
+| Frontend unit | `cd frontend && npm test` | 74 | PASS |
+| Browser end-to-end | `cd frontend && npm run test:e2e` | 37 | PASS |
 | Testcontainers | — | 0 | **UNVERIFIED** — needs Docker |
 
 Backend, by module:
@@ -30,7 +30,7 @@ Backend, by module:
 | review-service | 83 |
 | documentation-service | 31 |
 | analytics-service | 14 |
-| chat-service | 8 |
+| chat-service | 10 |
 | notification-service | 22 |
 
 Two services have no tests because they have no behaviour — they are two-file scaffolds.

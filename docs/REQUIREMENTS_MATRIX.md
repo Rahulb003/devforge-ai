@@ -14,8 +14,8 @@ Status vocabulary: `IMPLEMENTED`, `PARTIALLY_IMPLEMENTED`, `SCAFFOLDED`, `BROKEN
 
 | Status | Sections |
 |---|---|
-| `IMPLEMENTED` | 31 |
-| `PARTIALLY_IMPLEMENTED` | 12 |
+| `IMPLEMENTED` | 32 |
+| `PARTIALLY_IMPLEMENTED` | 11 |
 | `SCAFFOLDED` | 3 |
 | `MISSING` | 92 |
 
@@ -37,7 +37,7 @@ section count would overstate progress.
 | 7 | Documentation set (11 files) | `IMPLEMENTED` | all 11 present as of this commit |
 | 15 | Container images | `SCAFFOLDED` | Dockerfiles exist, non-root with healthchecks; **UNVERIFIED**, no daemon |
 | 16 | Secrets and configuration hygiene | `IMPLEMENTED` | no fallbacks for credentials in the default profile; secrets gitignored |
-| 17 | Build must be green | `IMPLEMENTED` | 434 backend + 73 frontend + 36 e2e, all passing |
+| 17 | Build must be green | `IMPLEMENTED` | 436 backend + 74 frontend + 37 e2e, all passing |
 | 18 | RabbitMQ removed unless justified | `IMPLEMENTED` | removed from five places; justification in `EVENT_CATALOG.md` §1 |
 
 ## Identity and access
@@ -79,7 +79,7 @@ section count would overstate progress.
 | 8 | Code review and quality gates | `IMPLEMENTED` | Secret detection, credential files, conflict markers, dangerous patterns; severities, configurable gate, dismissal with a recorded reason. 83 tests, verified live. **Not** an AI reviewer and not a general SAST engine — a focused, high-signal rule set |
 | 9 | IDE / editor | `PARTIALLY_IMPLEMENTED` | A read-only code browser plus a single-file commit form exists over git-service. No editor, no execution — §37 gates both |
 | 10 | Documentation generation | `IMPLEMENTED` | Repository overview, API surface and documentation coverage, generated from real file content. 31 tests. Pattern-based, not AI-written, and each document states its own limits |
-| 11 | Chat and collaboration | `PARTIALLY_IMPLEMENTED` | Per-project channel over REST with polling, author-only edit/delete, 8 tests. With a polling UI. No WebSockets, no presence |
+| 11 | Chat and collaboration | `IMPLEMENTED` | Per-project channel over REST with polling, author-only edit/delete, 8 tests. Live delivery over Server-Sent Events. Single-instance fan-out, no presence |
 | 12 | Notifications | `IMPLEMENTED` | consumer + API + bell + feed; 22 backend, 12 frontend tests |
 | 13 | Deployments and pipelines | `SCAFFOLDED` | deployment-service is a health endpoint |
 | 14 | Analytics | `IMPLEMENTED` | Daily per-project counters built by consuming task and repository events, with a read API. Counts only what was published after it began consuming, which the response states |

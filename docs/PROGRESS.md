@@ -14,10 +14,10 @@ Phase 2's event backbone is written but has never run against a real broker.
 | Gate | Command | Result |
 |---|---|---|
 | Backend compile | `mvn -B -ntp -f backend/pom.xml clean compile` | **PASS** — all 16 modules |
-| Backend tests | `mvn -B -ntp -f backend/pom.xml clean test` | **PASS** — 434 tests, 0 failures |
+| Backend tests | `mvn -B -ntp -f backend/pom.xml clean test` | **PASS** — 436 tests, 0 failures |
 | Frontend install | `npm ci` (in `frontend/`) | **PASS** |
 | Frontend lint | `npm run lint` | **PASS** — 0 errors, 0 warnings |
-| Frontend tests | `npm test` | **PASS** — 73 unit tests |
+| Frontend tests | `npm test` | **PASS** — 74 unit tests |
 | Frontend build | `npm run build` | **PASS** |
 | End-to-end tests | `npm run test:e2e` (Playwright, stack running) | **PASS** — 28 tests, through the gateway. Needs a machine not otherwise loaded; see docs/TESTING.md |
 | YAML validity | js-yaml parse of all 24 YAML files | **PASS** — 0 invalid |
@@ -146,7 +146,7 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 | Git hosting (§7) | `IMPLEMENTED` | git-service hosts real repositories via JGit: create, browse, commit, branch, diff. 107 tests. Verified live through the gateway |
 | GitHub/GitLab integration | `MISSING` | Deliberately separate from the above — it needs provider credentials, and faking it was not an option |
 | Code review and quality gates (§8) | `IMPLEMENTED` | review-service: secret detection, credential files, merge-conflict markers, dangerous patterns; severities, a configurable gate, and dismissal with a recorded reason. 83 tests. Verified live against a repository with a planted credential |
-| Chat (§11) | `PARTIALLY_IMPLEMENTED` | chat-service: one channel per project, post/list/edit/delete, author-only edits, deletes erase the text. 8 tests. REST with polling, with a UI that polls every 5s and says so. **No WebSockets or presence** |
+| Chat (§11) | `IMPLEMENTED` | chat-service: one channel per project, post/list/edit/delete, author-only edits, deletes erase the text. 8 tests. Live delivery over Server-Sent Events, verified across two browser windows through the dev proxy and the gateway. 10 backend tests. **Single-instance fan-out only, no presence** |
 | Analytics (§14) | `IMPLEMENTED` | With a UI: totals, a daily chart and a screen-reader table, plus the server's completeness note shown verbatim. analytics-service consumes task and repository events into daily per-project counters, with a read API. The platform's second production consumer. 14 tests, 5 against a real broker |
 | Documentation generation (§10) | `IMPLEMENTED` | documentation-service: repository overview, API surface and doc-coverage documents generated from real content. 31 tests. Not AI-written — every statement is derived from files that exist |
 | Code-execution sandbox (§37) | `MISSING` | **Designed, deliberately not built** — see docs/SANDBOX.md. No container, VM or hypervisor is available here, and a sandbox that cannot isolate is worse than none because people trust it |
@@ -233,6 +233,9 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 | AD-23 | Only the gateway applies a CORS policy; services behind it register no CORS filter | An empty allow-list makes `CorsFilter` **reject** anything carrying an `Origin` header, which is what a gateway forwards — not "allow no cross-origin access". The first CORS hardening left every service with an empty list, so the whole app answered 403 to browsers while passing every `curl` check, because `curl` sends no `Origin`. Omitting the filter is safer: CORS only ever *grants* access. |
 | AD-24 | The repository browser keeps path, ref and open file in the **query string** | A link to a file is then one someone else can open, Back walks up the tree, and a reload lands in the same place. Component state would make all three fail. |
 | AD-30 | `GitContentClient` and `RepositoryFile` live in common-library | review-service and documentation-service both read repository content. The parts worth getting right — the fetch bounds and failing closed when content is unreadable — are exactly the parts that rot when copied. Conditional on `devforge.services.git-service-url`, so services that never read content do not fail to start for want of a property they have no reason to set. |
+| AD-35 | Live chat uses Server-Sent Events read by `fetch`, not WebSockets or `EventSource` | Delivery only flows server-to-client, and SSE crosses the gateway as an ordinary HTTP response (verified unbuffered). `EventSource` cannot send an Authorization header, and the alternative, the token in the URL, would leak it into access logs. |
+| AD-36 | Each stream opens with an immediate comment event | Spring does not commit an SSE response until the first event, so a quiet channel sent no headers and looked hung. A curl probe missed this because it posted a message, which forced the flush. Only the browser test, which waits for the stream before posting, exposed it. |
+| AD-37 | Streams close at the access-token lifetime | Authorization is checked once, when the stream opens. An unbounded stream would keep delivering after the token expired or the user left the project; reconnecting re-runs the check. |
 | AD-33 | Analytics stores pre-aggregated day buckets, not one row per event | The questions it answers are all "how much happened, and when" at day resolution. A row per event would grow without bound to serve a query that never needs it, and the events themselves remain in Kafka for anything that does. |
 | AD-34 | Activity is bucketed by the event's own timestamp, not by when it was consumed | Otherwise every consumer outage leaves a visible spike on the wrong date, and a replay rewrites history. |
 | AD-32 | Generated documents are rendered as preformatted text, never parsed to HTML | The content is derived from repository files, which are attacker-supplied. A crafted README reaches the page through the overview document, so rendering it as HTML would turn it into stored XSS. Plain text cannot. |

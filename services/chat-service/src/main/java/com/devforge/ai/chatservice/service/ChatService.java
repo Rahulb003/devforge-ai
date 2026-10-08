@@ -17,6 +17,9 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
@@ -32,6 +35,13 @@ public class ChatService {
 
   private final ChatMessageRepository messages;
   private final ProjectAccessClient projectAccess;
+  private final ChatStreamRegistry streams;
+
+  /** Opens a live stream of this channel. Access is checked here, once, when it opens. */
+  public SseEmitter subscribe(UUID organizationId, UUID projectId) {
+    requireAccess(organizationId, projectId);
+    return streams.subscribe(projectId);
+  }
 
   /**
    * Newest first, or — with {@code after} — only messages newer than the client's latest, oldest
@@ -58,13 +68,15 @@ public class ChatService {
   public MessageResponse post(UUID organizationId, UUID projectId, String body) {
     requireAccess(organizationId, projectId);
     var user = currentUser();
-    return MessageResponse.from(messages.save(ChatMessageEntity.builder()
+    var saved = MessageResponse.from(messages.save(ChatMessageEntity.builder()
         .projectId(projectId)
         .organizationId(organizationId)
         .authorId(user.id())
         .authorName(user.username())
         .body(body.strip())
         .build()));
+    broadcastAfterCommit(projectId, saved);
+    return saved;
   }
 
   @Transactional
@@ -75,7 +87,9 @@ public class ChatService {
     }
     message.setBody(body.strip());
     message.setEditedAt(Instant.now());
-    return MessageResponse.from(messages.save(message));
+    var saved = MessageResponse.from(messages.save(message));
+    broadcastAfterCommit(projectId, saved);
+    return saved;
   }
 
   @Transactional
@@ -88,7 +102,22 @@ public class ChatService {
     // the UI only, and the words remain for anyone reading the database.
     message.setBody("");
     message.setDeletedAt(Instant.now());
-    messages.save(message);
+    broadcastAfterCommit(projectId, MessageResponse.from(messages.save(message)));
+  }
+
+  /**
+   * Pushes to open streams only once the transaction has committed.
+   *
+   * <p>Sending inside the transaction would push a message that a later failure rolls back: every
+   * subscriber would see something that, on reload, never existed.
+   */
+  private void broadcastAfterCommit(UUID projectId, MessageResponse message) {
+    TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+      @Override
+      public void afterCommit() {
+        streams.broadcast(projectId, message);
+      }
+    });
   }
 
   /**

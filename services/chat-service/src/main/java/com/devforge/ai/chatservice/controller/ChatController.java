@@ -22,12 +22,17 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.MediaType;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 /**
  * A project's chat channel.
  *
- * <p>REST with polling. Real-time delivery over WebSockets is not implemented; a client polls with
- * {@code after} to fetch only what is new.
+ * <p>Posting is REST; live delivery is Server-Sent Events on {@code /stream}. SSE rather than
+ * WebSockets because delivery only flows server-to-client, and it travels through the gateway as an
+ * ordinary HTTP response. Clients read it with {@code fetch}, not {@code EventSource}, because
+ * {@code EventSource} cannot send an Authorization header and the alternative - the token in the
+ * URL - would leak it into access logs.
  */
 @RestController
 @RequestMapping("/api/v1/organizations/{organizationId}/projects/{projectId}/chat/messages")
@@ -48,6 +53,12 @@ public class ChatController {
       @RequestParam(defaultValue = "50") int limit) {
     return ResponseEntity.ok(
         new ApiResponse<>(true, chat.list(organizationId, projectId, before, after, limit), null));
+  }
+
+  /** A live stream of this channel. Closes when the access token would expire; reconnect then. */
+  @GetMapping(path = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+  public SseEmitter stream(@PathVariable UUID organizationId, @PathVariable UUID projectId) {
+    return chat.subscribe(organizationId, projectId);
   }
 
   @PostMapping

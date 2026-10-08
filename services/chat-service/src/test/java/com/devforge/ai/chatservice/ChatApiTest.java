@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.devforge.ai.chatservice.repository.ChatMessageRepository;
@@ -186,5 +187,31 @@ class ChatApiTest {
         .when(projectAccessClient).requireProjectAccess(any(), any(), any());
     mockMvc.perform(get(base()).header(HttpHeaders.AUTHORIZATION, bearer(alice)))
         .andExpect(status().isServiceUnavailable());
+  }
+  @Test
+  @DisplayName("an open stream receives a message as soon as it is posted")
+  void streamDeliversNewMessages() throws Exception {
+    var stream = mockMvc.perform(get(base() + "/stream")
+            .header(HttpHeaders.AUTHORIZATION, bearer(bob)))
+        .andExpect(request().asyncStarted())
+        .andReturn();
+
+    postAs(alice, "pushed live");
+
+    // Delivered after the posting transaction committed, so a rolled-back post is never pushed.
+    var body = stream.getResponse().getContentAsString();
+    assertThat(body).contains("event:message");
+    assertThat(body).contains("pushed live");
+  }
+
+  @Test
+  @DisplayName("a stream for a project the caller cannot see is refused")
+  void streamRequiresProjectAccess() throws Exception {
+    doThrow(new ResourceNotFoundException("Project not found"))
+        .when(projectAccessClient).requireProjectAccess(eq(organizationId), eq(projectId), any());
+
+    mockMvc.perform(get(base() + "/stream").header(HttpHeaders.AUTHORIZATION, bearer(alice)))
+        .andExpect(status().isNotFound());
+    mockMvc.perform(get(base() + "/stream")).andExpect(status().isUnauthorized());
   }
 }

@@ -6,14 +6,15 @@ import { Link, useParams } from 'react-router-dom';
 import { chatApi } from '@/api/chat.api';
 import { Button } from '@/components/ui/Button';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/states';
+import { useChatStream } from '@/lib/chatStream';
 import { describeApiError } from '@/lib/errors';
 import { useAuthStore } from '@/stores/authStore';
 
 /**
  * A project's channel.
  *
- * Polls every few seconds rather than holding a socket: real-time delivery is not implemented on
- * the server yet, and the page says so instead of implying messages arrive instantly.
+ * New messages arrive over a live stream. A slow poll stays on as a fallback, so a dropped stream
+ * degrades to slightly late rather than silently stale.
  */
 export function ChatPage() {
   const { organizationId = '', projectId = '' } = useParams();
@@ -27,10 +28,13 @@ export function ChatPage() {
     // Newest first from the server; reversed so the conversation reads top to bottom.
     queryFn: async () => [...(await chatApi.list(organizationId, projectId)).data.data].reverse(),
     enabled: Boolean(organizationId && projectId),
-    refetchInterval: 5_000,
+    // Fallback only: the live stream triggers a refetch the moment something is posted.
+    refetchInterval: 30_000,
   });
 
   const refresh = () => void queryClient.invalidateQueries({ queryKey: ['chat', projectId] });
+
+  const streamStatus = useChatStream(organizationId, projectId, refresh);
 
   const send = useMutation({
     mutationFn: () => chatApi.post(organizationId, projectId, draft.trim()),
@@ -62,8 +66,10 @@ export function ChatPage() {
 
       <header>
         <h1 className="text-2xl font-semibold text-white">Project chat</h1>
-        <p className="mt-1 text-sm text-slate-400">
-          Refreshes every few seconds — not instant, real-time delivery is not built yet.
+        <p className="mt-1 text-sm text-slate-400" role="status">
+          {streamStatus === 'live'
+            ? 'Live — new messages appear as they are sent.'
+            : 'Reconnecting… messages may arrive a little late.'}
         </p>
       </header>
 

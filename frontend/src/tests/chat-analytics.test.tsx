@@ -15,6 +15,10 @@ const post = vi.fn();
 const remove = vi.fn();
 const activity = vi.fn();
 
+// The stream is a network concern; here the page is tested against each status it can report.
+const streamStatus = vi.fn(() => 'live');
+vi.mock('@/lib/chatStream', () => ({ useChatStream: () => streamStatus() }));
+
 vi.mock('@/api/chat.api', () => ({
   chatApi: {
     list: (...a: unknown[]) => list(...a),
@@ -73,10 +77,17 @@ describe('ChatPage', () => {
     expect(items[1]).toHaveTextContent('second');
   });
 
-  it('says plainly that delivery is not real-time', async () => {
+  it('says when it is live', async () => {
     list.mockResolvedValue(env([]));
     renderAt('chat', <ChatPage />);
-    expect(await screen.findByText(/not instant/i)).toBeInTheDocument();
+    expect(await screen.findByText(/new messages appear as they are sent/i)).toBeInTheDocument();
+  });
+
+  it('says when it is reconnecting, so late messages are not a surprise', async () => {
+    streamStatus.mockReturnValueOnce('reconnecting');
+    list.mockResolvedValue(env([]));
+    renderAt('chat', <ChatPage />);
+    expect(await screen.findByText(/reconnecting/i)).toBeInTheDocument();
   });
 
   it('sends a message', async () => {
