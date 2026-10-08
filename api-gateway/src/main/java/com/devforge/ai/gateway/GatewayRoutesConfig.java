@@ -55,6 +55,9 @@ public class GatewayRoutesConfig {
   @Value("${devforge.services.analytics-service-url}")
   private String analyticsServiceUrl;
 
+  @Value("${devforge.services.chat-service-url}")
+  private String chatServiceUrl;
+
   /**
    * Tasks and sprints, which live under the project path but belong to task-service.
    *
@@ -141,6 +144,17 @@ public class GatewayRoutesConfig {
             RequestPredicates.path("/api/v1/organizations/*/projects/*/analytics")
                 .or(RequestPredicates.path("/api/v1/organizations/*/projects/*/analytics/**")),
             http(analyticsServiceUrl))
+        .build();
+  }
+
+  /** Project chat, under the project path like tasks and analytics. */
+  @Bean
+  @Order(36)
+  public RouterFunction<ServerResponse> chatRoutes() {
+    return route("chat")
+        .route(
+            RequestPredicates.path("/api/v1/organizations/*/projects/*/chat/**"),
+            http(chatServiceUrl))
         .build();
   }
 

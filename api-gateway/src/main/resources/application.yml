@@ -18,6 +18,7 @@ devforge:
     review-service-url: ${REVIEW_SERVICE_URL}
     documentation-service-url: ${DOCUMENTATION_SERVICE_URL}
     analytics-service-url: ${ANALYTICS_SERVICE_URL}
+    chat-service-url: ${CHAT_SERVICE_URL}
   cors:
     # Explicit origins, never a wildcard: the API is credentialed, and a
     # wildcard with credentials is both rejected by browsers and unsafe.

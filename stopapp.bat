@@ -20,6 +20,7 @@ call :killport 9005 git-service
 call :killport 9006 review-service
 call :killport 9007 documentation-service
 call :killport 9010 analytics-service
+call :killport 9008 chat-service
 call :killport 9011 notification-service
 call :killport 8080 api-gateway
 call :killport 4173 frontend

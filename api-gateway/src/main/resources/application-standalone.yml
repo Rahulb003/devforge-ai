@@ -13,6 +13,7 @@ devforge:
     review-service-url: ${REVIEW_SERVICE_URL:http://localhost:9006}
     documentation-service-url: ${DOCUMENTATION_SERVICE_URL:http://localhost:9007}
     analytics-service-url: ${ANALYTICS_SERVICE_URL:http://localhost:9010}
+    chat-service-url: ${CHAT_SERVICE_URL:http://localhost:9008}
   cors:
     allowed-origins: ${DEVFORGE_CORS_ORIGINS:http://localhost:4173}
 

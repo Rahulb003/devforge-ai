@@ -14,7 +14,7 @@ Phase 2's event backbone is written but has never run against a real broker.
 | Gate | Command | Result |
 |---|---|---|
 | Backend compile | `mvn -B -ntp -f backend/pom.xml clean compile` | **PASS** — all 16 modules |
-| Backend tests | `mvn -B -ntp -f backend/pom.xml clean test` | **PASS** — 426 tests, 0 failures |
+| Backend tests | `mvn -B -ntp -f backend/pom.xml clean test` | **PASS** — 434 tests, 0 failures |
 | Frontend install | `npm ci` (in `frontend/`) | **PASS** |
 | Frontend lint | `npm run lint` | **PASS** — 0 errors, 0 warnings |
 | Frontend tests | `npm test` | **PASS** — 64 unit tests |
@@ -146,10 +146,11 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 | Git hosting (§7) | `IMPLEMENTED` | git-service hosts real repositories via JGit: create, browse, commit, branch, diff. 107 tests. Verified live through the gateway |
 | GitHub/GitLab integration | `MISSING` | Deliberately separate from the above — it needs provider credentials, and faking it was not an option |
 | Code review and quality gates (§8) | `IMPLEMENTED` | review-service: secret detection, credential files, merge-conflict markers, dangerous patterns; severities, a configurable gate, and dismissal with a recorded reason. 83 tests. Verified live against a repository with a planted credential |
+| Chat (§11) | `PARTIALLY_IMPLEMENTED` | chat-service: one channel per project, post/list/edit/delete, author-only edits, deletes erase the text. 8 tests. REST with polling — **no WebSockets, no UI yet** |
 | Analytics (§14) | `IMPLEMENTED` | analytics-service consumes task and repository events into daily per-project counters, with a read API. The platform's second production consumer. 14 tests, 5 against a real broker |
 | Documentation generation (§10) | `IMPLEMENTED` | documentation-service: repository overview, API surface and doc-coverage documents generated from real content. 31 tests. Not AI-written — every statement is derived from files that exist |
 | Code-execution sandbox (§37) | `MISSING` | **Designed, deliberately not built** — see docs/SANDBOX.md. No container, VM or hypervisor is available here, and a sandbox that cannot isolate is worse than none because people trust it |
-| IDE, AI, chat, deploy, RAG, agents | `MISSING` / `SCAFFOLDED` | Health endpoints only — 3 services remain 2-file scaffolds |
+| IDE, AI, deploy, RAG, agents | `MISSING` / `SCAFFOLDED` | Health endpoints only — 2 services remain scaffolds, both blocked (model credentials; container runtime) |
 | Frontend app shell, routing, theme store | `IMPLEMENTED` | 12 passing tests |
 | Frontend auth screens (login/MFA/signup/verify/forgot/reset) | `IMPLEMENTED` | Driven against the live API; verified end-to-end through the dev proxy |
 | Frontend organization + project screens | `IMPLEMENTED` | List/create, loading/empty/error states |

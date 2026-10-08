@@ -20,6 +20,7 @@ devforge:
     review-service-url: http://localhost:19006
     documentation-service-url: http://localhost:19007
     analytics-service-url: http://localhost:19010
+    chat-service-url: http://localhost:19008
   cors:
     allowed-origins: http://localhost:4173
 
