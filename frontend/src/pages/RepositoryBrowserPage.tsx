@@ -7,6 +7,7 @@ import {
   FileWarning,
   Folder,
   GitBranch,
+  GitPullRequest,
   History,
   Pencil,
   ShieldCheck,
@@ -70,6 +71,9 @@ export function RepositoryBrowserPage() {
   const [newContent, setNewContent] = useState('');
   const [message, setMessage] = useState('');
   const [commitError, setCommitError] = useState<string | null>(null);
+  const [branching, setBranching] = useState(false);
+  const [branchName, setBranchName] = useState('');
+  const [branchError, setBranchError] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const path = searchParams.get('path') ?? '';
@@ -285,9 +289,32 @@ export function RepositoryBrowserPage() {
     },
   });
 
+  /** Branches from whatever is being viewed, then switches to the new branch. */
+  const createBranch = useMutation({
+    mutationFn: () =>
+      gitApi.createBranch(organizationId, projectId, repositoryId, branchName.trim(), ref),
+    onSuccess: (response) => {
+      setBranching(false);
+      setBranchName('');
+      setBranchError(null);
+      void queryClient.invalidateQueries({ queryKey: ['repository-branches'] });
+      navigate({ ref: response.data.data.name, path: '', file: '' });
+    },
+    // The server owns branch-name rules (and duplicates), so its message is the useful one.
+    onError: (err) => setBranchError(describeApiError(err)),
+  });
+
+  /**
+   * Changes only the keys given: '' clears one, an absent key is left alone.
+   *
+   * It used to clear every key it was not given, so opening a file - which passes only `file` -
+   * dropped `ref` and showed the default branch's copy. With the editor that was worse: the edit
+   * was committed to the default branch instead of the one on screen.
+   */
   function navigate(next: { path?: string; file?: string; ref?: string }) {
     const params = new URLSearchParams(searchParams);
     for (const key of ['path', 'file', 'ref'] as const) {
+      if (!(key in next)) continue;
       const value = next[key];
       if (value === undefined || value === '') params.delete(key);
       else params.set(key, value);
@@ -352,6 +379,16 @@ export function RepositoryBrowserPage() {
             </Link>
           )}
 
+          {!isEmpty && repository.isSuccess && (
+            <Link
+              to={`/organizations/${organizationId}/projects/${projectId}/repositories/${repositoryId}/pull-requests`}
+              className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-700 bg-slate-800 px-5 text-sm font-medium text-slate-100 transition hover:border-slate-600 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-indigo-400"
+            >
+              <GitPullRequest className="h-4 w-4" aria-hidden="true" />
+              Pull requests
+            </Link>
+          )}
+
           {!isEmpty && !adding && repository.isSuccess && (
             <Button
               variant="secondary"
@@ -383,8 +420,63 @@ export function RepositoryBrowserPage() {
               </select>
             </label>
           )}
+
+          {!isEmpty && repository.isSuccess && !branching && (
+            <Button
+              variant="secondary"
+              leftIcon={<GitBranch className="h-4 w-4" />}
+              onClick={() => setBranching(true)}
+              disabled={hasChanges}
+            >
+              New branch
+            </Button>
+          )}
         </div>
       </header>
+
+      {branching && (
+        <Card>
+          <form
+            aria-label="New branch"
+            className="flex flex-wrap items-end gap-3"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (branchName.trim()) createBranch.mutate();
+            }}
+          >
+            <div className="min-w-64 flex-1">
+              <Input
+                label="Branch name"
+                value={branchName}
+                onChange={(event) => setBranchName(event.target.value)}
+                placeholder="feature/login"
+                hint={`Starts from ${ref ?? 'the default branch'}.`}
+              />
+            </div>
+            <Button type="submit" loading={createBranch.isPending} disabled={!branchName.trim()}>
+              Create branch
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setBranching(false);
+                setBranchError(null);
+              }}
+            >
+              Cancel
+            </Button>
+            {branchError && (
+              <p
+                role="alert"
+                className="w-full rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300"
+              >
+                {branchError}
+              </p>
+            )}
+          </form>
+        </Card>
+      )}
 
       {repository.isError && (
         <ErrorState

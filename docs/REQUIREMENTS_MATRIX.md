@@ -37,7 +37,7 @@ section count would overstate progress.
 | 7 | Documentation set (11 files) | `IMPLEMENTED` | all 11 present as of this commit |
 | 15 | Container images | `IMPLEMENTED` | All images build in CI, run non-root, and each service container starts healthy; frontend container serves its security headers. Multi-container runtime with real infrastructure **UNVERIFIED** |
 | 16 | Secrets and configuration hygiene | `IMPLEMENTED` | no fallbacks for credentials in the default profile; secrets gitignored |
-| 17 | Build must be green | `IMPLEMENTED` | 475 backend + 78 frontend + 40 e2e, all passing |
+| 17 | Build must be green | `IMPLEMENTED` | 483 backend + 79 frontend + 42 e2e, all passing |
 | 18 | RabbitMQ removed unless justified | `IMPLEMENTED` | removed from five places; justification in `EVENT_CATALOG.md` §1 |
 
 ## Identity and access
@@ -75,7 +75,7 @@ section count would overstate progress.
 | § | Requirement | Status | Evidence |
 |---|---|---|---|
 | 6, 15, 16 | AI: generation, review, explanation, RAG, agents | `SCAFFOLDED` | ai-service is a health endpoint. **Largest remaining item** |
-| 7 (svc) | Git: repos, branches, commits, diffs, PRs | `PARTIALLY_IMPLEMENTED` | Real self-hosted repositories via JGit — create, browse, commit, branch, diff; 107 tests, verified live. **No** pull requests, no push over HTTP/SSH, and no GitHub/GitLab integration |
+| 7 (svc) | Git: repos, branches, commits, diffs, PRs | `PARTIALLY_IMPLEMENTED` | Real self-hosted repositories via JGit — create, browse, branch, multi-file commit, diff, and pull requests (open, conflict detection, three-way merge with a merge commit, close), all through the UI; 133 tests. **No** review comments or approvals on pull requests, no push over HTTP/SSH, no GitHub/GitLab integration |
 | 8 | Code review and quality gates | `IMPLEMENTED` | Secret detection, credential files, conflict markers, dangerous patterns; severities, configurable gate, dismissal with a recorded reason. 83 tests, verified live. **Not** an AI reviewer and not a general SAST engine — a focused, high-signal rule set |
 | 9 | IDE / editor | `PARTIALLY_IMPLEMENTED` | Code browser plus a CodeMirror editor: edit and delete across files, commit them as one, refused with 409 if the branch moved since editing began. No execution, terminal or debugger — §37 gates those |
 | 10 | Documentation generation | `IMPLEMENTED` | Repository overview, API surface and documentation coverage, generated from real file content. 31 tests. Pattern-based, not AI-written, and each document states its own limits |
@@ -102,7 +102,7 @@ section count would overstate progress.
 |---|---|---|---|
 | 46 | Docker Compose | `IMPLEMENTED` | Runs in CI: per-service databases, real Kafka and Redis, browser suite against nginx, event pipeline checked end to end |
 | 47 | Kubernetes manifests | `SCAFFOLDED` | `infrastructure/kubernetes/`; **UNVERIFIED** |
-| 48 | CI pipeline | `PARTIALLY_IMPLEMENTED` | `ci.yml` runs lint, test and build; **never executed here** |
+| 48 | CI pipeline | `IMPLEMENTED` | GitHub Actions on every push: lint, typecheck, unit and backend tests, the browser suite, every image built, started and scanned, and the whole stack under docker compose with the event pipeline and Kafka ACLs checked |
 | 49 | Config server / service discovery | `SCAFFOLDED` — **misleading** | both are empty Boot apps with no Spring Cloud dependency. Compose sets env vars nothing reads |
 | 50 | Monitoring stack | `SCAFFOLDED` | Prometheus config and Grafana in compose; **UNVERIFIED** |
 

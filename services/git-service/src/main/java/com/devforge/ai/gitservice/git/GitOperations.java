@@ -421,6 +421,116 @@ public class GitOperations {
     }
   }
 
+  /**
+   * What merging {@code source} into {@code target} would do, without doing it.
+   *
+   * @param mergeBase the commit the two branches last shared; a pull request's diff is taken from
+   *     here, so it shows what the source adds rather than everything the target gained since
+   * @param alreadyMerged the source is already contained in the target: nothing to merge
+   * @param conflicts paths both sides changed incompatibly; empty when the merge is clean
+   */
+  public record MergePreview(
+      String targetHead, String sourceHead, String mergeBase, boolean alreadyMerged,
+      List<String> conflicts) {}
+
+  public MergePreview previewMerge(Path directory, String target, String source) throws IOException {
+    try (var repository = open(directory); var walk = new RevWalk(repository)) {
+      var targetCommit = walk.parseCommit(resolveBranch(repository, target));
+      var sourceCommit = walk.parseCommit(resolveBranch(repository, source));
+      var base = mergeBase(repository, targetCommit, sourceCommit);
+      var alreadyMerged = walk.isMergedInto(sourceCommit, targetCommit);
+
+      var conflicts = List.<String>of();
+      if (!alreadyMerged) {
+        var merger = (org.eclipse.jgit.merge.ResolveMerger)
+            org.eclipse.jgit.merge.MergeStrategy.RECURSIVE.newMerger(repository, true);
+        if (!merger.merge(targetCommit, sourceCommit)) {
+          conflicts = merger.getUnmergedPaths().stream().sorted().toList();
+          if (conflicts.isEmpty()) {
+            // A failure with no conflicting path is a structural one, e.g. a file replaced by a
+            // directory on one side. Still a conflict, not a mergeable change.
+            conflicts = List.of("(the branches cannot be merged automatically)");
+          }
+        }
+      }
+      return new MergePreview(targetCommit.getName(), sourceCommit.getName(),
+          base == null ? null : base.getName(), alreadyMerged, conflicts);
+    }
+  }
+
+  /**
+   * Merges {@code source} into {@code target} with a merge commit, entirely in memory.
+   *
+   * <p>A bare repository has no working tree, so the merge runs in core and the result is a tree
+   * plus a commit with both heads as parents. Always a merge commit, never a fast-forward: the
+   * history then records that a reviewed change landed, and where.
+   *
+   * <p>{@code expectedSourceHead} is the source commit the reviewer saw. If the branch has moved
+   * since, the merge is refused: approving one change must not merge a different one. The target
+   * is updated with compare-and-swap for the same reason in the other direction.
+   */
+  public String merge(
+      Path directory, String target, String source, String expectedSourceHead, String message,
+      String authorName, String authorEmail) throws IOException {
+
+    try (var repository = open(directory); var walk = new RevWalk(repository)) {
+      var targetCommit = walk.parseCommit(resolveBranch(repository, target));
+      var sourceCommit = walk.parseCommit(resolveBranch(repository, source));
+
+      if (expectedSourceHead != null && !sourceCommit.getName().equals(expectedSourceHead)) {
+        throw new ResourceConflictException(
+            "The source branch has new commits since this pull request was reviewed. Review them first.");
+      }
+      if (walk.isMergedInto(sourceCommit, targetCommit)) {
+        throw new ResourceConflictException("Nothing to merge: the target already contains these commits");
+      }
+
+      var merger = (org.eclipse.jgit.merge.ResolveMerger)
+          org.eclipse.jgit.merge.MergeStrategy.RECURSIVE.newMerger(repository, true);
+      if (!merger.merge(targetCommit, sourceCommit)) {
+        var paths = merger.getUnmergedPaths().stream().sorted().toList();
+        throw new ResourceConflictException(paths.isEmpty()
+            ? "The branches cannot be merged automatically"
+            : "Merge conflicts in: " + String.join(", ", paths));
+      }
+
+      try (var inserter = repository.newObjectInserter()) {
+        var identity = new PersonIdent(authorName, authorEmail, java.util.Date.from(Instant.now()),
+            java.util.TimeZone.getDefault());
+        var commit = new CommitBuilder();
+        commit.setTreeId(merger.getResultTreeId());
+        commit.setParentIds(targetCommit, sourceCommit);
+        commit.setAuthor(identity);
+        commit.setCommitter(identity);
+        commit.setMessage(message);
+        var commitId = inserter.insert(commit);
+        inserter.flush();
+
+        updateRef(repository, Constants.R_HEADS + target, targetCommit, commitId, "merge");
+        return commitId.getName();
+      }
+    }
+  }
+
+  private static RevCommit mergeBase(Repository repository, RevCommit a, RevCommit b)
+      throws IOException {
+    try (var walk = new RevWalk(repository)) {
+      walk.setRevFilter(org.eclipse.jgit.revwalk.filter.RevFilter.MERGE_BASE);
+      walk.markStart(walk.parseCommit(a));
+      walk.markStart(walk.parseCommit(b));
+      return walk.next();
+    }
+  }
+
+  /** A branch, and only a branch: a pull request between arbitrary commits means nothing. */
+  private ObjectId resolveBranch(Repository repository, String branch) throws IOException {
+    var id = repository.resolve(Constants.R_HEADS + branch);
+    if (id == null) {
+      throw new ResourceNotFoundException("Branch not found: " + branch);
+    }
+    return id;
+  }
+
   // ---------------------------------------------------------------- internals
 
   private Repository open(Path directory) throws IOException {

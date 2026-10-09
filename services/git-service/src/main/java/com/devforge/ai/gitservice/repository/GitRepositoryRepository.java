@@ -21,5 +21,16 @@ public interface GitRepositoryRepository extends JpaRepository<RepositoryEntity,
 
   Optional<RepositoryEntity> findByIdAndProjectId(UUID id, UUID projectId);
 
+  /**
+   * The same lookup, holding a row lock until the transaction ends.
+   *
+   * <p>Serialises the per-repository work that reads then writes - allocating the next pull
+   * request number - so two requests cannot both read "4" and both take "5".
+   */
+  @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+  @org.springframework.data.jpa.repository.Query(
+      "select r from RepositoryEntity r where r.id = :id and r.projectId = :projectId")
+  Optional<RepositoryEntity> findForUpdate(UUID id, UUID projectId);
+
   boolean existsByProjectIdAndNameIgnoreCase(UUID projectId, String name);
 }

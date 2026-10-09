@@ -282,6 +282,28 @@ describe('RepositoryBrowserPage', () => {
     await waitFor(() => expect(blob).toHaveBeenCalledWith(ORG, PROJ, REPO, 'README.md', 'main'));
   });
 
+  it('opening a file keeps the branch being viewed', async () => {
+    // Opening a file used to drop the ref from the URL, so a file on another branch was read - and,
+    // once edited, committed - on the default branch instead.
+    blob.mockResolvedValue(
+      envelope({
+        path: 'README.md',
+        size: 1,
+        binary: false,
+        truncated: false,
+        content: 'x',
+      } satisfies Blob),
+    );
+
+    renderBrowser('?ref=feature%2Fx');
+    await userEvent.click(await screen.findByRole('button', { name: /README\.md/ }));
+
+    await waitFor(() =>
+      expect(blob).toHaveBeenCalledWith(ORG, PROJ, REPO, 'README.md', 'feature/x'),
+    );
+    expect(blob).not.toHaveBeenCalledWith(ORG, PROJ, REPO, 'README.md', 'main');
+  });
+
   it('reads the open file from the URL, so a link to a file is shareable', async () => {
     blob.mockResolvedValue(
       envelope({

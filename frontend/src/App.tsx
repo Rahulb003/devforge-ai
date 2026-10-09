@@ -18,6 +18,7 @@ import { RepositoryBrowserPage } from './pages/RepositoryBrowserPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
 import { ChatPage } from './pages/ChatPage';
 import { DocsPage } from './pages/DocsPage';
+import { PullRequestDetailPage, PullRequestsPage } from './pages/PullRequestsPage';
 import { ReviewPage } from './pages/ReviewPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
@@ -94,6 +95,14 @@ function App() {
               <Route
                 path="organizations/:organizationId/projects/:projectId/repositories/:repositoryId/docs"
                 element={<DocsPage />}
+              />
+              <Route
+                path="organizations/:organizationId/projects/:projectId/repositories/:repositoryId/pull-requests"
+                element={<PullRequestsPage />}
+              />
+              <Route
+                path="organizations/:organizationId/projects/:projectId/repositories/:repositoryId/pull-requests/:number"
+                element={<PullRequestDetailPage />}
               />
               <Route path="notifications" element={<NotificationsPage />} />
               <Route path="settings" element={<SettingsPage />} />

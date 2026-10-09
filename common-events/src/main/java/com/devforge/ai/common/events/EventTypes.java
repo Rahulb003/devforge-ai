@@ -33,6 +33,9 @@ public final class EventTypes {
   public static final String REPOSITORY_CREATED = "RepositoryCreated";
   public static final String REPOSITORY_DELETED = "RepositoryDeleted";
   public static final String REPOSITORY_PUSHED = "RepositoryPushed";
+  public static final String PULL_REQUEST_OPENED = "PullRequestOpened";
+  public static final String PULL_REQUEST_MERGED = "PullRequestMerged";
+  public static final String PULL_REQUEST_CLOSED = "PullRequestClosed";
 
   // Security
   public static final String SECURITY_ISSUE_DETECTED = "SecurityIssueDetected";

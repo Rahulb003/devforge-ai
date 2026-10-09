@@ -123,7 +123,10 @@ Topic `devforge.repositories.v1`. Tenant is the organization; actor is the user 
 |---|---|---|
 | `RepositoryCreated` | `repositoryId`, `projectId`, `name`, `defaultBranch` | A repository is created |
 | `RepositoryDeleted` | `repositoryId`, `projectId`, `name` | A repository is deleted |
-| `RepositoryPushed` | `repositoryId`, `projectId`, `branch`, `commitId`, `path` | A commit is written through the API |
+| `RepositoryPushed` | `repositoryId`, `projectId`, `branch`, `commitId`, `path`, `paths` | A commit is written through the API; `paths` lists every file in a multi-file commit, `path` is its first |
+| `PullRequestOpened` | `repositoryId`, `projectId`, `pullRequestId`, `number`, `sourceBranch`, `targetBranch` | A pull request is opened |
+| `PullRequestMerged` | same | A pull request is merged; the merge commit is on the target branch |
+| `PullRequestClosed` | same | A pull request is closed without merging |
 
 `RepositoryPushed` is named for what it will mean rather than only what it does today: the API
 commits one file at a time, and a real push over HTTP or SSH is a transport this service does not

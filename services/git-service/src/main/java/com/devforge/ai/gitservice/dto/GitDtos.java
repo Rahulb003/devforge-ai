@@ -132,4 +132,40 @@ public final class GitDtos {
       String changeType, String oldPath, String newPath, int linesAdded, int linesDeleted) {}
 
   public record DiffResponse(String from, String to, List<DiffEntryResponse> entries) {}
+
+  // ------------------------------------------------------------ pull requests
+
+  public record CreatePullRequestRequest(
+      @NotBlank @Size(max = 200) String title,
+      @Size(max = 10000) String description,
+      @NotBlank @Size(max = 255) String sourceBranch,
+      @Size(max = 255) String targetBranch) {}
+
+  /** {@code expectedSourceHead}: the source commit the reviewer saw; see GitOperations#merge. */
+  public record MergePullRequestRequest(
+      @Pattern(regexp = "^[0-9a-f]{40}$", message = "must be a full 40-character commit id")
+          String expectedSourceHead) {}
+
+  /**
+   * A pull request. The merge fields are computed from the branches when one pull request is read,
+   * and null in a list, where computing them for every row would mean a merge attempt per row.
+   */
+  public record PullRequestResponse(
+      UUID id,
+      int number,
+      String title,
+      String description,
+      String sourceBranch,
+      String targetBranch,
+      String status,
+      UUID authorId,
+      Instant createdAt,
+      UUID mergedBy,
+      String mergeCommitId,
+      Instant closedAt,
+      String sourceHead,
+      String targetHead,
+      String mergeBase,
+      Boolean alreadyMerged,
+      List<String> conflicts) {}
 }

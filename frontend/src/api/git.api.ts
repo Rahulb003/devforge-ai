@@ -200,3 +200,85 @@ export const gitApi = {
       data,
     ),
 };
+
+export type PullRequestStatus = 'OPEN' | 'MERGED' | 'CLOSED';
+
+export interface PullRequest {
+  id: string;
+  number: number;
+  title: string;
+  description: string | null;
+  sourceBranch: string;
+  targetBranch: string;
+  status: PullRequestStatus;
+  authorId: string;
+  createdAt: string;
+  mergedBy: string | null;
+  mergeCommitId: string | null;
+  closedAt: string | null;
+  /** The merge fields are filled when one open pull request is read, and null in a list. */
+  sourceHead: string | null;
+  targetHead: string | null;
+  mergeBase: string | null;
+  alreadyMerged: boolean | null;
+  conflicts: string[] | null;
+}
+
+export interface OpenPullRequestData {
+  title: string;
+  description?: string;
+  sourceBranch: string;
+  targetBranch?: string;
+}
+
+function pullRequests(organizationId: string, projectId: string, repositoryId: string) {
+  return `${base(organizationId, projectId)}/${repositoryId}/pull-requests`;
+}
+
+export const pullRequestApi = {
+  list: (
+    organizationId: string,
+    projectId: string,
+    repositoryId: string,
+    status?: PullRequestStatus,
+  ) =>
+    api.get<ApiEnvelope<PullRequest[]>>(pullRequests(organizationId, projectId, repositoryId), {
+      params: status ? { status } : undefined,
+    }),
+
+  get: (organizationId: string, projectId: string, repositoryId: string, number: number) =>
+    api.get<ApiEnvelope<PullRequest>>(
+      `${pullRequests(organizationId, projectId, repositoryId)}/${number}`,
+    ),
+
+  diff: (organizationId: string, projectId: string, repositoryId: string, number: number) =>
+    api.get<ApiEnvelope<Diff>>(
+      `${pullRequests(organizationId, projectId, repositoryId)}/${number}/diff`,
+    ),
+
+  open: (
+    organizationId: string,
+    projectId: string,
+    repositoryId: string,
+    data: OpenPullRequestData,
+  ) =>
+    api.post<ApiEnvelope<PullRequest>>(pullRequests(organizationId, projectId, repositoryId), data),
+
+  /** `expectedSourceHead`: the source commit shown to the reviewer; the server refuses if it moved. */
+  merge: (
+    organizationId: string,
+    projectId: string,
+    repositoryId: string,
+    number: number,
+    expectedSourceHead: string,
+  ) =>
+    api.post<ApiEnvelope<PullRequest>>(
+      `${pullRequests(organizationId, projectId, repositoryId)}/${number}/merge`,
+      { expectedSourceHead },
+    ),
+
+  close: (organizationId: string, projectId: string, repositoryId: string, number: number) =>
+    api.post<ApiEnvelope<PullRequest>>(
+      `${pullRequests(organizationId, projectId, repositoryId)}/${number}/close`,
+    ),
+};
