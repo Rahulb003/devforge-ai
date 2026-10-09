@@ -1,3 +1,34 @@
+# DevForge AI — the whole platform against real PostgreSQL, Kafka and Redis.
+#
+#   docker compose up -d --build              # the platform: http://localhost:4173
+#   docker compose --profile observability up # also Kafka UI, Prometheus, Grafana
+#   docker compose --profile scaffold up      # also the not-yet-built services
+#
+# CI starts this file and runs the browser suite against it, so it is exercised, not decorative.
+# The first CI attempt found that six services had no database or broker settings, the gateway had
+# no routes, the frontend could not reach the API, and every service shared one database.
+
+# Settings every Java service takes. Hosts are compose service names: inside a container,
+# "localhost" is the container itself.
+x-service-env: &service-env
+  SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-local}
+  POSTGRES_USER: ${POSTGRES_USER:-devforge}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-devforge}
+  KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+  # Falls back to the local development key. Override in .env for anything that is not a
+  # throwaway local stack.
+  DEVFORGE_JWT_SIGNING_KEY: ${DEVFORGE_JWT_SIGNING_KEY:-local-development-only-signing-key-change-me-0123456789abcdef}
+  DEVFORGE_JWT_ISSUER: ${DEVFORGE_JWT_ISSUER:-devforge-ai}
+  PROJECT_SERVICE_URL: http://project-service:9002
+  GIT_SERVICE_URL: http://git-service:9005
+
+# Every service waits for the database and broker to be ready, not merely started.
+x-service-depends: &service-depends
+  postgres:
+    condition: service_healthy
+  kafka:
+    condition: service_healthy
+
 services:
   frontend:
     build:
@@ -8,6 +39,9 @@ services:
       # The container listens on 8080: the image runs as a non-root user and
       # cannot bind a privileged port.
       - ${FRONTEND_PORT:-4173}:8080
+    environment:
+      # nginx proxies /api here, keeping the browser on one origin for the session cookies.
+      API_GATEWAY_UPSTREAM: http://api-gateway:8080
     depends_on:
       - api-gateway
 
@@ -22,33 +56,18 @@ services:
         SERVICE_PORT: "8080"
     ports:
       - 8080:8080
-    depends_on:
-      - discovery-server
-      - config-server
-
-  config-server:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: service
-      args:
-        MODULE_PATH: config-server
-        ARTIFACT_ID: config-server
-        SERVICE_PORT: "8888"
-    ports:
-      - 8888:8888
-
-  discovery-server:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: service
-      args:
-        MODULE_PATH: discovery-server
-        ARTIFACT_ID: discovery-server
-        SERVICE_PORT: "8761"
-    ports:
-      - 8761:8761
+    environment:
+      AUTH_SERVICE_URL: http://auth-service:9001
+      PROJECT_SERVICE_URL: http://project-service:9002
+      TASK_SERVICE_URL: http://task-service:9003
+      GIT_SERVICE_URL: http://git-service:9005
+      REVIEW_SERVICE_URL: http://review-service:9006
+      DOCUMENTATION_SERVICE_URL: http://documentation-service:9007
+      CHAT_SERVICE_URL: http://chat-service:9008
+      ANALYTICS_SERVICE_URL: http://analytics-service:9010
+      NOTIFICATION_SERVICE_URL: http://notification-service:9011
+      DEVFORGE_CORS_ORIGINS: ${DEVFORGE_CORS_ORIGINS:-http://localhost:4173}
+      DEVFORGE_RATE_LIMIT_AUTH_PER_MINUTE: ${DEVFORGE_RATE_LIMIT_AUTH_PER_MINUTE:-30}
 
   auth-service:
     build:
@@ -62,14 +81,8 @@ services:
     ports:
       - 9001:9001
     environment:
-      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-local}
-      SPRING_CLOUD_CONFIG_URI: http://config-server:8888
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
-      # Hosts are compose service names; the local profile's defaults point at
-      # localhost, which inside a container resolves to the container itself.
-      DEVFORGE_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-devforge}
-      POSTGRES_USER: ${POSTGRES_USER:-devforge}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-devforge}
+      <<: *service-env
+      DEVFORGE_DB_URL: jdbc:postgresql://postgres:5432/devforge_auth
       REDIS_HOST: redis
       REDIS_PORT: 6379
       MAIL_HOST: ${MAIL_HOST:-mailpit}
@@ -77,19 +90,17 @@ services:
       MAIL_AUTH_ENABLED: ${MAIL_AUTH_ENABLED:-false}
       MAIL_STARTTLS_ENABLED: ${MAIL_STARTTLS_ENABLED:-false}
       DEVFORGE_APP_BASE_URL: ${DEVFORGE_APP_BASE_URL:-http://localhost:4173}
-      # Falls back to the local development key. Override in .env for anything
-      # that is not a throwaway local stack.
-      DEVFORGE_JWT_SIGNING_KEY: ${DEVFORGE_JWT_SIGNING_KEY:-local-development-only-signing-key-change-me-0123456789abcdef}
       DEVFORGE_COOKIE_SECURE: ${DEVFORGE_COOKIE_SECURE:-false}
       DEVFORGE_COOKIE_SAME_SITE: ${DEVFORGE_COOKIE_SAME_SITE:-Lax}
-      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      # Verification mail lands in Mailpit (http://localhost:8025). CI turns it off, since the
+      # browser suite signs straight in after signing up.
+      DEVFORGE_REQUIRE_EMAIL_VERIFICATION: ${DEVFORGE_REQUIRE_EMAIL_VERIFICATION:-true}
     depends_on:
-      - config-server
-      - discovery-server
-      - postgres
-      - redis
-      - kafka
-      - mailpit
+      <<: *service-depends
+      redis:
+        condition: service_started
+      mailpit:
+        condition: service_started
 
   project-service:
     build:
@@ -103,22 +114,9 @@ services:
     ports:
       - 9002:9002
     environment:
-      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-local}
-      SPRING_CLOUD_CONFIG_URI: http://config-server:8888
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
-      DEVFORGE_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-devforge}
-      POSTGRES_USER: ${POSTGRES_USER:-devforge}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-devforge}
-      # Must match the key auth-service signs with, or every token is rejected.
-      DEVFORGE_JWT_SIGNING_KEY: ${DEVFORGE_JWT_SIGNING_KEY:-local-development-only-signing-key-change-me-0123456789abcdef}
-      DEVFORGE_JWT_ISSUER: ${DEVFORGE_JWT_ISSUER:-devforge-ai}
-      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-    depends_on:
-      - config-server
-      - discovery-server
-      - postgres
-      - redis
-      - kafka
+      <<: *service-env
+      DEVFORGE_DB_URL: jdbc:postgresql://postgres:5432/devforge_project
+    depends_on: *service-depends
 
   task-service:
     build:
@@ -132,45 +130,9 @@ services:
     ports:
       - 9003:9003
     environment:
-      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-local}
-      DEVFORGE_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-devforge}
-      POSTGRES_USER: ${POSTGRES_USER:-devforge}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-devforge}
-      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      # Project membership is the authority for task access.
-      PROJECT_SERVICE_URL: http://project-service:9002
-      DEVFORGE_JWT_SIGNING_KEY: ${DEVFORGE_JWT_SIGNING_KEY:-local-development-only-signing-key-change-me-0123456789abcdef}
-      DEVFORGE_JWT_ISSUER: ${DEVFORGE_JWT_ISSUER:-devforge-ai}
-      SPRING_CLOUD_CONFIG_URI: http://config-server:8888
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
-    depends_on:
-      - config-server
-      - discovery-server
-      - postgres
-      - redis
-      - kafka
-
-  ai-service:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: service
-      args:
-        MODULE_PATH: services/ai-service
-        ARTIFACT_ID: ai-service
-        SERVICE_PORT: "9004"
-    ports:
-      - 9004:9004
-    environment:
-      SPRING_PROFILES_ACTIVE: local
-      SPRING_CLOUD_CONFIG_URI: http://config-server:8888
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
-    depends_on:
-      - config-server
-      - discovery-server
-      - postgres
-      - redis
-      - kafka
+      <<: *service-env
+      DEVFORGE_DB_URL: jdbc:postgresql://postgres:5432/devforge_task
+    depends_on: *service-depends
 
   git-service:
     build:
@@ -184,125 +146,12 @@ services:
     ports:
       - 9005:9005
     environment:
-      SPRING_PROFILES_ACTIVE: local
-      SPRING_CLOUD_CONFIG_URI: http://config-server:8888
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
-    depends_on:
-      - config-server
-      - discovery-server
-      - postgres
-      - redis
-      - kafka
-
-  analytics-service:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: service
-      args:
-        MODULE_PATH: services/analytics-service
-        ARTIFACT_ID: analytics-service
-        SERVICE_PORT: "9010"
-    ports:
-      - 9010:9010
-    environment:
-      SPRING_PROFILES_ACTIVE: local
-      SPRING_CLOUD_CONFIG_URI: http://config-server:8888
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
-    depends_on:
-      - config-server
-      - discovery-server
-      - postgres
-      - redis
-      - kafka
-
-  chat-service:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: service
-      args:
-        MODULE_PATH: services/chat-service
-        ARTIFACT_ID: chat-service
-        SERVICE_PORT: "9008"
-    ports:
-      - 9008:9008
-    environment:
-      SPRING_PROFILES_ACTIVE: local
-      SPRING_CLOUD_CONFIG_URI: http://config-server:8888
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
-    depends_on:
-      - config-server
-      - discovery-server
-      - postgres
-      - redis
-      - kafka
-
-  deployment-service:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: service
-      args:
-        MODULE_PATH: services/deployment-service
-        ARTIFACT_ID: deployment-service
-        SERVICE_PORT: "9009"
-    ports:
-      - 9009:9009
-    environment:
-      SPRING_PROFILES_ACTIVE: local
-      SPRING_CLOUD_CONFIG_URI: http://config-server:8888
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
-    depends_on:
-      - config-server
-      - discovery-server
-      - postgres
-      - redis
-      - kafka
-
-  documentation-service:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: service
-      args:
-        MODULE_PATH: services/documentation-service
-        ARTIFACT_ID: documentation-service
-        SERVICE_PORT: "9007"
-    ports:
-      - 9007:9007
-    environment:
-      SPRING_PROFILES_ACTIVE: local
-      SPRING_CLOUD_CONFIG_URI: http://config-server:8888
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
-    depends_on:
-      - config-server
-      - discovery-server
-      - postgres
-      - redis
-      - kafka
-
-  notification-service:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: service
-      args:
-        MODULE_PATH: services/notification-service
-        ARTIFACT_ID: notification-service
-        SERVICE_PORT: "9011"
-    ports:
-      - 9011:9011
-    environment:
-      SPRING_PROFILES_ACTIVE: local
-      SPRING_CLOUD_CONFIG_URI: http://config-server:8888
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
-    depends_on:
-      - config-server
-      - discovery-server
-      - postgres
-      - redis
-      - kafka
+      <<: *service-env
+      DEVFORGE_DB_URL: jdbc:postgresql://postgres:5432/devforge_git
+      DEVFORGE_GIT_STORAGE_ROOT: /app/data/git-repositories
+    volumes:
+      - git-repositories:/app/data/git-repositories
+    depends_on: *service-depends
 
   review-service:
     build:
@@ -316,15 +165,135 @@ services:
     ports:
       - 9006:9006
     environment:
-      SPRING_PROFILES_ACTIVE: local
-      SPRING_CLOUD_CONFIG_URI: http://config-server:8888
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
-    depends_on:
-      - config-server
-      - discovery-server
-      - postgres
-      - redis
-      - kafka
+      <<: *service-env
+      DEVFORGE_DB_URL: jdbc:postgresql://postgres:5432/devforge_review
+    depends_on: *service-depends
+
+  documentation-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: service
+      args:
+        MODULE_PATH: services/documentation-service
+        ARTIFACT_ID: documentation-service
+        SERVICE_PORT: "9007"
+    ports:
+      - 9007:9007
+    environment:
+      <<: *service-env
+      DEVFORGE_DB_URL: jdbc:postgresql://postgres:5432/devforge_documentation
+    depends_on: *service-depends
+
+  chat-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: service
+      args:
+        MODULE_PATH: services/chat-service
+        ARTIFACT_ID: chat-service
+        SERVICE_PORT: "9008"
+    ports:
+      - 9008:9008
+    environment:
+      <<: *service-env
+      DEVFORGE_DB_URL: jdbc:postgresql://postgres:5432/devforge_chat
+    depends_on: *service-depends
+
+  analytics-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: service
+      args:
+        MODULE_PATH: services/analytics-service
+        ARTIFACT_ID: analytics-service
+        SERVICE_PORT: "9010"
+    ports:
+      - 9010:9010
+    environment:
+      <<: *service-env
+      DEVFORGE_DB_URL: jdbc:postgresql://postgres:5432/devforge_analytics
+    depends_on: *service-depends
+
+  notification-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: service
+      args:
+        MODULE_PATH: services/notification-service
+        ARTIFACT_ID: notification-service
+        SERVICE_PORT: "9011"
+    ports:
+      - 9011:9011
+    environment:
+      <<: *service-env
+      DEVFORGE_DB_URL: jdbc:postgresql://postgres:5432/devforge_notification
+    depends_on: *service-depends
+
+  # --- Not built yet: scaffolds only, opt-in -------------------------------
+  # ai-service needs model credentials and deployment-service a sandbox (docs/SANDBOX.md).
+  # config-server and discovery-server are empty Boot apps; nothing reads them (see CLAUDE.md).
+
+  ai-service:
+    profiles: [scaffold]
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: service
+      args:
+        MODULE_PATH: services/ai-service
+        ARTIFACT_ID: ai-service
+        SERVICE_PORT: "9004"
+    ports:
+      - 9004:9004
+    environment:
+      <<: *service-env
+
+  deployment-service:
+    profiles: [scaffold]
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: service
+      args:
+        MODULE_PATH: services/deployment-service
+        ARTIFACT_ID: deployment-service
+        SERVICE_PORT: "9009"
+    ports:
+      - 9009:9009
+    environment:
+      <<: *service-env
+
+  config-server:
+    profiles: [scaffold]
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: service
+      args:
+        MODULE_PATH: config-server
+        ARTIFACT_ID: config-server
+        SERVICE_PORT: "8888"
+    ports:
+      - 8888:8888
+
+  discovery-server:
+    profiles: [scaffold]
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: service
+      args:
+        MODULE_PATH: discovery-server
+        ARTIFACT_ID: discovery-server
+        SERVICE_PORT: "8761"
+    ports:
+      - 8761:8761
+
+  # --- Infrastructure --------------------------------------------------------
 
   postgres:
     image: postgres:15
@@ -336,6 +305,13 @@ services:
       - 5432:5432
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      # One database per service, created on first start.
+      - ./infrastructure/docker/postgres:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-devforge}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
   redis:
     image: redis:7
@@ -370,12 +346,23 @@ services:
       - kafka-data:/var/lib/kafka/data
     healthcheck:
       test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
-      interval: 15s
+      interval: 10s
       timeout: 10s
-      retries: 10
+      retries: 15
+
+  # Captures outbound mail locally instead of delivering it.
+  # Web UI: http://localhost:8025
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - 8025:8025
+      - 1025:1025
+
+  # --- Observability: opt-in ---------------------------------------------------
 
   # Web UI for inspecting topics, consumer lag and dead-letter contents.
   kafka-ui:
+    profiles: [observability]
     image: provectuslabs/kafka-ui:latest
     ports:
       - 8090:8080
@@ -387,6 +374,7 @@ services:
       - kafka
 
   prometheus:
+    profiles: [observability]
     image: prom/prometheus:latest
     ports:
       - 9090:9090
@@ -394,6 +382,7 @@ services:
       - ./infrastructure/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
 
   grafana:
+    profiles: [observability]
     image: grafana/grafana:latest
     ports:
       - 3000:3000
@@ -401,14 +390,7 @@ services:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
 
-  # Captures outbound mail locally instead of delivering it.
-  # Web UI: http://localhost:8025
-  mailpit:
-    image: axllent/mailpit:latest
-    ports:
-      - 8025:8025
-      - 1025:1025
-
 volumes:
   postgres-data:
   kafka-data:
+  git-repositories:

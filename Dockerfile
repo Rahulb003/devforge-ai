@@ -74,10 +74,12 @@ FROM eclipse-temurin:21-jre-alpine AS runtime-base
 
 # wget (busybox) backs the healthcheck; curl is not present in this image.
 # Run as a dedicated unprivileged user: the previous images ran as root.
+# /app/data exists in the image so a volume mounted there inherits devforge ownership;
+# otherwise Docker creates the mount point root-owned and git-service cannot write to it.
 RUN addgroup -S devforge \
  && adduser -S -H -G devforge -s /sbin/nologin devforge \
- && mkdir -p /app \
- && chown devforge:devforge /app
+ && mkdir -p /app/data/git-repositories \
+ && chown -R devforge:devforge /app
 
 WORKDIR /app
 USER devforge:devforge

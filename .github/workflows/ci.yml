@@ -265,7 +265,9 @@ jobs:
       - name: Verify the frontend image sends its security headers
         run: |
           set -euo pipefail
-          docker run -d --name web -p 8088:8080 "devforge-ai/frontend:${GITHUB_SHA}"
+          # nginx resolves the upstream at start; no gateway runs in this check, so point it anywhere.
+          docker run -d --name web -p 8088:8080 -e API_GATEWAY_UPSTREAM=http://127.0.0.1:9 \
+            "devforge-ai/frontend:${GITHUB_SHA}"
           for _ in $(seq 1 30); do curl -sf -o /dev/null http://localhost:8088/ && break; sleep 1; done
           asset="$(curl -s http://localhost:8088/ | grep -o '/assets/[^"]*\.js' | head -1)"
           for path in / /index.html /some/client/route "$asset"; do
@@ -361,3 +363,55 @@ jobs:
           exit-code: '0'
           ignore-unfixed: true
           severity: HIGH,CRITICAL
+
+  compose:
+    name: Full stack (docker compose)
+    runs-on: ubuntu-latest
+    needs: [frontend, backend]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # The production topology: every service in its own container, each with its own PostgreSQL
+      # database, a real Kafka broker and Redis, and the browser talking to nginx, which proxies
+      # /api to the gateway. Nothing else in CI exercises real PostgreSQL (FOR UPDATE SKIP LOCKED,
+      # the migrations) or a real broker between separate services.
+      #
+      # The auth rate limit is raised because every browser test signs in, and through nginx they
+      # all arrive from one address.
+      - name: Start the stack
+        env:
+          DEVFORGE_RATE_LIMIT_AUTH_PER_MINUTE: "1000"
+          DEVFORGE_REQUIRE_EMAIL_VERIFICATION: "false"
+        run: docker compose up -d --build --wait --wait-timeout 900
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Playwright browser
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Run the browser suite against the stack
+        working-directory: frontend
+        run: npm run test:e2e
+
+      - name: Service logs
+        if: failure()
+        run: docker compose logs --no-color > compose.log 2>&1; tail -n 400 compose.log
+
+      - name: Upload compose logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compose-logs
+          path: compose.log
+          retention-days: 7

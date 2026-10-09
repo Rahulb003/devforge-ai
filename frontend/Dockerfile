@@ -30,7 +30,12 @@ FROM nginxinc/nginx-unprivileged:1.27-alpine AS runtime
 
 # Single-page app: unknown paths must fall through to index.html or a deep link
 # like /projects/42 returns 404 from nginx before React Router ever sees it.
-COPY --chown=nginx:nginx nginx.conf /etc/nginx/conf.d/default.conf
+# A template: the image's entrypoint substitutes environment variables into it at start and
+# writes /etc/nginx/conf.d/default.conf. Only variables that are set are substituted, so nginx's
+# own $uri and $host are left alone.
+COPY --chown=nginx:nginx nginx.conf /etc/nginx/templates/default.conf.template
+# Where /api is proxied. The compose and Kubernetes service name; override per environment.
+ENV API_GATEWAY_UPSTREAM=http://api-gateway:8080
 COPY --chown=nginx:nginx security-headers.conf /etc/nginx/snippets/security-headers.conf
 COPY --from=build --chown=nginx:nginx /app/dist /usr/share/nginx/html
 
