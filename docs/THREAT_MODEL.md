@@ -56,7 +56,7 @@ service can write any topic. Local and standalone runs still use an open broker.
 
 **Residual risk:** an XSS can no longer carry a token away, but it can still act as the user while
 the page is open, through the user's own cookies. The defence against that is not having the XSS:
-React escapes by default, and a CSP for the SPA's HTML is the next control.
+React escapes by default, and the SPA's CSP allows no inline or third-party script.
 
 ---
 
@@ -150,5 +150,4 @@ never reachable from code the platform is asked to analyse.
 
 1. A code-execution sandbox, before any feature needs one.
 2. Per-service Kafka identities and topic ACLs.
-3. A CSP for the single-page app itself.
-4. Major upgrades of the frontend toolchain, then making the Trivy scans blocking.
+3. Major upgrades of the frontend dev toolchain, then making the filesystem Trivy scan blocking.

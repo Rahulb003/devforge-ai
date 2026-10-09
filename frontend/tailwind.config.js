@@ -41,7 +41,7 @@ export default {
         sm: 'calc(var(--radius) - 4px)',
       },
       fontFamily: {
-        sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'sans-serif'],
+        sans: ['Inter Variable', 'Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'sans-serif'],
       },
       keyframes: {
         'fade-in': {

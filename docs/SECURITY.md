@@ -98,8 +98,8 @@ to get the token back is refused by the gateway first, because refresh always ca
 cookie. API clients that send no header and no cookie get the token in the body as before.
 
 What this does **not** do: an XSS can still make requests as the user while the page is open. It
-can no longer take the credential away. A CSP for the SPA's own HTML is the next layer and is not
-written.
+can no longer take the credential away. The SPA's CSP (below) is the layer that makes injecting
+one harder.
 
 ---
 
@@ -142,7 +142,26 @@ signs in from 127.0.0.1.
 Every gateway response carries `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`,
 `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'`, `Referrer-Policy: no-referrer`
 and `Cache-Control: no-store`, plus HSTS when served over TLS. These are for API responses; the
-single-page app's HTML is not served by the gateway, and whatever serves it needs its own CSP.
+single-page app's HTML is not served by the gateway; it has its own policy.
+
+### The single-page app's CSP
+
+`default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'
+data:; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self';
+form-action 'self'` — no `'unsafe-inline'` and no `'unsafe-eval'` anywhere, so an injected
+`<script>` or inline handler does not run. It lives in `frontend/security-headers.conf`, which
+nginx includes and `vite preview` reads, so there is one copy.
+
+It is verified, not assumed. The browser suite runs against the production build under this
+policy, and any test in which the browser reports a CSP violation fails. CI also starts the
+real nginx image and checks the headers on `/`, `/index.html`, a client-side route and an asset.
+
+Two defects found on the way. The previous nginx config set the headers only at server level;
+nginx drops inherited `add_header` in any location that sets its own, so by that rule
+`index.html` and the assets carried no CSP at all (never observed — the image had never run).
+And the app loaded its font from Google Fonts, which the old policy also blocked, so production
+silently fell back to system fonts. The font is now self-hosted, which also stops every visitor's
+address going to Google; a test asserts it loads.
 
 Two defects found by checking the live response rather than the unit test: the 429 carried none of
 these headers, because the rate limiter answered before the headers filter ran; and proxied

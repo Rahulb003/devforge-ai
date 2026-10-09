@@ -1,3 +1,4 @@
+import fs from 'fs';
 import path from 'path';
 
 import react from '@vitejs/plugin-react';
@@ -15,6 +16,21 @@ import { defineConfig } from 'vite';
  *
  * Set VITE_GATEWAY_URL to point at a gateway somewhere other than localhost.
  */
+
+/**
+ * The production nginx headers, read from the file nginx itself includes, so `vite preview` serves
+ * the built app under exactly the policy it will run under. The browser suite runs against preview
+ * in CI; a CSP that breaks the app fails there rather than in production.
+ */
+function productionHeaders(): Record<string, string> {
+  const conf = fs.readFileSync(path.resolve(__dirname, 'security-headers.conf'), 'utf8');
+  const headers: Record<string, string> = {};
+  for (const match of conf.matchAll(/^add_header\s+(\S+)\s+"([^"]*)"/gm)) {
+    headers[match[1]] = match[2];
+  }
+  return headers;
+}
+
 export default defineConfig({
   plugins: [react()],
   resolve: {
@@ -35,7 +51,10 @@ export default defineConfig({
       },
     },
   },
+  // Inherits server.proxy, so preview reaches the gateway the same way dev does.
   preview: {
     port: 4173,
+    strictPort: true,
+    headers: productionHeaders(),
   },
 });

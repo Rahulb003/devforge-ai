@@ -1,5 +1,4 @@
-import { expect, test } from '@playwright/test';
-
+import { expect, test } from './fixtures';
 import { expectNoErrorBoundary, signIn, signUp, uniqueAccount } from './support';
 
 test.describe('Authentication', () => {
@@ -9,6 +8,17 @@ test.describe('Authentication', () => {
     await expect(page).toHaveURL(/\/login$/);
     await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
     await expectNoErrorBoundary(page);
+
+    // The font came from Google Fonts, which the CSP blocks, so production silently fell back to
+    // system fonts. It is self-hosted now; this fails if it stops loading.
+    // fonts.check() answers true for a family it has never heard of, so look for a loaded face.
+    const fontLoaded = await page.evaluate(async () => {
+      await document.fonts.ready;
+      return [...document.fonts].some(
+        (face) => face.family.replace(/"/g, '') === 'Inter Variable' && face.status === 'loaded',
+      );
+    });
+    expect(fontLoaded).toBe(true);
   });
 
   test('the session tokens are out of reach of page script', async ({ page, context }) => {

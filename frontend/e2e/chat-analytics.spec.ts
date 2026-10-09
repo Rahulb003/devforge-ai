@@ -1,5 +1,6 @@
-import { expect, test, type Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
 
+import { expect, test } from './fixtures';
 import { expectNoErrorBoundary, navTo, signIn, signUp, uniqueAccount } from './support';
 
 async function openBoard(page: Page) {

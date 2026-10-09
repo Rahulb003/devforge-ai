@@ -147,9 +147,14 @@ jobs:
         working-directory: frontend
         run: npx playwright install --with-deps chromium
 
-      - name: Start the dev server
+      # The production build under the production headers (vite.config.ts reads them from the file
+      # nginx includes), so a Content-Security-Policy that breaks the app fails here. The suite
+      # fails any test in which the browser reports a CSP violation.
+      - name: Build and serve the production bundle
         working-directory: frontend
-        run: npm run dev > vite.log 2>&1 &
+        run: |
+          npm run build
+          npx vite preview > vite.log 2>&1 &
 
       # Poll rather than sleep: JVM startup time varies a lot on shared runners.
       - name: Wait for the stack
@@ -252,6 +257,29 @@ jobs:
       # The frontend image is self-contained, so its context is frontend/.
       - name: Build frontend image
         run: docker build -f frontend/Dockerfile -t "devforge-ai/frontend:${GITHUB_SHA}" frontend
+
+      # The real nginx image, started, because its header configuration is easy to get wrong in a
+      # way only a running server shows: nginx drops inherited add_header directives in any location
+      # that sets its own. By that documented rule the previous config sent no CSP on index.html;
+      # the image had never been run, so nothing showed it.
+      - name: Verify the frontend image sends its security headers
+        run: |
+          set -euo pipefail
+          docker run -d --name web -p 8088:8080 "devforge-ai/frontend:${GITHUB_SHA}"
+          for _ in $(seq 1 30); do curl -sf -o /dev/null http://localhost:8088/ && break; sleep 1; done
+          asset="$(curl -s http://localhost:8088/ | grep -o '/assets/[^"]*\.js' | head -1)"
+          for path in / /index.html /some/client/route "$asset"; do
+            headers="$(curl -sI "http://localhost:8088$path")"
+            for name in content-security-policy x-frame-options x-content-type-options; do
+              if ! grep -qi "^$name:" <<<"$headers"; then
+                echo "::error::$path is missing $name"
+                echo "$headers"
+                exit 1
+              fi
+            done
+            echo "ok: $path"
+          done
+          docker rm -f web
 
       # Fails the job if any image would run as root. The previous images all
       # did; this keeps that from silently regressing.
