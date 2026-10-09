@@ -413,7 +413,9 @@ services:
   # Captures outbound mail locally instead of delivering it.
   # Web UI: http://localhost:8025
   mailpit:
-    image: axllent/mailpit:latest
+    # From GitHub's registry, pinned: Docker Hub rate-limits anonymous pulls per address, and CI
+    # runners share addresses.
+    image: ghcr.io/axllent/mailpit:v1.31.4
     ports:
       - 8025:8025
       - 1025:1025
@@ -439,7 +441,7 @@ services:
   prometheus:
     profiles: [observability]
     # Pinned: "latest" would make what CI verifies depend on the day it ran.
-    image: prom/prometheus:v3.15.0
+    image: quay.io/prometheus/prometheus:v3.15.0
     ports:
       - 9090:9090
     volumes:

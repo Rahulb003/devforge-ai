@@ -1,4 +1,3 @@
-# syntax=docker/dockerfile:1.7
 # ---------------------------------------------------------------------------
 # DevForge AI — single build definition for every JVM service.
 #

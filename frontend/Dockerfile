@@ -1,4 +1,3 @@
-# syntax=docker/dockerfile:1.7
 # ---------------------------------------------------------------------------
 # DevForge AI frontend: Vite build served by nginx.
 # Build context is frontend/ — this image is self-contained.
