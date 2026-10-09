@@ -570,6 +570,23 @@ class RepositoryApiTest {
   class Authorization {
 
     @Test
+    @DisplayName("a malformed id or a missing parameter is the caller's error, never a 500")
+    void malformedRequestsAreNotServerErrors() throws Exception {
+      var id = createRepository("api");
+
+      // A path id that is not a UUID names nothing: 404, like a well-formed unknown id.
+      mockMvc.perform(get("/api/v1/organizations/not-a-uuid/projects/" + projectId + "/repositories")
+              .header(HttpHeaders.AUTHORIZATION, bearer()))
+          .andExpect(status().isNotFound());
+      mockMvc.perform(get(base() + "/not-a-uuid").header(HttpHeaders.AUTHORIZATION, bearer()))
+          .andExpect(status().isNotFound());
+      // A required query parameter left out.
+      mockMvc.perform(get(base() + "/" + id + "/blob").header(HttpHeaders.AUTHORIZATION, bearer()))
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.message").value("Missing parameter path"));
+    }
+
+    @Test
     @DisplayName("a repository in another project is 404, not 403")
     void otherProjectIsNotFound() throws Exception {
       var id = createRepository("api");
@@ -680,6 +697,197 @@ class RepositoryApiTest {
               .param("path", "README.md")
               .header(HttpHeaders.AUTHORIZATION, bearer()))
           .andExpect(jsonPath("$.data.content").value("readme"));
+    }
+  }
+
+  @Nested
+  @DisplayName("committing several files at once")
+  class MultiFileCommits {
+
+    private java.util.Map<String, Object> write(String path, String content) {
+      return java.util.Map.of("path", path, "content", content);
+    }
+
+    private java.util.Map<String, Object> remove(String path) {
+      return java.util.Map.of("path", path, "delete", true);
+    }
+
+    private org.springframework.test.web.servlet.ResultActions commitChanges(
+        UUID repositoryId, String baseCommitId, java.util.List<?> changes) throws Exception {
+      var body = new java.util.HashMap<String, Object>();
+      body.put("message", "Edit several files");
+      body.put("changes", changes);
+      if (baseCommitId != null) {
+        body.put("baseCommitId", baseCommitId);
+      }
+      return mockMvc.perform(post(base() + "/" + repositoryId + "/commits")
+          .header(HttpHeaders.AUTHORIZATION, bearer())
+          .contentType(MediaType.APPLICATION_JSON)
+          .content(objectMapper.writeValueAsString(body)));
+    }
+
+    private String head(UUID repositoryId) throws Exception {
+      var response = mockMvc.perform(get(base() + "/" + repositoryId + "/commits")
+              .header(HttpHeaders.AUTHORIZATION, bearer()))
+          .andReturn().getResponse().getContentAsString();
+      return objectMapper.readTree(response).path("data").path(0).path("id").asText();
+    }
+
+    private void expectContent(UUID repositoryId, String path, String content) throws Exception {
+      mockMvc.perform(get(base() + "/" + repositoryId + "/blob")
+              .param("path", path)
+              .header(HttpHeaders.AUTHORIZATION, bearer()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.data.content").value(content));
+    }
+
+    @Test
+    @DisplayName("creates, updates and deletes files in one commit")
+    void createsUpdatesAndDeletesAtomically() throws Exception {
+      var id = createRepository("api");
+      commit(id, "README.md", "old readme", "Add readme");
+      var base = commit(id, "obsolete.txt", "remove me", "Add obsolete");
+
+      commitChanges(id, base, java.util.List.of(
+              write("README.md", "new readme"),
+              write("src/app.ts", "export {}"),
+              remove("obsolete.txt")))
+          .andExpect(status().isCreated())
+          .andExpect(jsonPath("$.data.parentIds[0]").value(base));
+
+      expectContent(id, "README.md", "new readme");
+      expectContent(id, "src/app.ts", "export {}");
+      mockMvc.perform(get(base() + "/" + id + "/blob")
+              .param("path", "obsolete.txt")
+              .header(HttpHeaders.AUTHORIZATION, bearer()))
+          .andExpect(status().isNotFound());
+      // Three commits in total: the two setup commits and exactly one for all three changes.
+      mockMvc.perform(get(base() + "/" + id + "/commits").header(HttpHeaders.AUTHORIZATION, bearer()))
+          .andExpect(jsonPath("$.data.length()").value(3));
+    }
+
+    @Test
+    @DisplayName("refuses with 409 when the branch moved past the base the editor loaded")
+    void staleBaseIsConflict() throws Exception {
+      var id = createRepository("api");
+      var loaded = commit(id, "a.txt", "one", "First");
+      // Someone else commits after the editor loaded "loaded".
+      var theirs = commit(id, "a.txt", "two", "Theirs");
+
+      commitChanges(id, loaded, java.util.List.of(write("b.txt", "mine")))
+          .andExpect(status().isConflict());
+
+      // Nothing written: their commit is still the head, and their change still stands.
+      assertThat(head(id)).isEqualTo(theirs);
+      expectContent(id, "a.txt", "two");
+    }
+
+    @Test
+    @DisplayName("the first commit of an empty repository needs no base")
+    void firstCommitOfEmptyRepository() throws Exception {
+      var id = createRepository("api");
+
+      commitChanges(id, null, java.util.List.of(write("a.txt", "a"), write("b/c.txt", "c")))
+          .andExpect(status().isCreated())
+          .andExpect(jsonPath("$.data.parentIds.length()").value(0));
+      expectContent(id, "b/c.txt", "c");
+    }
+
+    @Test
+    @DisplayName("deleting a file that does not exist is 404, and writes nothing")
+    void deletingMissingFileIsNotFound() throws Exception {
+      var id = createRepository("api");
+      var base = commit(id, "a.txt", "a", "First");
+
+      commitChanges(id, base, java.util.List.of(write("a.txt", "changed"), remove("ghost.txt")))
+          .andExpect(status().isNotFound());
+
+      assertThat(head(id)).isEqualTo(base);
+      expectContent(id, "a.txt", "a");
+    }
+
+    @Test
+    @DisplayName("rejects a path that would be both a file and a directory")
+    void fileDirectoryClashIsRejected() throws Exception {
+      var id = createRepository("api");
+      var base = commit(id, "src/app.ts", "x", "First");
+
+      // "src" is a directory; it cannot also become a file.
+      commitChanges(id, base, java.util.List.of(write("src", "x")))
+          .andExpect(status().isBadRequest());
+      // "src/app.ts" is a file; nothing can live inside it.
+      commitChanges(id, base, java.util.List.of(write("src/app.ts/inner.ts", "x")))
+          .andExpect(status().isBadRequest());
+      // Deleting the file in the same commit makes room for the directory.
+      commitChanges(id, base, java.util.List.of(remove("src/app.ts"), write("src/app.ts/inner.ts", "x")))
+          .andExpect(status().isCreated());
+    }
+
+    @Test
+    @DisplayName("rejects the same path twice, content with delete, and a commit that changes nothing")
+    void malformedBatchesAreRejected() throws Exception {
+      var id = createRepository("api");
+      var base = commit(id, "a.txt", "a", "First");
+
+      commitChanges(id, base, java.util.List.of(write("b.txt", "1"), write("b.txt", "2")))
+          .andExpect(status().isBadRequest());
+      commitChanges(id, base, java.util.List.of(java.util.Map.of("path", "a.txt", "content", "x", "delete", true)))
+          .andExpect(status().isBadRequest());
+      commitChanges(id, base, java.util.List.of(java.util.Map.of("path", "a.txt")))
+          .andExpect(status().isBadRequest());
+      commitChanges(id, base, java.util.List.of(write("a.txt", "a")))
+          .andExpect(status().isBadRequest());
+      commitChanges(id, base, java.util.List.of())
+          .andExpect(status().isBadRequest());
+      commitChanges(id, "not-a-commit", java.util.List.of(write("b.txt", "1")))
+          .andExpect(status().isBadRequest());
+
+      assertThat(head(id)).isEqualTo(base);
+    }
+
+    @Test
+    @DisplayName("applies the same path rules as a single-file commit")
+    void unsafePathInBatchIsRejected() throws Exception {
+      var id = createRepository("api");
+      var base = commit(id, "a.txt", "a", "First");
+
+      // One bad path fails the whole batch, so a batch is no way around the path rules.
+      for (var bad : java.util.List.of("../escape.txt", "C:/abs.txt", ".git/config", "a/./b.txt", "a//b.txt")) {
+        commitChanges(id, base, java.util.List.of(write("ok.txt", "fine"), write(bad, "x")))
+            .andExpect(status().isBadRequest());
+      }
+      assertThat(head(id)).isEqualTo(base);
+    }
+
+    @Test
+    @DisplayName("stages one RepositoryPushed event naming every changed path")
+    void stagesOneEventWithAllPaths() throws Exception {
+      var id = createRepository("api");
+      var base = commit(id, "a.txt", "a", "First");
+      outboxEvents.deleteAll();
+
+      commitChanges(id, base, java.util.List.of(write("a.txt", "b"), write("c.txt", "c")))
+          .andExpect(status().isCreated());
+
+      assertThat(outboxEvents.findAll())
+          .singleElement()
+          .satisfies(row -> {
+            assertThat(row.getEventType()).isEqualTo(EventTypes.REPOSITORY_PUSHED);
+            assertThat(row.getPayload()).contains("\"paths\":[\"a.txt\",\"c.txt\"]");
+          });
+    }
+
+    @Test
+    @DisplayName("a caller without project access gets 404 and writes nothing")
+    void deniedAccessIsNotFound() throws Exception {
+      var id = createRepository("api");
+      var base = commit(id, "a.txt", "a", "First");
+      doThrow(new ResourceNotFoundException("Project not found"))
+          .when(projectAccessClient)
+          .requireProjectAccess(eq(organizationId), eq(projectId), any());
+
+      commitChanges(id, base, java.util.List.of(write("a.txt", "hijacked")))
+          .andExpect(status().isNotFound());
     }
   }
 }

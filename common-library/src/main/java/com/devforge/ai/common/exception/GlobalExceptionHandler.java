@@ -76,6 +76,36 @@ public class GlobalExceptionHandler {
   }
 
   /**
+   * A path or query value that does not convert to its declared type, such as a non-UUID id.
+   *
+   * <p>These reached the catch-all and answered 500 "Unhandled exception": any malformed id in a
+   * URL read as a server fault. Found by the editor's browser test, which built a URL wrongly. A
+   * malformed path id names nothing that could exist, so it is 404, consistent with an id that is
+   * well-formed but unknown; a malformed query value is the caller's error, 400.
+   */
+  @ExceptionHandler(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class)
+  public ResponseEntity<ApiError> handleTypeMismatch(
+      org.springframework.web.method.annotation.MethodArgumentTypeMismatchException ex,
+      HttpServletRequest request) {
+    if (ex.getParameter().hasParameterAnnotation(
+        org.springframework.web.bind.annotation.PathVariable.class)) {
+      return build(HttpStatus.NOT_FOUND, "Not found", request, Collections.emptyList());
+    }
+    // The value is echoed by name only; the conversion message can name internal types.
+    return build(HttpStatus.BAD_REQUEST, "Invalid value for " + ex.getName(), request,
+        Collections.emptyList());
+  }
+
+  /** A required query parameter that was not sent: the caller's error, not the server's. */
+  @ExceptionHandler(org.springframework.web.bind.MissingServletRequestParameterException.class)
+  public ResponseEntity<ApiError> handleMissingParameter(
+      org.springframework.web.bind.MissingServletRequestParameterException ex,
+      HttpServletRequest request) {
+    return build(HttpStatus.BAD_REQUEST, "Missing parameter " + ex.getParameterName(), request,
+        Collections.emptyList());
+  }
+
+  /**
    * A malformed or unreadable request body.
    *
    * <p>Caller error, so 400 rather than the 500 the catch-all would otherwise produce.
