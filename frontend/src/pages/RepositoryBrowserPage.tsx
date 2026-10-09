@@ -8,12 +8,15 @@ import {
   Folder,
   GitBranch,
   History,
+  Pencil,
   ShieldCheck,
+  Trash2,
+  Undo2,
 } from 'lucide-react';
-import { useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 
-import type { TreeEntry } from '@/api/git.api';
+import type { FileChange, TreeEntry } from '@/api/git.api';
 import { gitApi } from '@/api/git.api';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -21,6 +24,15 @@ import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { EmptyState, ErrorState, LoadingState, Skeleton } from '@/components/ui/states';
 import { describeApiError } from '@/lib/errors';
+
+// Loaded on first edit: most visits only read, and the editor is most of this page's weight.
+const CodeEditor = lazy(() => import('@/components/editor/CodeEditor'));
+
+/** A file in the working set: its content at the base commit, and now. `current: null` deletes. */
+interface StagedFile {
+  original: string;
+  current: string | null;
+}
 
 function formatBytes(bytes: number | null): string {
   if (bytes === null) return '';
@@ -141,6 +153,138 @@ export function RepositoryBrowserPage() {
     onError: (err) => setCommitError(describeApiError(err)),
   });
 
+  /*
+   * The editor's working set: edits and deletions across files, committed together.
+   *
+   * Every file is loaded at one pinned commit (baseCommit), not at the branch name. Loading by
+   * branch would let a file fetched before someone else's commit be committed "on top" of it, and
+   * the server's moved-branch check could not catch that: the base would be current while the
+   * content was stale, silently reverting their change.
+   */
+  const [staged, setStaged] = useState<Record<string, StagedFile>>({});
+  const [baseCommit, setBaseCommit] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [editMessage, setEditMessage] = useState('');
+  const [editError, setEditError] = useState<string | null>(null);
+  const [conflict, setConflict] = useState(false);
+
+  const changes: FileChange[] = Object.entries(staged)
+    .filter(([, file]) => file.current !== file.original)
+    .map(([stagedPath, file]) =>
+      file.current === null
+        ? { path: stagedPath, delete: true as const }
+        : { path: stagedPath, content: file.current },
+    );
+  const hasChanges = changes.length > 0;
+
+  // Uncommitted edits exist only in this tab; closing it must not lose them silently.
+  useEffect(() => {
+    if (!hasChanges) return;
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [hasChanges]);
+
+  /** Pins the branch head the first time anything is staged, fetched fresh rather than cached. */
+  async function pinBase(): Promise<string | null> {
+    if (baseCommit) return baseCommit;
+    const fresh = await queryClient.fetchQuery({
+      queryKey: ['repository-branches', repositoryId],
+      queryFn: async () =>
+        (await gitApi.branches(organizationId, projectId, repositoryId)).data.data,
+      staleTime: 0,
+    });
+    const head = fresh.find((branch) => branch.name === ref)?.commitId ?? null;
+    if (!head) setEditError('Editing works on a branch. Choose one to edit.');
+    setBaseCommit(head);
+    return head;
+  }
+
+  async function startEditing(target: string) {
+    setEditError(null);
+    try {
+      const base = await pinBase();
+      if (!base) return;
+      if (!staged[target]) {
+        const file = (await gitApi.blob(organizationId, projectId, repositoryId, target, base)).data
+          .data;
+        if (file.binary || file.truncated) {
+          setEditError('This file is binary or too large to edit here.');
+          return;
+        }
+        const content = file.content ?? '';
+        setStaged((all) => ({ ...all, [target]: { original: content, current: content } }));
+      }
+      setEditing(true);
+    } catch (err) {
+      setEditError(describeApiError(err));
+    }
+  }
+
+  async function stageDeletion(target: string) {
+    setEditError(null);
+    try {
+      const base = await pinBase();
+      if (!base) return;
+      setStaged((all) => ({
+        ...all,
+        [target]: { original: all[target]?.original ?? '', current: null },
+      }));
+      setEditing(false);
+    } catch (err) {
+      setEditError(describeApiError(err));
+    }
+  }
+
+  function discard(target?: string) {
+    if (target === undefined) {
+      setStaged({});
+      setBaseCommit(null);
+      setConflict(false);
+      setEditing(false);
+      setEditError(null);
+      return;
+    }
+    setStaged((all) => {
+      const rest = { ...all };
+      delete rest[target];
+      return rest;
+    });
+    if (target === filePath) setEditing(false);
+  }
+
+  const commitChanges = useMutation({
+    mutationFn: () =>
+      gitApi.commitChanges(organizationId, projectId, repositoryId, {
+        message: editMessage.trim(),
+        branch: ref,
+        baseCommitId: baseCommit ?? '',
+        changes,
+      }),
+    onSuccess: () => {
+      setStaged({});
+      setBaseCommit(null);
+      setEditing(false);
+      setEditMessage('');
+      setEditError(null);
+      setConflict(false);
+      void queryClient.invalidateQueries({ queryKey: ['repository'] });
+      void queryClient.invalidateQueries({ queryKey: ['repository-tree'] });
+      void queryClient.invalidateQueries({ queryKey: ['repository-blob'] });
+      void queryClient.invalidateQueries({ queryKey: ['repository-commits'] });
+      void queryClient.invalidateQueries({ queryKey: ['repository-branches'] });
+    },
+    onError: (err) => {
+      setEditError(describeApiError(err));
+      setConflict(
+        typeof err === 'object' &&
+          err !== null &&
+          'response' in err &&
+          (err as { response?: { status?: number } }).response?.status === 409,
+      );
+    },
+  });
+
   function navigate(next: { path?: string; file?: string; ref?: string }) {
     const params = new URLSearchParams(searchParams);
     for (const key of ['path', 'file', 'ref'] as const) {
@@ -224,6 +368,9 @@ export function RepositoryBrowserPage() {
               <span className="sr-only">Branch</span>
               <select
                 value={ref ?? ''}
+                // The working set belongs to one branch's commit; switching would orphan it.
+                disabled={hasChanges}
+                title={hasChanges ? 'Commit or discard your changes to switch branch' : undefined}
                 onChange={(event) => navigate({ ref: event.target.value, path: '', file: '' })}
                 className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-100 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-indigo-400"
               >
@@ -391,14 +538,80 @@ export function RepositoryBrowserPage() {
             />
           )}
 
-          {tab === 'files' && filePath && (
-            <FileView
-              isLoading={blob.isLoading}
-              isError={blob.isError}
-              error={blob.error}
-              blob={blob.data}
-              onRetry={() => void blob.refetch()}
+          {hasChanges && (
+            <ChangesPanel
+              changes={changes}
+              message={editMessage}
+              onMessage={setEditMessage}
+              onOpen={(target) => navigate({ file: target })}
+              onDiscard={discard}
+              onCommit={() => commitChanges.mutate()}
+              committing={commitChanges.isPending}
+              error={editError}
+              conflict={conflict}
             />
+          )}
+
+          {!hasChanges && editError && (
+            <p
+              role="alert"
+              className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300"
+            >
+              {editError}
+            </p>
+          )}
+
+          {tab === 'files' && filePath && editing && staged[filePath]?.current != null && (
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <span className="font-mono text-sm text-slate-300">{filePath}</span>
+                <div className="flex gap-2">
+                  <Button variant="secondary" onClick={() => setEditing(false)}>
+                    Done editing
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    leftIcon={<Undo2 className="h-4 w-4" />}
+                    onClick={() => discard(filePath)}
+                  >
+                    Discard changes to this file
+                  </Button>
+                </div>
+              </div>
+              <Suspense fallback={<LoadingState label="Loading editor…" />}>
+                <CodeEditor
+                  path={filePath}
+                  value={staged[filePath]?.current ?? ''}
+                  onChange={(next) =>
+                    setStaged((all) => {
+                      const file = all[filePath];
+                      return file ? { ...all, [filePath]: { ...file, current: next } } : all;
+                    })
+                  }
+                />
+              </Suspense>
+            </div>
+          )}
+
+          {tab === 'files' && filePath && !(editing && staged[filePath]?.current != null) && (
+            <>
+              {staged[filePath] && staged[filePath].current !== staged[filePath].original && (
+                <Badge tone="warning">
+                  {staged[filePath].current === null
+                    ? 'Marked for deletion — not committed yet'
+                    : 'Edited — not committed yet'}
+                </Badge>
+              )}
+              <FileView
+                isLoading={blob.isLoading}
+                isError={blob.isError}
+                error={blob.error}
+                blob={blob.data}
+                onRetry={() => void blob.refetch()}
+                onEdit={() => void startEditing(filePath)}
+                onDelete={() => void stageDeletion(filePath)}
+              />
+            </>
           )}
 
           {tab === 'history' && (
@@ -476,12 +689,16 @@ function FileView({
   error,
   blob,
   onRetry,
+  onEdit,
+  onDelete,
 }: {
   isLoading: boolean;
   isError: boolean;
   error: unknown;
   blob: import('@/api/git.api').Blob | undefined;
   onRetry: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
 }) {
   if (isLoading) return <LoadingState label="Loading file…" />;
   if (isError) return <ErrorState message={describeApiError(error)} onRetry={onRetry} />;
@@ -507,6 +724,27 @@ function FileView({
         {blob.truncated && (
           <Badge tone="warning">Truncated — showing the first part of the file</Badge>
         )}
+        <span className="ml-auto flex gap-2">
+          {/* A truncated file cannot be edited: committing it would cut off everything unseen. */}
+          {!blob.truncated && (
+            <Button
+              size="sm"
+              variant="secondary"
+              leftIcon={<Pencil className="h-4 w-4" />}
+              onClick={onEdit}
+            >
+              Edit
+            </Button>
+          )}
+          <Button
+            size="sm"
+            variant="ghost"
+            leftIcon={<Trash2 className="h-4 w-4" />}
+            onClick={onDelete}
+          >
+            Delete
+          </Button>
+        </span>
       </div>
 
       <Card className="overflow-x-auto p-0">
@@ -531,6 +769,94 @@ function FileView({
         </table>
       </Card>
     </div>
+  );
+}
+
+/** The uncommitted changes across files, and the form that commits them as one. */
+function ChangesPanel({
+  changes,
+  message,
+  onMessage,
+  onOpen,
+  onDiscard,
+  onCommit,
+  committing,
+  error,
+  conflict,
+}: {
+  changes: FileChange[];
+  message: string;
+  onMessage: (message: string) => void;
+  onOpen: (path: string) => void;
+  onDiscard: (path?: string) => void;
+  onCommit: () => void;
+  committing: boolean;
+  error: string | null;
+  conflict: boolean;
+}) {
+  const label = `Commit ${changes.length} ${changes.length === 1 ? 'change' : 'changes'}`;
+  return (
+    <Card>
+      <form
+        aria-label="Uncommitted changes"
+        className="space-y-4"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (message.trim()) onCommit();
+        }}
+      >
+        <h2 className="text-lg font-semibold text-white">Uncommitted changes</h2>
+        <ul className="divide-y divide-slate-800">
+          {changes.map((change) => (
+            <li key={change.path} className="flex items-center justify-between gap-3 py-2">
+              <button
+                type="button"
+                onClick={() => onOpen(change.path)}
+                className="truncate font-mono text-sm text-indigo-300 underline-offset-4 hover:underline"
+              >
+                {change.path}
+              </button>
+              <span className="flex items-center gap-2">
+                <Badge tone={'delete' in change ? 'danger' : 'info'}>
+                  {'delete' in change ? 'Deleted' : 'Modified'}
+                </Badge>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  aria-label={`Discard changes to ${change.path}`}
+                  onClick={() => onDiscard(change.path)}
+                >
+                  <Undo2 className="h-4 w-4" aria-hidden="true" />
+                </Button>
+              </span>
+            </li>
+          ))}
+        </ul>
+        <Input
+          label="Commit message"
+          value={message}
+          onChange={(event) => onMessage(event.target.value)}
+          placeholder="Describe the change"
+        />
+        {error && (
+          <p
+            role="alert"
+            className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300"
+          >
+            {error}
+          </p>
+        )}
+        <div className="flex flex-wrap gap-3">
+          <Button type="submit" loading={committing} disabled={!message.trim()}>
+            {label}
+          </Button>
+          <Button type="button" variant="secondary" onClick={() => onDiscard()}>
+            {conflict ? 'Discard all and reload' : 'Discard all'}
+          </Button>
+        </div>
+      </form>
+    </Card>
   );
 }
 

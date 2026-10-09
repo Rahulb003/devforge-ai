@@ -146,10 +146,18 @@ single-page app's HTML is not served by the gateway; it has its own policy.
 
 ### The single-page app's CSP
 
-`default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'
-data:; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self';
-form-action 'self'` — no `'unsafe-inline'` and no `'unsafe-eval'` anywhere, so an injected
-`<script>` or inline handler does not run. It lives in `frontend/security-headers.conf`, which
+`default-src 'self'; script-src 'self'; style-src 'self' 'nonce-…'; img-src 'self' data:;
+font-src 'self' data:; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri
+'self'; form-action 'self'` — no `'unsafe-inline'` and no `'unsafe-eval'` anywhere, so an
+injected `<script>` or inline handler does not run.
+
+The style nonce exists for the code editor: CodeMirror injects `<style>` elements, which the
+policy otherwise blocks. nginx puts its per-request `$request_id` in the header and, through
+`sub_filter`, into a `<meta>` tag in `index.html`, which is never cached; the editor hands it to
+CodeMirror. A fresh value per response means injected markup cannot know it in advance. The
+browser suite's one CSP exemption is narrow and stated in `e2e/fixtures.ts`: Chrome's editing
+engine tries to add a style attribute when typed text replaces a selection inside the editor;
+the policy blocks it and nothing is lost. It lives in `frontend/security-headers.conf`, which
 nginx includes and `vite preview` reads, so there is one copy.
 
 It is verified, not assumed. The browser suite runs against the production build under this
@@ -222,8 +230,9 @@ Ordered by how much they matter.
    application host. Now specified in `docs/SANDBOX.md`: twelve guarantees, each with the escape
    attempt that must fail. Not implemented, because no container runtime or hypervisor exists in
    this environment and a sandbox that cannot isolate is worse than none.
-2. **Kafka has no ACLs.** Clients authenticate (below), but all services share one identity and any
-   of them can read or write any topic. Local and standalone runs use an open broker.
+2. **Kafka ACLs exist only in the compose stack.** There, each service has its own identity and the
+   broker denies anything not granted in `infrastructure/docker/kafka/setup.sh`. The Kubernetes
+   manifests still give every service one shared identity, and the standalone profile has no broker.
 3. **No secret-management integration.** Secrets come from environment variables; there is no vault,
    and no rotation story.
 4. **Container runtime hardening is mostly UNVERIFIED.** CI builds every image and confirms it runs

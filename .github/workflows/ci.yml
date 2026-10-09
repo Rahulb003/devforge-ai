@@ -280,6 +280,15 @@ jobs:
             done
             echo "ok: $path"
           done
+          # The style nonce must be fresh per response and match between header and document;
+          # sub_filter is the only thing that puts it in the page.
+          response="$(curl -s -D - http://localhost:8088/some/client/route)"
+          header_nonce="$(grep -io "nonce-[a-f0-9]*" <<<"$response" | head -1 | cut -c7-)"
+          page_nonce="$(grep -o 'name="csp-nonce" content="[^"]*"' <<<"$response" | sed 's/.*content="//; s/"$//')"
+          second="$(curl -sI http://localhost:8088/ | grep -io "nonce-[a-f0-9]*" | cut -c7-)"
+          echo "header=$header_nonce page=$page_nonce next=$second"
+          [ -n "$header_nonce" ] && [ "$header_nonce" = "$page_nonce" ] && [ "$second" != "$header_nonce" ] \
+            || { echo "::error::CSP nonce missing, mismatched, or reused"; exit 1; }
           docker rm -f web
 
       # Start every built service image and wait for it to report healthy. Building an image proves

@@ -7,6 +7,7 @@ import com.devforge.ai.common.exception.ResourceConflictException;
 import com.devforge.ai.common.exception.ResourceNotFoundException;
 import com.devforge.ai.gitservice.dto.GitDtos.BlobResponse;
 import com.devforge.ai.gitservice.dto.GitDtos.BranchResponse;
+import com.devforge.ai.gitservice.dto.GitDtos.CommitChangesRequest;
 import com.devforge.ai.gitservice.dto.GitDtos.CommitFileRequest;
 import com.devforge.ai.gitservice.dto.GitDtos.CommitResponse;
 import com.devforge.ai.gitservice.dto.GitDtos.CreateBranchRequest;
@@ -272,6 +273,73 @@ public class RepositoryService {
             "branch", branch,
             "commitId", commitId,
             "path", path));
+
+    var commits = wrap(() -> git.commits(directory(entity), commitId, 0, 1));
+    if (commits.isEmpty()) {
+      throw new IllegalStateException("Commit " + commitId + " was written but cannot be read back");
+    }
+    return commits.get(0);
+  }
+
+  /** Changes across all files in one commit; bounds the work a single request can cause. */
+  static final long MAX_COMMIT_BYTES = 5L * 1024 * 1024;
+
+  /**
+   * Commits several file changes at once, from the editor.
+   *
+   * <p>Same authorization and event as {@link #commitFile}: the caller must be a project member,
+   * and the history names them as author. Paths are validated exactly as a single-file commit's
+   * are, so a batch is no way around the path rules.
+   */
+  @Transactional
+  public CommitResponse commitChanges(
+      UUID organizationId, UUID projectId, UUID repositoryId, CommitChangesRequest request) {
+
+    var entity = load(organizationId, projectId, repositoryId);
+    var user = access.requireCurrentUser();
+    var branch = request.branch() == null || request.branch().isBlank()
+        ? entity.getDefaultBranch()
+        : GitPaths.requireValidBranchName(request.branch());
+
+    long bytes = 0;
+    var changes = new java.util.ArrayList<GitOperations.FileChange>(request.changes().size());
+    for (var change : request.changes()) {
+      var path = GitPaths.requireSafeRepositoryPath(change.path());
+      if (path.isEmpty()) {
+        throw new IllegalArgumentException("A file path is required");
+      }
+      if (change.delete() == (change.content() != null)) {
+        throw new IllegalArgumentException(
+            "Give either new content or delete for " + path + ", not both or neither");
+      }
+      if (change.content() != null) {
+        bytes += change.content().length();
+      }
+      changes.add(new GitOperations.FileChange(path, change.delete() ? null : change.content()));
+    }
+    if (bytes > MAX_COMMIT_BYTES) {
+      throw new IllegalArgumentException("A commit may carry at most 5 MB of changed content");
+    }
+
+    var commitId = wrap(() -> git.commitChanges(
+        directory(entity), branch, request.baseCommitId(), changes, request.message(),
+        user.username(), user.email()));
+
+    var paths = changes.stream().map(GitOperations.FileChange::path).toList();
+    outbox.record(
+        KafkaTopics.REPOSITORIES,
+        EventTypes.REPOSITORY_PUSHED,
+        organizationId,
+        user.id(),
+        MDC.get("correlationId"),
+        Map.of(
+            "repositoryId", entity.getId().toString(),
+            "projectId", projectId.toString(),
+            "branch", branch,
+            "commitId", commitId,
+            // "path" stays for consumers of the single-file event; "paths" is the whole change.
+            "path", paths.get(0),
+            "paths", paths));
 
     var commits = wrap(() -> git.commits(directory(entity), commitId, 0, 1));
     if (commits.isEmpty()) {

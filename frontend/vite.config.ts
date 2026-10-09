@@ -1,8 +1,9 @@
+import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 
 import react from '@vitejs/plugin-react';
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 
 /**
  * Everything goes through the API gateway.
@@ -31,8 +32,41 @@ function productionHeaders(): Record<string, string> {
   return headers;
 }
 
+/**
+ * `vite preview` behaving as nginx does: the security headers on everything but the API, with a
+ * fresh nonce per response in place of nginx's $request_id, and that nonce written into
+ * index.html. Static headers alone could not do it — the nonce must differ per response and match
+ * the document it was sent with.
+ */
+function productionPreview(): Plugin {
+  return {
+    name: 'devforge-production-preview',
+    configurePreviewServer(server) {
+      const headers = productionHeaders();
+      const indexHtml = path.resolve(import.meta.dirname, 'dist', 'index.html');
+      server.middlewares.use((req, res, next) => {
+        const url = (req.url ?? '/').split('?')[0];
+        // API responses carry the gateway's own headers, as they do behind nginx.
+        if (url.startsWith('/api/')) return next();
+
+        const nonce = crypto.randomBytes(16).toString('hex');
+        for (const [name, value] of Object.entries(headers)) {
+          res.setHeader(name, value.replaceAll('$request_id', nonce));
+        }
+        if (url.startsWith('/assets/') || path.extname(url)) return next();
+
+        // Any other path is a client-side route: the SPA document, as nginx's fallback serves it.
+        const html = fs.readFileSync(indexHtml, 'utf8').replaceAll('__CSP_NONCE__', nonce);
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.end(html);
+      });
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), productionPreview()],
   resolve: {
     alias: {
       '@': path.resolve(import.meta.dirname, './src'),
@@ -51,10 +85,10 @@ export default defineConfig({
       },
     },
   },
-  // Inherits server.proxy, so preview reaches the gateway the same way dev does.
+  // Inherits server.proxy, so preview reaches the gateway the same way dev does. Headers come from
+  // productionPreview() above.
   preview: {
     port: 4173,
     strictPort: true,
-    headers: productionHeaders(),
   },
 });

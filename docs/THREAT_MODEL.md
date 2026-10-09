@@ -93,9 +93,9 @@ accident.
 | Secrets leaking through an event payload | payloads carry ids and the minimum a consumer needs; reviewed per event in `docs/EVENT_CATALOG.md` |
 | An attacker reading or writing events directly | SASL authentication (SCRAM over TLS by default), tested against a real SASL broker. **No ACLs** |
 
-**Residual risk:** an outsider without credentials is now refused, but any service holding the
-shared credential can read every topic and forge events onto any of them, and a forged event is
-accepted as fact by every consumer. Per-service identities with topic ACLs close that.
+**Residual risk:** in the compose stack each service has its own identity and only the grants it
+needs, so a compromised chat-service cannot forge identity events. The Kubernetes manifests still
+share one identity, so there, any service can read every topic and write to any of them.
 
 ---
 
@@ -149,5 +149,5 @@ never reachable from code the platform is asked to analyse.
 ## 9. Highest-value next controls
 
 1. A code-execution sandbox, before any feature needs one.
-2. Per-service Kafka identities and topic ACLs.
+2. Carrying the per-service Kafka identities and ACLs into the Kubernetes manifests.
 3. Scanning every service image, not only auth-service.

@@ -3,6 +3,7 @@ package com.devforge.ai.gitservice.controller;
 import com.devforge.ai.common.web.ApiResponse;
 import com.devforge.ai.gitservice.dto.GitDtos.BlobResponse;
 import com.devforge.ai.gitservice.dto.GitDtos.BranchResponse;
+import com.devforge.ai.gitservice.dto.GitDtos.CommitChangesRequest;
 import com.devforge.ai.gitservice.dto.GitDtos.CommitFileRequest;
 import com.devforge.ai.gitservice.dto.GitDtos.CommitResponse;
 import com.devforge.ai.gitservice.dto.GitDtos.CreateBranchRequest;
@@ -188,6 +189,19 @@ public class RepositoryController {
     return ResponseEntity.status(HttpStatus.CREATED).body(new ApiResponse<>(
         true,
         repositoryService.commitFile(organizationId, projectId, repositoryId, request),
+        "Committed"));
+  }
+
+  /** Several file changes as one commit; 409 if the branch moved past {@code baseCommitId}. */
+  @PostMapping("/{repositoryId}/commits")
+  public ResponseEntity<ApiResponse<CommitResponse>> commitChanges(
+      @PathVariable UUID organizationId,
+      @PathVariable UUID projectId,
+      @PathVariable UUID repositoryId,
+      @Valid @RequestBody CommitChangesRequest request) {
+    return ResponseEntity.status(HttpStatus.CREATED).body(new ApiResponse<>(
+        true,
+        repositoryService.commitChanges(organizationId, projectId, repositoryId, request),
         "Committed"));
   }
 }

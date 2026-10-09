@@ -1,7 +1,10 @@
 package com.devforge.ai.gitservice.dto;
 
 import com.devforge.ai.gitservice.entity.RepositoryEntity;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.time.Instant;
 import java.util.List;
@@ -41,6 +44,25 @@ public final class GitDtos {
       @Size(max = 1_000_000) String content,
       @NotBlank @Size(max = 2000) String message,
       @Size(max = 255) String branch) {}
+
+  /**
+   * Several file changes committed together, from the editor.
+   *
+   * <p>{@code baseCommitId} is the commit the editor loaded; if the branch has moved since, the
+   * commit is refused with 409 rather than reverting whatever arrived in between.
+   */
+  public record CommitChangesRequest(
+      @NotBlank @Size(max = 2000) String message,
+      @Size(max = 255) String branch,
+      @Pattern(regexp = "^[0-9a-f]{40}$",
+          message = "must be a full 40-character commit id") String baseCommitId,
+      @NotEmpty @Size(max = 100) List<@Valid FileChangeRequest> changes) {}
+
+  /** One file: its new content, or {@code delete} to remove it. Exactly one of the two. */
+  public record FileChangeRequest(
+      @NotBlank @Size(max = 1024) String path,
+      @Size(max = 1_000_000) String content,
+      boolean delete) {}
 
   public record CreateBranchRequest(
       @NotBlank @Size(max = 255) String name, @Size(max = 255) String fromRef) {}

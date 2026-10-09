@@ -37,7 +37,7 @@ section count would overstate progress.
 | 7 | Documentation set (11 files) | `IMPLEMENTED` | all 11 present as of this commit |
 | 15 | Container images | `IMPLEMENTED` | All images build in CI, run non-root, and each service container starts healthy; frontend container serves its security headers. Multi-container runtime with real infrastructure **UNVERIFIED** |
 | 16 | Secrets and configuration hygiene | `IMPLEMENTED` | no fallbacks for credentials in the default profile; secrets gitignored |
-| 17 | Build must be green | `IMPLEMENTED` | 465 backend + 74 frontend + 38 e2e, all passing |
+| 17 | Build must be green | `IMPLEMENTED` | 475 backend + 78 frontend + 40 e2e, all passing |
 | 18 | RabbitMQ removed unless justified | `IMPLEMENTED` | removed from five places; justification in `EVENT_CATALOG.md` §1 |
 
 ## Identity and access
@@ -68,7 +68,7 @@ section count would overstate progress.
 | 35 | Observability | `PARTIALLY_IMPLEMENTED` | health and metrics endpoints, structured logs; no tracing backend, no dashboards verified |
 | 36 | Error handling and problem responses | `IMPLEMENTED` | `ApiError` with a traceId, never an exception message |
 | 37 | Code-execution sandbox | `MISSING` | **nothing executes developer code today.** Designed in `docs/SANDBOX.md` with twelve required guarantees and an escape-attempt suite; not built, because no container runtime or hypervisor is available here. Hard prerequisite for §6 and the IDE phases |
-| 38 | Kafka security (TLS/SASL/ACL) | `PARTIALLY_IMPLEMENTED` | SASL client authentication for every service, SCRAM over TLS by default, fail-closed when required; tested against a real SASL broker. No ACLs or per-service identities. Production TLS UNVERIFIED |
+| 38 | Kafka security (TLS/SASL/ACL) | `PARTIALLY_IMPLEMENTED` | SASL for every client, fail-closed when required. In the compose stack: one identity per service and deny-by-default ACLs, verified in CI in both directions. Kubernetes still shares one identity; production TLS UNVERIFIED |
 
 ## Product surface
 
@@ -77,7 +77,7 @@ section count would overstate progress.
 | 6, 15, 16 | AI: generation, review, explanation, RAG, agents | `SCAFFOLDED` | ai-service is a health endpoint. **Largest remaining item** |
 | 7 (svc) | Git: repos, branches, commits, diffs, PRs | `PARTIALLY_IMPLEMENTED` | Real self-hosted repositories via JGit — create, browse, commit, branch, diff; 107 tests, verified live. **No** pull requests, no push over HTTP/SSH, and no GitHub/GitLab integration |
 | 8 | Code review and quality gates | `IMPLEMENTED` | Secret detection, credential files, conflict markers, dangerous patterns; severities, configurable gate, dismissal with a recorded reason. 83 tests, verified live. **Not** an AI reviewer and not a general SAST engine — a focused, high-signal rule set |
-| 9 | IDE / editor | `PARTIALLY_IMPLEMENTED` | A read-only code browser plus a single-file commit form exists over git-service. No editor, no execution — §37 gates both |
+| 9 | IDE / editor | `PARTIALLY_IMPLEMENTED` | Code browser plus a CodeMirror editor: edit and delete across files, commit them as one, refused with 409 if the branch moved since editing began. No execution, terminal or debugger — §37 gates those |
 | 10 | Documentation generation | `IMPLEMENTED` | Repository overview, API surface and documentation coverage, generated from real file content. 31 tests. Pattern-based, not AI-written, and each document states its own limits |
 | 11 | Chat and collaboration | `IMPLEMENTED` | Per-project channel over REST with polling, author-only edit/delete, 8 tests. Live delivery over Server-Sent Events. Single-instance fan-out, no presence |
 | 12 | Notifications | `IMPLEMENTED` | consumer + API + bell + feed; 22 backend, 12 frontend tests |

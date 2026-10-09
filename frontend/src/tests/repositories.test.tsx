@@ -18,6 +18,26 @@ const tree = vi.fn();
 const blob = vi.fn();
 const commits = vi.fn();
 const commitFile = vi.fn();
+const commitChanges = vi.fn();
+
+// CodeMirror needs layout jsdom does not have; the browser suite covers the real editor.
+vi.mock('@/components/editor/CodeEditor', () => ({
+  default: ({
+    path,
+    value,
+    onChange,
+  }: {
+    path: string;
+    value: string;
+    onChange: (value: string) => void;
+  }) => (
+    <textarea
+      aria-label={`Editing ${path}`}
+      defaultValue={value}
+      onChange={(event) => onChange(event.target.value)}
+    />
+  ),
+}));
 
 vi.mock('@/api/git.api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/api/git.api')>();
@@ -35,6 +55,7 @@ vi.mock('@/api/git.api', async (importOriginal) => {
       blob: (...a: unknown[]) => blob(...a),
       diff: vi.fn(),
       commitFile: (...a: unknown[]) => commitFile(...a),
+      commitChanges: (...a: unknown[]) => commitChanges(...a),
     },
   };
 });
@@ -451,5 +472,94 @@ describe('RepositoryBrowserPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Commit' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/must not traverse/i);
+  });
+
+  describe('editing', () => {
+    const HEAD = 'a'.repeat(40);
+
+    beforeEach(() => {
+      blob.mockImplementation((_o, _p, _r, path: string) =>
+        Promise.resolve(
+          envelope({
+            path,
+            size: 5,
+            binary: false,
+            truncated: false,
+            content: `old ${path}`,
+          } satisfies Blob),
+        ),
+      );
+    });
+
+    async function editReadme(text: string) {
+      renderBrowser('?file=README.md');
+      await userEvent.click(await screen.findByRole('button', { name: 'Edit' }));
+      const editor = await screen.findByLabelText('Editing README.md');
+      await userEvent.clear(editor);
+      await userEvent.type(editor, text);
+      await userEvent.click(screen.getByRole('button', { name: 'Done editing' }));
+    }
+
+    it('loads the file at the pinned head commit and commits against it', async () => {
+      commitChanges.mockResolvedValue(envelope({ id: 'c'.repeat(40) }));
+
+      await editReadme('new readme');
+
+      // Read at the commit, not the branch name: a later commit to the branch must not slip in.
+      expect(blob).toHaveBeenCalledWith(ORG, PROJ, REPO, 'README.md', HEAD);
+      const panel = screen.getByRole('form', { name: 'Uncommitted changes' });
+      await userEvent.type(within(panel).getByLabelText('Commit message'), 'Update readme');
+      await userEvent.click(within(panel).getByRole('button', { name: 'Commit 1 change' }));
+
+      await waitFor(() =>
+        expect(commitChanges).toHaveBeenCalledWith(ORG, PROJ, REPO, {
+          message: 'Update readme',
+          branch: 'main',
+          baseCommitId: HEAD,
+          changes: [{ path: 'README.md', content: 'new readme' }],
+        }),
+      );
+      await waitFor(() =>
+        expect(screen.queryByRole('form', { name: 'Uncommitted changes' })).not.toBeInTheDocument(),
+      );
+    });
+
+    it('stages a deletion, and an edit undone back to the original is not a change', async () => {
+      renderBrowser('?file=README.md');
+      await userEvent.click(await screen.findByRole('button', { name: 'Delete' }));
+
+      const panel = await screen.findByRole('form', { name: 'Uncommitted changes' });
+      expect(within(panel).getByText('Deleted')).toBeInTheDocument();
+      await userEvent.click(
+        within(panel).getByRole('button', { name: 'Discard changes to README.md' }),
+      );
+      expect(screen.queryByRole('form', { name: 'Uncommitted changes' })).not.toBeInTheDocument();
+    });
+
+    it('explains a moved branch and offers to discard and reload', async () => {
+      const conflict = new AxiosError('Request failed with status code 409');
+      conflict.response = {
+        status: 409,
+        statusText: 'Conflict',
+        headers: {},
+        config: { headers: new AxiosHeaders() },
+        data: { message: 'The branch has new commits since you started editing.' },
+      };
+      commitChanges.mockRejectedValue(conflict);
+
+      await editReadme('mine');
+      const panel = screen.getByRole('form', { name: 'Uncommitted changes' });
+      await userEvent.type(within(panel).getByLabelText('Commit message'), 'Mine');
+      await userEvent.click(within(panel).getByRole('button', { name: 'Commit 1 change' }));
+
+      expect(await within(panel).findByRole('alert')).toHaveTextContent(/new commits/i);
+      await userEvent.click(within(panel).getByRole('button', { name: 'Discard all and reload' }));
+      expect(screen.queryByRole('form', { name: 'Uncommitted changes' })).not.toBeInTheDocument();
+    });
+
+    it('will not switch branch while there are uncommitted changes', async () => {
+      await editReadme('pending');
+      expect(screen.getByRole('combobox', { name: 'Branch' })).toBeDisabled();
+    });
   });
 });

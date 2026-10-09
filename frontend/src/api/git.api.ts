@@ -84,6 +84,17 @@ export interface CommitFileData {
   branch?: string;
 }
 
+/** One file in a multi-file commit: new content, or `delete`. */
+export type FileChange = { path: string; content: string } | { path: string; delete: true };
+
+export interface CommitChangesData {
+  message: string;
+  branch?: string;
+  /** The commit the edits started from; the server answers 409 if the branch has moved since. */
+  baseCommitId: string;
+  changes: FileChange[];
+}
+
 /**
  * Refs and paths go in the query string, matching the API.
  *
@@ -177,4 +188,15 @@ export const gitApi = {
     data: CommitFileData,
   ) =>
     api.post<ApiEnvelope<Commit>>(`${base(organizationId, projectId)}/${repositoryId}/files`, data),
+
+  commitChanges: (
+    organizationId: string,
+    projectId: string,
+    repositoryId: string,
+    data: CommitChangesData,
+  ) =>
+    api.post<ApiEnvelope<Commit>>(
+      `${base(organizationId, projectId)}/${repositoryId}/commits`,
+      data,
+    ),
 };

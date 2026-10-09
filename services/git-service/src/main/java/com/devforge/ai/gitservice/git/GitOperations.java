@@ -231,33 +231,65 @@ public class GitOperations {
   public String commitFile(
       Path directory, String branch, String path, String content, String message,
       String authorName, String authorEmail) throws IOException {
+    return commitChanges(directory, branch, null, List.of(new FileChange(path, content)), message,
+        authorName, authorEmail);
+  }
+
+  /** One file in a commit: the new content, or {@code null} to delete the file. */
+  public record FileChange(String path, String content) {
+    boolean isDelete() {
+      return content == null;
+    }
+  }
+
+  /**
+   * Writes several file changes as one commit, so an edit spanning files lands atomically.
+   *
+   * <p>{@code expectedHead}, when given, is the commit the editor loaded. If the branch has moved
+   * since, the commit is refused rather than written on top: the user's copy of the other files
+   * is stale, and committing would silently revert whatever arrived in between.
+   */
+  public String commitChanges(
+      Path directory, String branch, String expectedHead, List<FileChange> changes,
+      String message, String authorName, String authorEmail) throws IOException {
+
+    var byPath = new java.util.LinkedHashMap<String, FileChange>();
+    for (var change : changes) {
+      if (byPath.put(change.path(), change) != null) {
+        throw new IllegalArgumentException("The same file appears twice: " + change.path());
+      }
+    }
 
     try (var repository = open(directory)) {
       var branchRef = Constants.R_HEADS + branch;
       var parentId = repository.resolve(branchRef);
 
-      try (var inserter = repository.newObjectInserter()) {
-        var blobId = inserter.insert(
-            Constants.OBJ_BLOB, content.getBytes(StandardCharsets.UTF_8));
+      if (expectedHead != null && (parentId == null || !parentId.getName().equals(expectedHead))) {
+        throw new ResourceConflictException(
+            "The branch has new commits since you started editing. Reload and apply your changes again.");
+      }
 
+      try (var inserter = repository.newObjectInserter()) {
         var cache = DirCache.newInCore();
         var builder = cache.builder();
-        var replaced = false;
+        var existing = new java.util.HashMap<String, FileMode>();
+        ObjectId parentTree = null;
 
         if (parentId != null) {
           // The RevWalk must be closed too. Leaked, it keeps an ObjectReader — and therefore open
           // file handles — alive, which on Windows makes the repository directory undeletable. That
           // surfaced as a delete that reported success while leaving the objects on disk.
           try (var walk = new TreeWalk(repository); var revWalk = new RevWalk(repository)) {
-            walk.addTree(revWalk.parseCommit(parentId).getTree());
+            parentTree = revWalk.parseCommit(parentId).getTree().getId();
+            walk.addTree(parentTree);
             walk.setRecursive(true);
             while (walk.next()) {
-              var existing = walk.getPathString();
-              if (existing.equals(path)) {
-                replaced = true;
-                continue; // superseded by the new blob below
+              var path = walk.getPathString();
+              existing.put(path, walk.getFileMode(0));
+              if (byPath.containsKey(path)) {
+                continue; // replaced or deleted below
               }
-              var entry = new DirCacheEntry(existing);
+              var entry = new DirCacheEntry(path);
               entry.setFileMode(walk.getFileMode(0));
               entry.setObjectId(walk.getObjectId(0));
               builder.add(entry);
@@ -265,13 +297,38 @@ public class GitOperations {
           }
         }
 
-        var entry = new DirCacheEntry(path);
-        entry.setFileMode(FileMode.REGULAR_FILE);
-        entry.setObjectId(blobId);
-        builder.add(entry);
+        var finalPaths = new java.util.TreeSet<>(existing.keySet());
+        for (var change : byPath.values()) {
+          if (change.isDelete()) {
+            if (!existing.containsKey(change.path())) {
+              throw new ResourceNotFoundException("No such file to delete: " + change.path());
+            }
+            finalPaths.remove(change.path());
+          } else {
+            finalPaths.add(change.path());
+          }
+        }
+
+        for (var change : byPath.values()) {
+          if (change.isDelete()) {
+            continue;
+          }
+          requireNoFileDirectoryClash(change.path(), finalPaths);
+          var entry = new DirCacheEntry(change.path());
+          // Keep an executable bit an existing file had; a new file is a regular file.
+          var mode = existing.get(change.path());
+          entry.setFileMode(mode == FileMode.EXECUTABLE_FILE ? mode : FileMode.REGULAR_FILE);
+          entry.setObjectId(inserter.insert(
+              Constants.OBJ_BLOB, change.content().getBytes(StandardCharsets.UTF_8)));
+          builder.add(entry);
+        }
         builder.finish();
 
         var treeId = cache.writeTree(inserter);
+        if (treeId.equals(parentTree)) {
+          // An empty commit is noise in the history and would announce a change that did not happen.
+          throw new IllegalArgumentException("Nothing to commit: the files already have this content");
+        }
 
         var now = Instant.now();
         var identity = new PersonIdent(authorName, authorEmail, java.util.Date.from(now),
@@ -289,9 +346,30 @@ public class GitOperations {
         var commitId = inserter.insert(commit);
         inserter.flush();
 
-        updateRef(repository, branchRef, parentId, commitId, replaced ? "update" : "create");
+        // A first commit expects the branch not to exist (zeroId), so two first commits racing on
+        // an empty repository cannot both succeed with one silently lost.
+        updateRef(repository, branchRef, parentId != null ? parentId : ObjectId.zeroId(), commitId,
+            "commit");
         return commitId.getName();
       }
+    }
+  }
+
+  /**
+   * A path cannot be both a file and a directory. Writing {@code a/b} while {@code a} remains a
+   * file, or {@code a} while {@code a/...} files remain, would produce a tree git itself rejects.
+   */
+  private static void requireNoFileDirectoryClash(String path, java.util.NavigableSet<String> finalPaths) {
+    for (int slash = path.indexOf('/'); slash >= 0; slash = path.indexOf('/', slash + 1)) {
+      if (finalPaths.contains(path.substring(0, slash))) {
+        throw new IllegalArgumentException(
+            path.substring(0, slash) + " is a file, so " + path + " cannot be created inside it");
+      }
+    }
+    // Everything under "a/" sorts immediately from "a/" onward, so the first entry there decides it.
+    var nested = finalPaths.ceiling(path + "/");
+    if (nested != null && nested.startsWith(path + "/")) {
+      throw new IllegalArgumentException(path + " is a directory, so it cannot also be a file");
     }
   }
 
