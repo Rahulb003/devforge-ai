@@ -4,7 +4,7 @@
 # Build context is frontend/ — this image is self-contained.
 # ---------------------------------------------------------------------------
 
-FROM node:20-alpine AS build
+FROM node:24-alpine AS build
 WORKDIR /app
 
 # Lockfile first so dependency installs cache independently of source edits.
