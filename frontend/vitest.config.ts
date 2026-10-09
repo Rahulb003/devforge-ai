@@ -9,7 +9,7 @@ export default defineConfig({
     // Mirrors the "@/*" path alias in tsconfig.json and vite.config.ts so tests
     // resolve imports the same way the application build does.
     alias: {
-      '@': path.resolve(__dirname, './src'),
+      '@': path.resolve(import.meta.dirname, './src'),
     },
   },
   test: {

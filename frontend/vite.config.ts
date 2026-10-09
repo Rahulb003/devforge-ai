@@ -23,7 +23,7 @@ import { defineConfig } from 'vite';
  * in CI; a CSP that breaks the app fails there rather than in production.
  */
 function productionHeaders(): Record<string, string> {
-  const conf = fs.readFileSync(path.resolve(__dirname, 'security-headers.conf'), 'utf8');
+  const conf = fs.readFileSync(path.resolve(import.meta.dirname, 'security-headers.conf'), 'utf8');
   const headers: Record<string, string> = {};
   for (const match of conf.matchAll(/^add_header\s+(\S+)\s+"([^"]*)"/gm)) {
     headers[match[1]] = match[2];
@@ -35,7 +35,7 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
+      '@': path.resolve(import.meta.dirname, './src'),
     },
   },
   server: {
