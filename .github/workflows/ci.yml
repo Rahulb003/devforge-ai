@@ -404,6 +404,43 @@ jobs:
         working-directory: frontend
         run: npm run test:e2e
 
+      # The browser suite cannot see Kafka, so check the event pipeline directly: every outbox the
+      # suite wrote to has drained to the broker - which on PostgreSQL goes through the
+      # FOR UPDATE SKIP LOCKED claim, never exercised anywhere else - and the consumers in other
+      # services have processed what arrived.
+      - name: Verify events crossed Kafka between services
+        run: |
+          set -euo pipefail
+          q() { docker compose exec -T postgres psql -U devforge -d "$1" -tAc "$2"; }
+          has() { [ "$(q "$1" "select to_regclass('public.$2') is not null")" = "t" ]; }
+          for _ in $(seq 1 30); do
+            pending=0
+            for db in auth project task git review documentation chat analytics notification; do
+              if has "devforge_$db" outbox_events; then
+                n="$(q "devforge_$db" "select count(*) from outbox_events where published_at is null")"
+                pending=$((pending + n))
+              fi
+            done
+            [ "$pending" = 0 ] && break
+            sleep 2
+          done
+          total=0
+          for db in auth project task git review documentation chat analytics notification; do
+            if has "devforge_$db" outbox_events; then
+              all="$(q "devforge_$db" "select count(*) from outbox_events")"
+              left="$(q "devforge_$db" "select count(*) from outbox_events where published_at is null")"
+              echo "$db: $all events written, $left unpublished"
+              total=$((total + all))
+              [ "$left" = 0 ] || { echo "::error::$db outbox did not drain"; exit 1; }
+            fi
+          done
+          [ "$total" -gt 0 ] || { echo "::error::no service wrote any event"; exit 1; }
+          for db in notification analytics; do
+            n="$(q "devforge_$db" "select count(*) from processed_events")"
+            echo "$db consumed: $n"
+            [ "$n" -gt 0 ] || { echo "::error::$db consumed nothing"; exit 1; }
+          done
+
       - name: Service logs
         if: failure()
         run: docker compose logs --no-color > compose.log 2>&1; tail -n 400 compose.log
