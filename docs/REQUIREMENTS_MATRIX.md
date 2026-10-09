@@ -100,7 +100,7 @@ section count would overstate progress.
 
 | § | Requirement | Status | Evidence |
 |---|---|---|---|
-| 46 | Docker Compose | `SCAFFOLDED` | present; six wrong port mappings fixed; **UNVERIFIED** |
+| 46 | Docker Compose | `IMPLEMENTED` | Runs in CI: per-service databases, real Kafka and Redis, browser suite against nginx, event pipeline checked end to end |
 | 47 | Kubernetes manifests | `SCAFFOLDED` | `infrastructure/kubernetes/`; **UNVERIFIED** |
 | 48 | CI pipeline | `PARTIALLY_IMPLEMENTED` | `ci.yml` runs lint, test and build; **never executed here** |
 | 49 | Config server / service discovery | `SCAFFOLDED` — **misleading** | both are empty Boot apps with no Spring Cloud dependency. Compose sets env vars nothing reads |

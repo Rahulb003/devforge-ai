@@ -343,6 +343,26 @@ jobs:
           ignore-unfixed: true
           severity: HIGH,CRITICAL
 
+      # Every other image, with the trivy binary the step above installed. The services share a
+      # base and most libraries, but not all: git-service carries JGit, and the frontend is nginx
+      # on its own Alpine base.
+      - name: Scan the remaining images
+        run: |
+          set -euo pipefail
+          command -v trivy > /dev/null || { echo "::error::trivy not on PATH"; exit 1; }
+          failed=0
+          for name in api-gateway project-service task-service git-service review-service \
+                      documentation-service chat-service analytics-service notification-service frontend; do
+            echo "::group::$name"
+            if ! trivy image --quiet --exit-code 1 --ignore-unfixed --severity HIGH,CRITICAL \
+                --ignorefile .trivyignore "devforge-ai/$name:${GITHUB_SHA}"; then
+              echo "::error::$name has high or critical advisories"
+              failed=1
+            fi
+            echo "::endgroup::"
+          done
+          exit "$failed"
+
   security:
     name: Dependency and secret scanning
     runs-on: ubuntu-latest

@@ -84,8 +84,9 @@ them unnoticed. This arrangement tests both, together, with no Docker dependency
 
 Its limit, stated plainly: H2 in PostgreSQL mode is not PostgreSQL. It has no
 `FOR UPDATE SKIP LOCKED`, so the outbox tests run with the skip-locked claim disabled — and
-**production depends on it**, because without it concurrent publishers duplicate every event. That
-path is `UNVERIFIED`.
+**production depends on it**, because without it concurrent publishers duplicate every event. The
+compose job in CI covers it on real PostgreSQL (see below); contention between several publishers
+of one service is still untested.
 
 ### Real tokens, not mock principals
 
@@ -182,8 +183,9 @@ bare invocation globs the Vitest specs and reports "No tests found".
 
 Stated so none of it is mistaken for covered:
 
-- **Docker image builds and Kubernetes manifests** — no daemon available. Entirely `UNVERIFIED`.
-- **`FOR UPDATE SKIP LOCKED`** under concurrent publishers.
+- **Kubernetes manifests** — never applied to a cluster. `UNVERIFIED`. (Images and docker compose
+  are covered in CI; see "Full stack" below.)
+- **`FOR UPDATE SKIP LOCKED`** under several concurrent publishers of one service.
 - **Broker failover**, and therefore `acks=all`.
 - **Retry/backoff timing** under a transient outage. Only the non-retryable path is exercised.
 - **Consumer lag, rebalance and replay.**
@@ -192,3 +194,18 @@ Stated so none of it is mistaken for covered:
 - **Load, soak and performance.** No budgets are defined.
 - **Accessibility beyond role-based queries.** No axe run, no keyboard-navigation suite.
 - **Visual regression.**
+
+## Full stack (docker compose, CI only)
+
+The `compose` job starts `docker-compose.yml`: nine services, each in its own container with its own
+PostgreSQL database, a real Kafka broker, Redis, Mailpit, the gateway, and nginx serving the
+production frontend. It then
+
+1. runs the browser suite against nginx, under the production CSP;
+2. checks every service's outbox drained to Kafka, through the `FOR UPDATE SKIP LOCKED` claim;
+3. checks notification-service and analytics-service processed events from the others.
+
+The first run with step 2 found that no event had ever been published from a container: the producer
+used snappy compression, whose native library cannot load on the Alpine images. Every other test
+runs on a glibc JVM, where it works.
+
