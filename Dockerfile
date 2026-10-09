@@ -75,13 +75,15 @@ FROM eclipse-temurin:21-jre-alpine AS runtime-base
 # Run as a dedicated unprivileged user: the previous images ran as root.
 # /app/data exists in the image so a volume mounted there inherits devforge ownership;
 # otherwise Docker creates the mount point root-owned and git-service cannot write to it.
-RUN addgroup -S devforge \
- && adduser -S -H -G devforge -s /sbin/nologin devforge \
+# Fixed numeric ids: Kubernetes' runAsNonRoot can only verify a numeric user, and refuses to
+# start a container whose user is a name.
+RUN addgroup -S -g 10001 devforge \
+ && adduser -S -H -u 10001 -G devforge -s /sbin/nologin devforge \
  && mkdir -p /app/data/git-repositories \
  && chown -R devforge:devforge /app
 
 WORKDIR /app
-USER devforge:devforge
+USER 10001:10001
 
 # MaxRAMPercentage makes the JVM respect the container memory limit instead of
 # sizing the heap from the host's total RAM.

@@ -25,7 +25,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health, info
+        include: health, info, prometheus
   endpoint:
     health:
       show-details: never
@@ -54,7 +54,8 @@ logging:
 devforge:
   auth:
     # Restated so the production posture is explicit and reviewable.
-    require-email-verification: true
+    # On by default; a throwaway test cluster may turn it off, as the CI cluster does.
+    require-email-verification: ${DEVFORGE_REQUIRE_EMAIL_VERIFICATION:true}
   mail:
     # Restated so the production posture is explicit and reviewable: real
     # delivery, and the token-exposing dev mailbox hard off.

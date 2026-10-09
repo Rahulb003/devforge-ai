@@ -555,3 +555,132 @@ jobs:
           name: compose-logs
           path: compose.log
           retention-days: 7
+
+  kubernetes:
+    name: Kubernetes (kind)
+    runs-on: ubuntu-latest
+    needs: [frontend, backend]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      # Docker Hub through Google's mirror, as in the compose job.
+      - name: Use a Docker Hub mirror
+        run: |
+          echo '{"registry-mirrors": ["https://mirror.gcr.io"]}' | sudo tee /etc/docker/daemon.json
+          sudo systemctl restart docker
+
+      # The manifests deploy what the compose stack runs, from infrastructure/kubernetes, applied
+      # to a real cluster: they were never applied anywhere before this job.
+      - name: Build the images
+        run: |
+          set -euo pipefail
+          for entry in api-gateway:api-gateway:8080 auth-service:services/auth-service:9001 \
+              project-service:services/project-service:9002 task-service:services/task-service:9003 \
+              git-service:services/git-service:9005 review-service:services/review-service:9006 \
+              documentation-service:services/documentation-service:9007 \
+              chat-service:services/chat-service:9008 analytics-service:services/analytics-service:9010 \
+              notification-service:services/notification-service:9011; do
+            name="${entry%%:*}"; rest="${entry#*:}"; path="${rest%%:*}"; port="${rest##*:}"
+            docker build -q --target service --build-arg "MODULE_PATH=$path" \
+              --build-arg "ARTIFACT_ID=$name" --build-arg "SERVICE_PORT=$port" -t "devforge-ai/$name:latest" .
+          done
+          docker build -q -f frontend/Dockerfile -t devforge-ai/frontend:latest frontend
+
+      - name: Create the cluster
+        uses: helm/kind-action@1544676c07bb3570fcb70166beaa07c4528fd4aa # v1.15.1
+        with:
+          cluster_name: devforge
+
+      # Every image goes in from the host, so nothing inside the cluster pulls from Docker Hub.
+      - name: Load the images into the cluster
+        run: |
+          set -euo pipefail
+          third_party="postgres:15 redis:7 confluentinc/cp-kafka:7.7.1 ghcr.io/axllent/mailpit:v1.31.4 \
+            quay.io/prometheus/prometheus:v3.15.0 grafana/grafana:13.2.3"
+          for image in $third_party; do docker pull -q "$image"; done
+          kind load docker-image --name devforge $third_party \
+            $(docker images --format '{{.Repository}}:{{.Tag}}' | grep '^devforge-ai/.*:latest$')
+
+      - name: Check the generated manifests are current
+        run: |
+          node infrastructure/kubernetes/generate.cjs
+          git diff --exit-code -- infrastructure/kubernetes \
+            || { echo "::error::run node infrastructure/kubernetes/generate.cjs and commit"; exit 1; }
+
+      - name: Deploy
+        run: |
+          set -euo pipefail
+          kubectl apply -f infrastructure/kubernetes/namespace.yaml
+          sh infrastructure/kubernetes/create-secrets.sh
+          kubectl apply -f infrastructure/kubernetes/configmap.yaml
+          # A test cluster: served over plain HTTP on localhost, and signing straight in.
+          kubectl -n devforge-ai patch configmap devforge-ai-config --type merge -p \
+            '{"data":{"DEVFORGE_APP_BASE_URL":"http://localhost:8081","DEVFORGE_COOKIE_SECURE":"false","DEVFORGE_REQUIRE_EMAIL_VERIFICATION":"false","DEVFORGE_RATE_LIMIT_AUTH_PER_MINUTE":"1000"}}'
+          kubectl apply -f infrastructure/kubernetes/infrastructure.yaml
+          kubectl apply -f infrastructure/kubernetes/services.yaml
+          kubectl apply -f infrastructure/kubernetes/monitoring.yaml
+
+      - name: Wait for everything to be ready
+        run: |
+          set -euo pipefail
+          kubectl -n devforge-ai wait --for=condition=complete job/kafka-setup --timeout=10m
+          for d in $(kubectl -n devforge-ai get deployments -o name); do
+            kubectl -n devforge-ai rollout status "$d" --timeout=15m
+          done
+          kubectl -n devforge-ai get pods
+
+      - name: Smoke test through nginx and the gateway
+        run: |
+          set -euo pipefail
+          kubectl -n devforge-ai port-forward svc/frontend 8081:80 > /dev/null 2>&1 &
+          for _ in $(seq 1 30); do curl -sf -o /dev/null http://localhost:8081/ && break; sleep 2; done
+          api=http://localhost:8081/api/v1
+          user="kind$RANDOM$RANDOM"
+          curl -sf -X POST "$api/auth/signup" -H 'Content-Type: application/json' \
+            -d "{\"firstName\":\"Kind\",\"lastName\":\"Check\",\"username\":\"$user\",\"email\":\"$user@example.com\",\"password\":\"Str0ng!Passw0rd#\",\"organization\":\"Kind Org\"}" > /dev/null
+          token="$(curl -sf -X POST "$api/auth/login" -H 'Content-Type: application/json' \
+            -d "{\"usernameOrEmail\":\"$user\",\"password\":\"Str0ng!Passw0rd#\"}" | jq -r .data.accessToken)"
+          auth="Authorization: Bearer $token"
+          org="$(curl -sf -X POST "$api/organizations" -H "$auth" -H 'Content-Type: application/json' \
+            -d "{\"name\":\"Kind Org\",\"slug\":\"kind-$user\"}" | jq -r .data.id)"
+          project="$(curl -sf -X POST "$api/organizations/$org/projects" -H "$auth" -H 'Content-Type: application/json' \
+            -d '{"name":"Kind Project","projectKey":"KIND"}' | jq -r .data.id)"
+          curl -sf -X POST "$api/organizations/$org/projects/$project/tasks" -H "$auth" \
+            -H 'Content-Type: application/json' -d '{"title":"Runs on Kubernetes"}' > /dev/null
+          curl -sf "$api/organizations/$org/projects/$project/tasks/board" -H "$auth" \
+            | jq -e '[.data[].tasks[]] | length == 1'
+          echo "signup, login, organization, project and task work through the cluster"
+
+          # The events left their services and reached the audit log, over the in-cluster Kafka.
+          psql() { kubectl -n devforge-ai exec statefulset/postgres -- psql -U devforge -d "$1" -tAc "$2"; }
+          for _ in $(seq 1 30); do
+            entries="$(psql devforge_analytics "select count(*) from audit_log where project_id = '$project'")"
+            [ "$entries" -ge 2 ] && break
+            sleep 2
+          done
+          echo "audit entries for the project: $entries"
+          [ "$entries" -ge 2 ] || { echo "::error::events did not reach the audit log"; exit 1; }
+
+      - name: Prometheus scrapes every service in the cluster
+        run: |
+          set -euo pipefail
+          kubectl -n devforge-ai port-forward svc/prometheus 9090:9090 > /dev/null 2>&1 &
+          up=0
+          for _ in $(seq 1 40); do
+            up="$( (curl -s http://localhost:9090/api/v1/targets || true) \
+              | jq '[.data.activeTargets[]? | select(.health=="up")] | length' 2>/dev/null || echo 0)"
+            [ "$up" = 10 ] && break
+            sleep 4
+          done
+          echo "targets up: $up"
+          [ "$up" = 10 ] || { echo "::error::only $up of 10 services scraped"; exit 1; }
+
+      - name: Cluster state on failure
+        if: failure()
+        run: |
+          kubectl -n devforge-ai get pods -o wide || true
+          kubectl -n devforge-ai get events --sort-by=.lastTimestamp | tail -60 || true
+          for p in $(kubectl -n devforge-ai get pods -o name); do
+            echo "::group::$p"; kubectl -n devforge-ai logs "$p" --tail=80 --all-containers || true; echo "::endgroup::"
+          done

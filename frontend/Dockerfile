@@ -46,7 +46,8 @@ ENV API_GATEWAY_UPSTREAM=http://api-gateway:8080
 COPY --chown=nginx:nginx security-headers.conf /etc/nginx/snippets/security-headers.conf
 COPY --from=build --chown=nginx:nginx /app/dist /usr/share/nginx/html
 
-USER nginx
+# Numeric (nginx is uid 101 in this image), so Kubernetes can verify runAsNonRoot.
+USER 101
 EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \

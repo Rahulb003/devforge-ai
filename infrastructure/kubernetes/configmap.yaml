@@ -1,44 +1,29 @@
+# Non-secret settings shared by the services. Credentials are in devforge-ai-secrets.
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: devforge-ai-config
   namespace: devforge-ai
 data:
-  # A cluster deployment must not run the local profile: that profile carries
-  # development fallbacks, including a well-known JWT signing key, and relaxes
-  # cookie and actuator exposure. It was previously set to "local" here.
+  # Never "local": that profile carries development fallbacks, including a well-known JWT key.
   SPRING_PROFILES_ACTIVE: prod
-
-  SPRING_CLOUD_CONFIG_URI: http://config-server.devforge-ai.svc.cluster.local:8888
-  EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server.devforge-ai.svc.cluster.local:8761/eureka/
-
-  # Non-secret connection coordinates. Credentials come from the
-  # devforge-ai-secrets Secret, never from this ConfigMap.
-  POSTGRES_HOST: postgres.devforge-ai.svc.cluster.local
-  POSTGRES_PORT: "5432"
-  DEVFORGE_DB_URL: jdbc:postgresql://postgres.devforge-ai.svc.cluster.local:5432/devforge
-
-  REDIS_HOST: redis.devforge-ai.svc.cluster.local
-  REDIS_PORT: "6379"
-
-  KAFKA_BOOTSTRAP_SERVERS: kafka.devforge-ai.svc.cluster.local:9092
-  # Every Kafka client authenticates; a service missing its credentials refuses to start rather
-  # than connecting anonymously. Credentials come from the devforge-ai-kafka Secret.
-  DEVFORGE_KAFKA_REQUIRE_AUTHENTICATION: "true"
-  DEVFORGE_KAFKA_SECURITY_PROTOCOL: SASL_SSL
-  DEVFORGE_KAFKA_SASL_MECHANISM: SCRAM-SHA-512
-
   DEVFORGE_JWT_ISSUER: devforge-ai
-  DEVFORGE_JWT_ACCESS_TTL: 15m
-  DEVFORGE_JWT_REFRESH_TTL: 14d
-  DEVFORGE_COOKIE_NAME: DEVFORGE_REFRESH_TOKEN
+
+  # Where the browser reaches the app: the CORS allow-list and the links in emails.
+  DEVFORGE_APP_BASE_URL: https://app.devforge.ai
   DEVFORGE_COOKIE_SECURE: "true"
   DEVFORGE_COOKIE_SAME_SITE: Strict
+  DEVFORGE_REQUIRE_EMAIL_VERIFICATION: "true"
+  DEVFORGE_RATE_LIMIT_AUTH_PER_MINUTE: "30"
 
-  MAIL_HOST: smtp.internal.devforge-ai.svc.cluster.local
-  MAIL_PORT: "587"
-  MAIL_FROM: no-reply@devforge.ai
-  MAIL_AUTH_ENABLED: "true"
-  MAIL_STARTTLS_ENABLED: "true"
+  # Kafka clients authenticate as their own service. PLAIN over plain TCP inside the cluster
+  # network, matching the broker these manifests deploy; with a TLS-enabled broker, use
+  # SASL_SSL and SCRAM-SHA-512 (the client default) instead. TLS is UNVERIFIED.
+  DEVFORGE_KAFKA_SECURITY_PROTOCOL: SASL_PLAINTEXT
+  DEVFORGE_KAFKA_SASL_MECHANISM: PLAIN
 
-  DEVFORGE_APP_BASE_URL: https://app.devforge.ai
+  # Mailpit captures mail on a test cluster; point these at a real relay elsewhere.
+  MAIL_HOST: mailpit
+  MAIL_PORT: "1025"
+  MAIL_AUTH_ENABLED: "false"
+  MAIL_STARTTLS_ENABLED: "false"
