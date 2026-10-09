@@ -30,6 +30,12 @@ RUN npm run build
 # OS-package advisories, found the first time CI scanned this image.
 FROM nginxinc/nginx-unprivileged:1.30-alpine3.24 AS runtime
 
+# Apply Alpine's security updates at build time instead of waiting for a new base image: even the
+# current tag shipped libtiff 4.7.1 with a high advisory fixed in 4.7.2. The image switches back to
+# the unprivileged user below.
+USER root
+RUN apk upgrade --no-cache
+
 # Single-page app: unknown paths must fall through to index.html or a deep link
 # like /projects/42 returns 404 from nginx before React Router ever sees it.
 # A template: the image's entrypoint substitutes environment variables into it at start and
