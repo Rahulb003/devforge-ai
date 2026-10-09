@@ -208,12 +208,15 @@ Ordered by how much they matter.
 3. **No secret-management integration.** Secrets come from environment variables; there is no vault,
    and no rotation story.
 4. **Container runtime hardening is mostly UNVERIFIED.** CI builds every image and confirms it runs
-   as non-root; Trivy reported 64 high/critical advisories in auth-service's image on Boot 3.4.0 and
-   48 on 3.4.13; Boot is now 3.5.16, and CI's scan reports what remains. No container has been
+   as non-root; The auth-service image scan is now **blocking**: high/critical advisories went 64 (Boot
+   3.4.0) -> 48 (3.4.13) -> 14 (3.5.16) -> 0, the last step by overriding Jackson, Netty, Tomcat,
+   the PostgreSQL driver and lz4 ahead of the Boot BOM (`backend/pom.xml`). Two Spring Framework
+   advisories with no 6.2 fix are accepted in `.trivyignore`, each with the reason it does not
+   apply here. No container has been
    started.
 5. **Dependency scanning blocks only on shipped frontend code.** CI fails on a high or critical
    advisory in the frontend production dependencies, and Dependabot proposes weekly updates. Trivy
-   scans the Maven and npm trees and the auth-service image but only reports. The frontend dev
+   blocks on the auth-service image; its filesystem scan of the Maven and npm trees only reports. The frontend dev
    tooling carries high and critical advisories (vite, vitest, tailwind, typescript-eslint), all
    needing major upgrades; none of it ships to a browser. The shipped code has two moderate
    react-router advisories, also behind a major upgrade.

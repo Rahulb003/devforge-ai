@@ -267,12 +267,15 @@ jobs:
             fi
           done
 
+      # Blocking: a new high or critical advisory with a released fix fails the build. Accepted
+      # exceptions live in .trivyignore, each with its reason.
       - name: Scan auth-service image
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: devforge-ai/auth-service:${{ github.sha }}
           format: table
-          exit-code: '0'
+          exit-code: '1'
+          trivyignores: .trivyignore
           ignore-unfixed: true
           severity: HIGH,CRITICAL
 

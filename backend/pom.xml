@@ -41,9 +41,60 @@
     <maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
     <maven-surefire-plugin.version>3.2.5</maven-surefire-plugin.version>
     <maven-failsafe-plugin.version>3.2.5</maven-failsafe-plugin.version>
+    <jackson-override.version>2.21.7</jackson-override.version>
+    <netty-override.version>4.1.137.Final</netty-override.version>
+    <tomcat-override.version>10.1.60</tomcat-override.version>
+    <postgresql-override.version>42.7.12</postgresql-override.version>
+    <lz4-override.version>1.11.4</lz4-override.version>
   </properties>
   <dependencyManagement>
     <dependencies>
+      <!--
+        Security overrides of versions the Boot BOM pins, each fixing advisories the CI image
+        scan reported. They must come BEFORE the Boot import: with an imported BOM the first
+        declaration wins, and Boot's *.version properties override nothing here because this
+        reactor does not inherit spring-boot-starter-parent. Remove each once Boot catches up.
+      -->
+      <dependency>
+        <groupId>com.fasterxml.jackson</groupId>
+        <artifactId>jackson-bom</artifactId>
+        <version>${jackson-override.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>io.netty</groupId>
+        <artifactId>netty-bom</artifactId>
+        <version>${netty-override.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.tomcat.embed</groupId>
+        <artifactId>tomcat-embed-core</artifactId>
+        <version>${tomcat-override.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.tomcat.embed</groupId>
+        <artifactId>tomcat-embed-el</artifactId>
+        <version>${tomcat-override.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.tomcat.embed</groupId>
+        <artifactId>tomcat-embed-websocket</artifactId>
+        <version>${tomcat-override.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.postgresql</groupId>
+        <artifactId>postgresql</artifactId>
+        <version>${postgresql-override.version}</version>
+      </dependency>
+      <!-- Pulled in by kafka-clients for compression. -->
+      <dependency>
+        <groupId>at.yawk.lz4</groupId>
+        <artifactId>lz4-java</artifactId>
+        <version>${lz4-override.version}</version>
+      </dependency>
       <dependency>
         <groupId>org.springframework.cloud</groupId>
         <artifactId>spring-cloud-dependencies</artifactId>

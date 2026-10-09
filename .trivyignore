@@ -1,0 +1,12 @@
+# Advisories accepted as not applicable. Each entry needs a reason; an advisory without one is a
+# finding, not an exception. Revisit when Spring Framework 6.2 publishes a fix or on moving to
+# Spring Boot 4 (Framework 7.0.9+), whichever comes first.
+
+# Spring Framework, XsltView: SSRF/RCE only when an XsltView renders a view whose name is not set
+# explicitly. Nothing in this codebase uses XsltView or any server-side view resolution for
+# requests; the services return JSON. No fixed 6.2.x release exists.
+CVE-2026-47884
+
+# Spring Framework, SSE stream corruption when rendering view *fragments*. chat-service streams
+# JSON events through SseEmitter and renders no view fragments. No fixed 6.2.x release exists.
+CVE-2026-47890
