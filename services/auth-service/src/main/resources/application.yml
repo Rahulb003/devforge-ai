@@ -85,6 +85,9 @@ security:
     cookie-same-site: ${DEVFORGE_COOKIE_SAME_SITE:Strict}
 
 devforge:
+  metrics:
+    # Scrape credential for /actuator/prometheus; unset means the endpoint refuses everyone.
+    token: ${DEVFORGE_METRICS_TOKEN:}
   auth:
     # On by default. Without it nothing proves the registrant controls the
     # address, and the address is the account-recovery channel.
@@ -113,7 +116,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health, info
+        include: health, info, prometheus
   endpoint:
     health:
       # Health details can disclose infrastructure topology and credentials
@@ -122,4 +125,3 @@ management:
   info:
     env:
       enabled: false
-

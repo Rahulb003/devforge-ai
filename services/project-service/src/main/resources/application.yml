@@ -35,12 +35,15 @@ management:
   endpoints:
     web:
       exposure:
-        include: health, info
+        include: health, info, prometheus
   endpoint:
     health:
       show-details: when-authorized
 
 devforge:
+  metrics:
+    # Scrape credential for /actuator/prometheus; unset means the endpoint refuses everyone.
+    token: ${DEVFORGE_METRICS_TOKEN:}
   kafka:
     enabled: ${DEVFORGE_KAFKA_ENABLED:true}
   outbox:

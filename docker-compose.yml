@@ -26,6 +26,8 @@ x-service-env: &service-env
   DEVFORGE_JWT_SIGNING_KEY: ${DEVFORGE_JWT_SIGNING_KEY:-local-development-only-signing-key-change-me-0123456789abcdef}
   DEVFORGE_JWT_ISSUER: ${DEVFORGE_JWT_ISSUER:-devforge-ai}
   PROJECT_SERVICE_URL: http://project-service:9002
+  # Scrape credential for /actuator/prometheus; must match infrastructure/monitoring/prometheus.yml.
+  DEVFORGE_METRICS_TOKEN: ${DEVFORGE_METRICS_TOKEN:-metrics-dev-only}
   GIT_SERVICE_URL: http://git-service:9005
 
 # Every service waits for the database and broker to be ready, not merely started.
@@ -74,6 +76,7 @@ services:
       NOTIFICATION_SERVICE_URL: http://notification-service:9011
       DEVFORGE_CORS_ORIGINS: ${DEVFORGE_CORS_ORIGINS:-http://localhost:4173}
       DEVFORGE_RATE_LIMIT_AUTH_PER_MINUTE: ${DEVFORGE_RATE_LIMIT_AUTH_PER_MINUTE:-30}
+      DEVFORGE_METRICS_TOKEN: ${DEVFORGE_METRICS_TOKEN:-metrics-dev-only}
 
   auth-service:
     build:
@@ -435,7 +438,8 @@ services:
 
   prometheus:
     profiles: [observability]
-    image: prom/prometheus:latest
+    # Pinned: "latest" would make what CI verifies depend on the day it ran.
+    image: prom/prometheus:v3.15.0
     ports:
       - 9090:9090
     volumes:
@@ -443,12 +447,18 @@ services:
 
   grafana:
     profiles: [observability]
-    image: grafana/grafana:latest
+    image: grafana/grafana:13.2.3
     ports:
       - 3000:3000
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+    # The Prometheus data source and the services dashboard, provisioned rather than clicked in.
+    volumes:
+      - ./infrastructure/monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infrastructure/monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
 
 volumes:
   postgres-data:

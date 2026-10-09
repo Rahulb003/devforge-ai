@@ -74,6 +74,8 @@ public class SecurityConfig {
             // in any deployment that sends real mail.
             .requestMatchers("/api/v1/dev/mailbox").permitAll()
             .requestMatchers("/actuator/health/**", "/actuator/info", "/error").permitAll()
+            // Its own credential, checked by MetricsEndpointFilter: Prometheus has no user token.
+            .requestMatchers("/actuator/prometheus").permitAll()
             .anyRequest().authenticated())
         // Without an explicit entry point, an unauthenticated call to a protected endpoint
         // returns 403, which tells the client "you are known but not allowed" when the truth

@@ -7,6 +7,9 @@ spring:
     name: api-gateway
 
 devforge:
+  metrics:
+    # Scrape credential for /actuator/prometheus; unset means the endpoint refuses everyone.
+    token: ${DEVFORGE_METRICS_TOKEN:}
   auth:
     # Must match auth-service security.jwt.cookie-name: writes carrying it need X-Requested-With.
     refresh-cookie-name: ${DEVFORGE_COOKIE_NAME:DEVFORGE_REFRESH_TOKEN}
@@ -36,7 +39,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health, info
+        include: health, info, prometheus
   endpoint:
     health:
       show-details: when-authorized

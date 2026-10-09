@@ -497,6 +497,38 @@ jobs:
             || { echo "::error::a wrong password was not refused"; exit 1; }
           echo "refused as expected"
 
+      # The monitoring stack, checked rather than assumed: every service scraped and up, a real
+      # query answered, and Grafana provisioned with the data source and the dashboard.
+      - name: Verify Prometheus scrapes every service and Grafana is provisioned
+        run: |
+          set -euo pipefail
+          docker compose --profile observability up -d prometheus grafana
+          up=0
+          for _ in $(seq 1 30); do
+            up="$(curl -s http://localhost:9090/api/v1/targets \
+              | jq '[.data.activeTargets[] | select(.labels.job=="devforge-services" and .health=="up")] | length')"
+            [ "$up" = 10 ] && break
+            sleep 4
+          done
+          curl -s http://localhost:9090/api/v1/targets \
+            | jq -r '.data.activeTargets[] | "\(.labels.service) \(.health) \(.lastError)"'
+          [ "$up" = 10 ] || { echo "::error::only $up of 10 services are being scraped"; exit 1; }
+
+          series="$(curl -s --get http://localhost:9090/api/v1/query \
+            --data-urlencode 'query=sum by (service) (jvm_memory_used_bytes{area="heap"})' \
+            | jq '.data.result | length')"
+          echo "services reporting heap: $series"
+          [ "$series" = 10 ] || { echo "::error::heap metrics from $series services, not 10"; exit 1; }
+
+          for _ in $(seq 1 30); do
+            curl -sf -u admin:admin http://localhost:3000/api/health > /dev/null && break
+            sleep 2
+          done
+          curl -sf -u admin:admin "http://localhost:3000/api/datasources/uid/devforge-prometheus/health" \
+            | jq -e '.status == "OK"'
+          curl -sf -u admin:admin "http://localhost:3000/api/dashboards/uid/devforge-services" \
+            | jq -e '.dashboard.title == "DevForge services"'
+
       - name: Service logs
         if: failure()
         run: docker compose logs --no-color > compose.log 2>&1; tail -n 400 compose.log

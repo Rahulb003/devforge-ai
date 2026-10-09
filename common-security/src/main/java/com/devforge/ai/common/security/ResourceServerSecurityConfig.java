@@ -35,6 +35,8 @@ public class ResourceServerSecurityConfig {
         .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .authorizeHttpRequests(authorize -> authorize
             .requestMatchers("/actuator/health/**", "/actuator/info", "/error").permitAll()
+            // Its own credential, checked by MetricsEndpointFilter: Prometheus has no user token.
+            .requestMatchers("/actuator/prometheus").permitAll()
             .anyRequest().authenticated())
         // Return 401 rather than redirecting to a login form: this is an API, and a 302 to
         // a nonexistent page turns an auth failure into a confusing client error.

@@ -37,7 +37,7 @@ section count would overstate progress.
 | 7 | Documentation set (11 files) | `IMPLEMENTED` | all 11 present as of this commit |
 | 15 | Container images | `IMPLEMENTED` | All images build in CI, run non-root, and each service container starts healthy; frontend container serves its security headers. Multi-container runtime with real infrastructure **UNVERIFIED** |
 | 16 | Secrets and configuration hygiene | `IMPLEMENTED` | no fallbacks for credentials in the default profile; secrets gitignored |
-| 17 | Build must be green | `IMPLEMENTED` | 505 backend + 79 frontend + 49 e2e, all passing |
+| 17 | Build must be green | `IMPLEMENTED` | 509 backend + 79 frontend + 49 e2e, all passing |
 | 18 | RabbitMQ removed unless justified | `IMPLEMENTED` | removed from five places; justification in `EVENT_CATALOG.md` §1 |
 
 ## Identity and access
@@ -65,7 +65,7 @@ section count would overstate progress.
 | 31 | API gateway as single entry point | `IMPLEMENTED` | verified live for all four services |
 | 33 | Event backbone (Kafka) | `IMPLEMENTED` | outbox + consumer, 9 tests against a real broker |
 | 34 | Correlation across services | `IMPLEMENTED` | generated at the gateway, validated, carried into events |
-| 35 | Observability | `PARTIALLY_IMPLEMENTED` | health and metrics endpoints, structured logs; no tracing backend, no dashboards verified |
+| 35 | Observability | `PARTIALLY_IMPLEMENTED` | Prometheus metrics from every service with a Grafana dashboard, structured logs with correlation ids across services and events. No distributed tracing backend, no alerting |
 | 36 | Error handling and problem responses | `IMPLEMENTED` | `ApiError` with a traceId, never an exception message |
 | 37 | Code-execution sandbox | `MISSING` | **nothing executes developer code today.** Designed in `docs/SANDBOX.md` with twelve required guarantees and an escape-attempt suite; not built, because no container runtime or hypervisor is available here. Hard prerequisite for §6 and the IDE phases |
 | 38 | Kafka security (TLS/SASL/ACL) | `PARTIALLY_IMPLEMENTED` | SASL for every client, fail-closed when required. In the compose stack: one identity per service and deny-by-default ACLs, verified in CI in both directions. Kubernetes still shares one identity; production TLS UNVERIFIED |
@@ -104,7 +104,7 @@ section count would overstate progress.
 | 47 | Kubernetes manifests | `SCAFFOLDED` | `infrastructure/kubernetes/`; **UNVERIFIED** |
 | 48 | CI pipeline | `IMPLEMENTED` | GitHub Actions on every push: lint, typecheck, unit and backend tests, the browser suite, every image built, started and scanned, and the whole stack under docker compose with the event pipeline and Kafka ACLs checked |
 | 49 | Config server / service discovery | `SCAFFOLDED` — **misleading** | both are empty Boot apps with no Spring Cloud dependency. Compose sets env vars nothing reads |
-| 50 | Monitoring stack | `SCAFFOLDED` | Prometheus config and Grafana in compose; **UNVERIFIED** |
+| 50 | Monitoring stack | `IMPLEMENTED` | Every service exports Prometheus metrics behind a scrape credential (fails closed); Prometheus scrapes all ten and Grafana is provisioned with the data source and a services dashboard - all checked in the compose CI job. No alerting rules |
 
 ---
 

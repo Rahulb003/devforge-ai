@@ -1,7 +1,31 @@
+# Scrapes every service's /actuator/prometheus over the compose network.
+#
+# The endpoint needs its own credential (MetricsEndpointFilter): basic auth as "metrics" with the
+# DEVFORGE_METRICS_TOKEN the services are given. The password here is the compose stack's
+# development default; change both together anywhere that is not a throwaway local stack.
 global:
   scrape_interval: 15s
 
 scrape_configs:
-  - job_name: 'prometheus'
+  - job_name: devforge-services
+    metrics_path: /actuator/prometheus
+    basic_auth:
+      username: metrics
+      password: metrics-dev-only
     static_configs:
-      - targets: ['localhost:9090']
+      - targets:
+          - api-gateway:8080
+          - auth-service:9001
+          - project-service:9002
+          - task-service:9003
+          - git-service:9005
+          - review-service:9006
+          - documentation-service:9007
+          - chat-service:9008
+          - analytics-service:9010
+          - notification-service:9011
+    relabel_configs:
+      # "auth-service:9001" -> service="auth-service", for dashboards.
+      - source_labels: [__address__]
+        regex: '([^:]+):\d+'
+        target_label: service

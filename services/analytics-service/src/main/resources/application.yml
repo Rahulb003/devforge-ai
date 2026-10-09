@@ -49,6 +49,9 @@ security:
     signing-key: ${DEVFORGE_JWT_SIGNING_KEY}
 
 devforge:
+  metrics:
+    # Scrape credential for /actuator/prometheus; unset means the endpoint refuses everyone.
+    token: ${DEVFORGE_METRICS_TOKEN:}
   services:
     # Project membership is the authority for who may read a project's metrics.
     # No default: a wrong address would silently fail every request closed.
@@ -67,7 +70,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health, info
+        include: health, info, prometheus
   endpoint:
     health:
       show-details: when-authorized
