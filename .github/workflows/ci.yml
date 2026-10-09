@@ -461,6 +461,30 @@ jobs:
             [ "$n" -gt 0 ] || { echo "::error::$db consumed nothing"; exit 1; }
           done
 
+      # The ACLs must refuse, not only allow: the event check above proves the grants are enough,
+      # this proves they are not too much. chat-service has an identity and no grants, so writing
+      # auth-service's identity topic must be refused; and a wrong password must not authenticate.
+      - name: Verify Kafka refuses what the ACLs do not grant
+        run: |
+          set -uo pipefail
+          attempt() {
+            docker compose exec -T kafka sh -c "
+              printf '%s\n' security.protocol=SASL_PLAINTEXT sasl.mechanism=PLAIN \
+                'sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required username=\"$1\" password=\"$2\";' \
+                max.block.ms=10000 > /tmp/attempt.properties
+              echo forged | kafka-console-producer --bootstrap-server kafka:29092 \
+                --topic devforge.identity.v1 --producer.config /tmp/attempt.properties" 2>&1
+          }
+          out="$(attempt chat-service chat-dev-only)"
+          echo "$out" | tail -3
+          echo "$out" | grep -q "TopicAuthorizationException\|Not authorized" \
+            || { echo "::error::chat-service was not refused write access to the identity topic"; exit 1; }
+          out="$(attempt auth-service wrong-password)"
+          echo "$out" | tail -3
+          echo "$out" | grep -q "SaslAuthenticationException\|Authentication failed" \
+            || { echo "::error::a wrong password was not refused"; exit 1; }
+          echo "refused as expected"
+
       - name: Service logs
         if: failure()
         run: docker compose logs --no-color > compose.log 2>&1; tail -n 400 compose.log

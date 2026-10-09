@@ -15,6 +15,12 @@ x-service-env: &service-env
   POSTGRES_USER: ${POSTGRES_USER:-devforge}
   POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-devforge}
   KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+  # Every Kafka client authenticates as its own service; a missing credential stops it at startup.
+  # PLAIN over plain TCP is acceptable only on this private compose network - production defaults
+  # to SCRAM over TLS (see KafkaSecurityEnvironmentPostProcessor).
+  DEVFORGE_KAFKA_REQUIRE_AUTHENTICATION: "true"
+  DEVFORGE_KAFKA_SECURITY_PROTOCOL: SASL_PLAINTEXT
+  DEVFORGE_KAFKA_SASL_MECHANISM: PLAIN
   # Falls back to the local development key. Override in .env for anything that is not a
   # throwaway local stack.
   DEVFORGE_JWT_SIGNING_KEY: ${DEVFORGE_JWT_SIGNING_KEY:-local-development-only-signing-key-change-me-0123456789abcdef}
@@ -26,8 +32,8 @@ x-service-env: &service-env
 x-service-depends: &service-depends
   postgres:
     condition: service_healthy
-  kafka:
-    condition: service_healthy
+  kafka-setup:
+    condition: service_completed_successfully
 
 services:
   frontend:
@@ -83,6 +89,8 @@ services:
     environment:
       <<: *service-env
       DEVFORGE_DB_URL: jdbc:postgresql://postgres:5432/devforge_auth
+      DEVFORGE_KAFKA_SASL_USERNAME: auth-service
+      DEVFORGE_KAFKA_SASL_PASSWORD: ${KAFKA_PASSWORD_AUTH:-auth-dev-only}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       MAIL_HOST: ${MAIL_HOST:-mailpit}
@@ -132,6 +140,8 @@ services:
     environment:
       <<: *service-env
       DEVFORGE_DB_URL: jdbc:postgresql://postgres:5432/devforge_task
+      DEVFORGE_KAFKA_SASL_USERNAME: task-service
+      DEVFORGE_KAFKA_SASL_PASSWORD: ${KAFKA_PASSWORD_TASK:-task-dev-only}
     depends_on: *service-depends
 
   git-service:
@@ -148,6 +158,8 @@ services:
     environment:
       <<: *service-env
       DEVFORGE_DB_URL: jdbc:postgresql://postgres:5432/devforge_git
+      DEVFORGE_KAFKA_SASL_USERNAME: git-service
+      DEVFORGE_KAFKA_SASL_PASSWORD: ${KAFKA_PASSWORD_GIT:-git-dev-only}
       DEVFORGE_GIT_STORAGE_ROOT: /app/data/git-repositories
     volumes:
       - git-repositories:/app/data/git-repositories
@@ -167,6 +179,8 @@ services:
     environment:
       <<: *service-env
       DEVFORGE_DB_URL: jdbc:postgresql://postgres:5432/devforge_review
+      DEVFORGE_KAFKA_SASL_USERNAME: review-service
+      DEVFORGE_KAFKA_SASL_PASSWORD: ${KAFKA_PASSWORD_REVIEW:-review-dev-only}
     depends_on: *service-depends
 
   documentation-service:
@@ -183,6 +197,8 @@ services:
     environment:
       <<: *service-env
       DEVFORGE_DB_URL: jdbc:postgresql://postgres:5432/devforge_documentation
+      DEVFORGE_KAFKA_SASL_USERNAME: documentation-service
+      DEVFORGE_KAFKA_SASL_PASSWORD: ${KAFKA_PASSWORD_DOCUMENTATION:-documentation-dev-only}
     depends_on: *service-depends
 
   chat-service:
@@ -199,6 +215,8 @@ services:
     environment:
       <<: *service-env
       DEVFORGE_DB_URL: jdbc:postgresql://postgres:5432/devforge_chat
+      DEVFORGE_KAFKA_SASL_USERNAME: chat-service
+      DEVFORGE_KAFKA_SASL_PASSWORD: ${KAFKA_PASSWORD_CHAT:-chat-dev-only}
     depends_on: *service-depends
 
   analytics-service:
@@ -215,6 +233,8 @@ services:
     environment:
       <<: *service-env
       DEVFORGE_DB_URL: jdbc:postgresql://postgres:5432/devforge_analytics
+      DEVFORGE_KAFKA_SASL_USERNAME: analytics-service
+      DEVFORGE_KAFKA_SASL_PASSWORD: ${KAFKA_PASSWORD_ANALYTICS:-analytics-dev-only}
     depends_on: *service-depends
 
   notification-service:
@@ -231,6 +251,8 @@ services:
     environment:
       <<: *service-env
       DEVFORGE_DB_URL: jdbc:postgresql://postgres:5432/devforge_notification
+      DEVFORGE_KAFKA_SASL_USERNAME: notification-service
+      DEVFORGE_KAFKA_SASL_PASSWORD: ${KAFKA_PASSWORD_NOTIFICATION:-notification-dev-only}
     depends_on: *service-depends
 
   # --- Not built yet: scaffolds only, opt-in -------------------------------
@@ -327,28 +349,61 @@ services:
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,CONTROLLER://0.0.0.0:29093,PLAINTEXT_HOST://0.0.0.0:9092
+      # The controller listener is bound to the container's loopback: it is unauthenticated, and
+      # its ANONYMOUS principal must be a super user for the controller to work, so nothing outside
+      # this container may reach it.
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:29093
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:29092,CONTROLLER://localhost:29093,EXTERNAL://0.0.0.0:9092
       # Services inside the network reach kafka:29092; the host uses localhost:9092.
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:SASL_PLAINTEXT,EXTERNAL:SASL_PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_SASL_ENABLED_MECHANISMS: PLAIN
+      KAFKA_SASL_MECHANISM_INTER_BROKER_PROTOCOL: PLAIN
+      # One identity per service. Their grants are in infrastructure/docker/kafka/setup.sh.
+      KAFKA_LISTENER_NAME_INTERNAL_PLAIN_SASL_JAAS_CONFIG: 'org.apache.kafka.common.security.plain.PlainLoginModule required username="admin" password="${KAFKA_ADMIN_PASSWORD:-admin-dev-only}" user_admin="${KAFKA_ADMIN_PASSWORD:-admin-dev-only}" user_auth-service="${KAFKA_PASSWORD_AUTH:-auth-dev-only}" user_task-service="${KAFKA_PASSWORD_TASK:-task-dev-only}" user_git-service="${KAFKA_PASSWORD_GIT:-git-dev-only}" user_review-service="${KAFKA_PASSWORD_REVIEW:-review-dev-only}" user_documentation-service="${KAFKA_PASSWORD_DOCUMENTATION:-documentation-dev-only}" user_chat-service="${KAFKA_PASSWORD_CHAT:-chat-dev-only}" user_analytics-service="${KAFKA_PASSWORD_ANALYTICS:-analytics-dev-only}" user_notification-service="${KAFKA_PASSWORD_NOTIFICATION:-notification-dev-only}";'
+      KAFKA_LISTENER_NAME_EXTERNAL_PLAIN_SASL_JAAS_CONFIG: 'org.apache.kafka.common.security.plain.PlainLoginModule required username="admin" password="${KAFKA_ADMIN_PASSWORD:-admin-dev-only}" user_admin="${KAFKA_ADMIN_PASSWORD:-admin-dev-only}" user_auth-service="${KAFKA_PASSWORD_AUTH:-auth-dev-only}" user_task-service="${KAFKA_PASSWORD_TASK:-task-dev-only}" user_git-service="${KAFKA_PASSWORD_GIT:-git-dev-only}" user_review-service="${KAFKA_PASSWORD_REVIEW:-review-dev-only}" user_documentation-service="${KAFKA_PASSWORD_DOCUMENTATION:-documentation-dev-only}" user_chat-service="${KAFKA_PASSWORD_CHAT:-chat-dev-only}" user_analytics-service="${KAFKA_PASSWORD_ANALYTICS:-analytics-dev-only}" user_notification-service="${KAFKA_PASSWORD_NOTIFICATION:-notification-dev-only}";'
+      # Deny by default: a principal with no ACL can do nothing.
+      KAFKA_AUTHORIZER_CLASS_NAME: org.apache.kafka.metadata.authorizer.StandardAuthorizer
+      KAFKA_ALLOW_EVERYONE_IF_NO_ACL_FOUND: "false"
+      KAFKA_SUPER_USERS: User:admin;User:ANONYMOUS
+      # Not KAFKA_-prefixed, or the image would write it into server.properties.
+      HEALTHCHECK_ADMIN_PASSWORD: ${KAFKA_ADMIN_PASSWORD:-admin-dev-only}
       # Single broker locally, so replication cannot exceed 1.
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-      # Off in production: a typo in a topic name would otherwise silently create
-      # a new topic instead of failing.
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      # Topics are created by kafka-setup; a typo in a topic name must fail, not create a new one.
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
       CLUSTER_ID: devforge-local-cluster
     volumes:
       - kafka-data:/var/lib/kafka/data
     healthcheck:
-      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      # Authenticates as admin, since the client listeners now require it. Listener names avoid
+      # "SASL_": the Confluent image then demands a JAAS file instead of the per-listener settings.
+      test:
+        - CMD-SHELL
+        - >-
+          printf '%s\n' security.protocol=SASL_PLAINTEXT sasl.mechanism=PLAIN
+          "sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required username=\"admin\" password=\"$${HEALTHCHECK_ADMIN_PASSWORD}\";"
+          > /tmp/hc.properties &&
+          kafka-broker-api-versions --bootstrap-server localhost:9092 --command-config /tmp/hc.properties
       interval: 10s
       timeout: 10s
       retries: 15
+
+  # Creates the topics and the per-service ACLs, then exits. Services start after it succeeds.
+  kafka-setup:
+    image: confluentinc/cp-kafka:7.7.1
+    entrypoint: ["sh", "/setup/setup.sh"]
+    environment:
+      KAFKA_ADMIN_PASSWORD: ${KAFKA_ADMIN_PASSWORD:-admin-dev-only}
+    volumes:
+      - ./infrastructure/docker/kafka:/setup:ro
+    depends_on:
+      kafka:
+        condition: service_healthy
 
   # Captures outbound mail locally instead of delivering it.
   # Web UI: http://localhost:8025
@@ -369,6 +424,9 @@ services:
     environment:
       KAFKA_CLUSTERS_0_NAME: devforge-local
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+      KAFKA_CLUSTERS_0_PROPERTIES_SECURITY_PROTOCOL: SASL_PLAINTEXT
+      KAFKA_CLUSTERS_0_PROPERTIES_SASL_MECHANISM: PLAIN
+      KAFKA_CLUSTERS_0_PROPERTIES_SASL_JAAS_CONFIG: 'org.apache.kafka.common.security.plain.PlainLoginModule required username="admin" password="${KAFKA_ADMIN_PASSWORD:-admin-dev-only}";'
       DYNAMIC_CONFIG_ENABLED: "true"
     depends_on:
       - kafka
