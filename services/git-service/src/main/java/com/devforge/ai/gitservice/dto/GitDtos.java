@@ -178,9 +178,16 @@ public final class GitDtos {
   /** {@code current}: the approval is of the commit now at the source head. */
   public record ApprovalResponse(UUID userId, String userName, String commitId, boolean current, Instant createdAt) {}
 
-  public record CommentResponse(UUID id, UUID authorId, String authorName, String body, Instant createdAt) {}
+  /** {@code path} and {@code line} are null for a comment on the whole pull request. */
+  public record CommentResponse(
+      UUID id, UUID authorId, String authorName, String body, Instant createdAt, String path,
+      Integer line) {}
 
-  public record AddCommentRequest(@NotBlank @Size(max = 10000) String body) {}
+  /** Give {@code path} and {@code line} together to comment on a line, or neither. */
+  public record AddCommentRequest(
+      @NotBlank @Size(max = 10000) String body,
+      @Size(max = 1024) String path,
+      @jakarta.validation.constraints.Positive Integer line) {}
 
   public record MergeRulesRequest(
       @jakarta.validation.constraints.Min(0) @jakarta.validation.constraints.Max(10) int requiredApprovals) {}

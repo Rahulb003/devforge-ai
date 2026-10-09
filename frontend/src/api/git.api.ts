@@ -245,6 +245,24 @@ export interface PullRequestComment {
   authorName: string;
   body: string;
   createdAt: string;
+  /** Both null for a comment on the whole pull request. */
+  path: string | null;
+  line: number | null;
+}
+
+export interface DiffLine {
+  type: 'CONTEXT' | 'ADD' | 'DELETE';
+  oldLine: number | null;
+  newLine: number | null;
+  text: string;
+}
+
+export interface FileDiff {
+  path: string;
+  changeType: string;
+  binary: boolean;
+  truncated: boolean;
+  hunks: { oldStart: number; newStart: number; lines: DiffLine[] }[];
 }
 
 export interface OpenPullRequestData {
@@ -326,10 +344,11 @@ export const pullRequestApi = {
     repositoryId: string,
     number: number,
     body: string,
+    anchor?: { path: string; line: number },
   ) =>
     api.post<ApiEnvelope<PullRequestComment>>(
       `${pullRequests(organizationId, projectId, repositoryId)}/${number}/comments`,
-      { body },
+      { body, ...anchor },
     ),
 
   deleteComment: (
@@ -341,6 +360,18 @@ export const pullRequestApi = {
   ) =>
     api.delete(
       `${pullRequests(organizationId, projectId, repositoryId)}/${number}/comments/${commentId}`,
+    ),
+
+  fileDiff: (
+    organizationId: string,
+    projectId: string,
+    repositoryId: string,
+    number: number,
+    path: string,
+  ) =>
+    api.get<ApiEnvelope<FileDiff>>(
+      `${pullRequests(organizationId, projectId, repositoryId)}/${number}/diff/file`,
+      { params: { path } },
     ),
 
   /** Project admins only; the server answers 403 to anyone else. */

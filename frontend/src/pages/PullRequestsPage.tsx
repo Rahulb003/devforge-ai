@@ -7,10 +7,16 @@ import {
   GitPullRequest,
   XCircle,
 } from 'lucide-react';
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
-import type { PullRequest, PullRequestStatus } from '@/api/git.api';
+import type {
+  DiffLine,
+  FileDiff,
+  PullRequest,
+  PullRequestComment,
+  PullRequestStatus,
+} from '@/api/git.api';
 import { gitApi, pullRequestApi } from '@/api/git.api';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -398,6 +404,10 @@ export function PullRequestDetailPage() {
     onError: (err) => setCommentError(describeApiError(err)),
   });
 
+  const [openFile, setOpenFile] = useState<string | null>(null);
+  const generalComments = (comments.data ?? []).filter((c) => c.path === null);
+  const lineComments = (comments.data ?? []).length - generalComments.length;
+
   if (pr.isLoading) return <LoadingState label="Loading pull request…" />;
   if (pr.isError) {
     return <ErrorState message={describeApiError(pr.error)} onRetry={() => void pr.refetch()} />;
@@ -552,19 +562,38 @@ export function PullRequestDetailPage() {
         {diff.isSuccess && (
           <Card className="divide-y divide-slate-800 p-0">
             <ul>
-              {diff.data.entries.map((entry) => (
-                <li
-                  key={`${entry.oldPath}:${entry.newPath}`}
-                  className="flex items-center gap-3 px-5 py-2.5"
-                >
-                  <Badge tone="neutral">{entry.changeType.toLowerCase()}</Badge>
-                  <span className="flex-1 truncate font-mono text-sm text-slate-200">
-                    {entry.newPath ?? entry.oldPath}
-                  </span>
-                  <span className="text-xs text-emerald-400">+{entry.linesAdded}</span>
-                  <span className="text-xs text-red-400">−{entry.linesDeleted}</span>
-                </li>
-              ))}
+              {diff.data.entries.map((entry) => {
+                const path = entry.newPath ?? entry.oldPath ?? '';
+                const open = openFile === path;
+                return (
+                  <li key={`${entry.oldPath}:${entry.newPath}`}>
+                    <button
+                      type="button"
+                      aria-expanded={open}
+                      onClick={() => setOpenFile(open ? null : path)}
+                      className="flex w-full items-center gap-3 px-5 py-2.5 text-left hover:bg-slate-800/60"
+                    >
+                      <Badge tone="neutral">{entry.changeType.toLowerCase()}</Badge>
+                      <span className="flex-1 truncate font-mono text-sm text-slate-200">
+                        {path}
+                      </span>
+                      <span className="text-xs text-emerald-400">+{entry.linesAdded}</span>
+                      <span className="text-xs text-red-400">−{entry.linesDeleted}</span>
+                    </button>
+                    {open && (
+                      <FileDiffView
+                        organizationId={organizationId}
+                        projectId={projectId}
+                        repositoryId={repositoryId}
+                        number={number}
+                        path={path}
+                        comments={(comments.data ?? []).filter((c) => c.path === path)}
+                        onCommented={refreshComments}
+                      />
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           </Card>
         )}
@@ -581,12 +610,18 @@ export function PullRequestDetailPage() {
             onRetry={() => void comments.refetch()}
           />
         )}
-        {comments.isSuccess && comments.data.length === 0 && (
+        {lineComments > 0 && (
+          <p className="text-sm text-slate-400">
+            {lineComments} {lineComments === 1 ? 'comment is' : 'comments are'} on lines of the
+            changed files above.
+          </p>
+        )}
+        {comments.isSuccess && generalComments.length === 0 && (
           <p className="text-sm text-slate-400">No comments yet.</p>
         )}
-        {comments.isSuccess && comments.data.length > 0 && (
+        {comments.isSuccess && generalComments.length > 0 && (
           <ul aria-label="Comments" className="space-y-3">
-            {comments.data.map((comment) => (
+            {generalComments.map((comment) => (
               <li key={comment.id}>
                 <Card className="space-y-2">
                   <div className="flex items-center justify-between gap-3 text-xs text-slate-400">
@@ -643,6 +678,185 @@ export function PullRequestDetailPage() {
           </Button>
         </form>
       </section>
+    </div>
+  );
+}
+
+/**
+ * One changed file's lines, with comments on them. Lines on the side under review (the source
+ * branch) take comments; deleted lines do not, since there is no line there to anchor to.
+ */
+function FileDiffView({
+  organizationId,
+  projectId,
+  repositoryId,
+  number,
+  path,
+  comments,
+  onCommented,
+}: {
+  organizationId: string;
+  projectId: string;
+  repositoryId: string;
+  number: number;
+  path: string;
+  comments: PullRequestComment[];
+  onCommented: () => void;
+}) {
+  const [activeLine, setActiveLine] = useState<number | null>(null);
+  const [body, setBody] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const fileDiff = useQuery({
+    queryKey: ['pull-request-file-diff', repositoryId, number, path],
+    queryFn: async () =>
+      (await pullRequestApi.fileDiff(organizationId, projectId, repositoryId, number, path)).data
+        .data,
+  });
+  const comment = useMutation({
+    mutationFn: (line: number) =>
+      pullRequestApi.addComment(organizationId, projectId, repositoryId, number, body.trim(), {
+        path,
+        line,
+      }),
+    onSuccess: () => {
+      setBody('');
+      setActiveLine(null);
+      setError(null);
+      onCommented();
+    },
+    onError: (err) => setError(describeApiError(err)),
+  });
+
+  if (fileDiff.isLoading) return <LoadingState label="Loading the diff…" />;
+  if (fileDiff.isError) {
+    return (
+      <ErrorState
+        message={describeApiError(fileDiff.error)}
+        onRetry={() => void fileDiff.refetch()}
+      />
+    );
+  }
+  const data = fileDiff.data as FileDiff;
+  if (data.binary || data.truncated) {
+    return (
+      <p className="px-5 py-3 text-sm text-slate-400">
+        {data.binary ? 'Binary file: no lines to show.' : 'Too large to show line by line.'}
+      </p>
+    );
+  }
+
+  const ROW: Record<DiffLine['type'], string> = {
+    ADD: 'bg-emerald-500/10',
+    DELETE: 'bg-red-500/10',
+    CONTEXT: '',
+  };
+  const MARK: Record<DiffLine['type'], string> = { ADD: '+', DELETE: '−', CONTEXT: ' ' };
+
+  return (
+    <div className="overflow-x-auto border-t border-slate-800">
+      <table className="w-full border-collapse font-mono text-xs" aria-label={`Diff of ${path}`}>
+        <tbody>
+          {data.hunks.map((hunk) => (
+            <Fragment key={`${hunk.oldStart}:${hunk.newStart}`}>
+              <tr className="bg-slate-900 text-slate-400">
+                <td colSpan={4} className="px-3 py-1">
+                  @@ −{hunk.oldStart} +{hunk.newStart} @@
+                </td>
+              </tr>
+              {hunk.lines.map((line, index) => {
+                const onLine = comments.filter(
+                  (c) => line.newLine !== null && c.line === line.newLine,
+                );
+                return (
+                  <Fragment key={index}>
+                    <tr className={ROW[line.type]}>
+                      <td className="w-10 select-none px-2 text-right text-slate-400">
+                        {line.oldLine ?? ''}
+                      </td>
+                      <td className="w-10 select-none px-2 text-right text-slate-400">
+                        {line.newLine ?? ''}
+                      </td>
+                      <td className="whitespace-pre px-2 text-slate-200">
+                        {MARK[line.type]} {line.text}
+                      </td>
+                      <td className="w-8 px-1">
+                        {line.newLine !== null && (
+                          <button
+                            type="button"
+                            aria-label={`Comment on line ${line.newLine}`}
+                            onClick={() => setActiveLine(line.newLine)}
+                            className="rounded px-1 text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+                          >
+                            +
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                    {onLine.map((c) => (
+                      <tr key={c.id}>
+                        <td colSpan={4} className="px-3 py-2">
+                          <div className="rounded-lg border border-slate-700 bg-slate-900 p-2 font-sans text-sm">
+                            <span className="font-medium text-slate-300">{c.authorName}</span>{' '}
+                            <span className="text-slate-200">{c.body}</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                    {activeLine !== null && activeLine === line.newLine && (
+                      <tr>
+                        <td colSpan={4} className="px-3 py-2 font-sans">
+                          <form
+                            aria-label={`Comment on line ${activeLine}`}
+                            className="space-y-2"
+                            onSubmit={(event) => {
+                              event.preventDefault();
+                              if (body.trim()) comment.mutate(activeLine);
+                            }}
+                          >
+                            <label htmlFor="line-comment" className="sr-only">
+                              Line comment
+                            </label>
+                            <textarea
+                              id="line-comment"
+                              value={body}
+                              onChange={(event) => setBody(event.target.value)}
+                              rows={2}
+                              className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-100"
+                            />
+                            {error && (
+                              <p role="alert" className="text-sm text-red-300">
+                                {error}
+                              </p>
+                            )}
+                            <div className="flex gap-2">
+                              <Button
+                                type="submit"
+                                size="sm"
+                                loading={comment.isPending}
+                                disabled={!body.trim()}
+                              >
+                                Add comment
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="secondary"
+                                onClick={() => setActiveLine(null)}
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          </form>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              })}
+            </Fragment>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

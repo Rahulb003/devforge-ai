@@ -382,4 +382,75 @@ class PullRequestApiTest {
       send(get(prs() + "/1/comments"), null).andExpect(jsonPath("$.data.length()").value(1));
     }
   }
+
+  @Nested
+  @DisplayName("line-level review")
+  class LineReview {
+
+    /** Twenty numbered lines, so line numbers in the diff can be checked by eye. */
+    private String lines(java.util.function.IntFunction<String> line) {
+      var text = new StringBuilder();
+      for (int i = 1; i <= 20; i++) {
+        text.append(line.apply(i)).append('\n');
+      }
+      return text.toString();
+    }
+
+    @Test
+    @DisplayName("a file diff has hunks with context, and nearby edits share one hunk")
+    void fileDiffHunks() throws Exception {
+      // The file exists on main before the branch is cut, so the change is an edit, not an add.
+      commit(null, "list.txt", lines(i -> "line " + i));
+      branch("edit-list");
+      // Lines 5 and 8 are 3 apart: one hunk. Line 18 is far from both: a second.
+      commit("edit-list", "list.txt", lines(i -> i == 5 || i == 8 || i == 18 ? "changed " + i : "line " + i));
+      open("edit-list", "Edit list").andExpect(status().isCreated());
+
+      var diff = data(send(get(prs() + "/1/diff/file").param("path", "list.txt"), null)
+          .andExpect(status().isOk()));
+      assertThat(diff.path("hunks").size()).isEqualTo(2);
+      var first = diff.path("hunks").get(0);
+      assertThat(first.path("oldStart").asInt()).isEqualTo(2);
+      // Context, then line 5 deleted and re-added, more context, line 8, then context to 11.
+      var firstLines = first.path("lines");
+      assertThat(firstLines.get(0).path("type").asText()).isEqualTo("CONTEXT");
+      assertThat(firstLines.get(0).path("newLine").asInt()).isEqualTo(2);
+      var deleted = java.util.stream.StreamSupport.stream(firstLines.spliterator(), false)
+          .filter(l -> l.path("type").asText().equals("DELETE")).toList();
+      var added = java.util.stream.StreamSupport.stream(firstLines.spliterator(), false)
+          .filter(l -> l.path("type").asText().equals("ADD")).toList();
+      assertThat(deleted).extracting(l -> l.path("text").asText()).containsExactly("line 5", "line 8");
+      assertThat(added).extracting(l -> l.path("newLine").asInt()).containsExactly(5, 8);
+      assertThat(diff.path("hunks").get(1).path("lines").toString()).contains("changed 18");
+
+      send(get(prs() + "/1/diff/file").param("path", "untouched.txt"), null).andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("a line comment is accepted only on a line the change shows")
+    void lineCommentsAreAnchored() throws Exception {
+      commit(null, "list.txt", lines(i -> "line " + i));
+      branch("edit-list");
+      commit("edit-list", "list.txt", lines(i -> i == 10 ? "changed 10" : "line " + i));
+      open("edit-list", "Edit list").andExpect(status().isCreated());
+
+      send(post(prs() + "/1/comments"), Map.of("body", "Why?", "path", "list.txt", "line", 10))
+          .andExpect(status().isCreated())
+          .andExpect(jsonPath("$.data.path").value("list.txt"))
+          .andExpect(jsonPath("$.data.line").value(10));
+      // Line 1 is outside every hunk; the reviewer could not have seen it in this change.
+      send(post(prs() + "/1/comments"), Map.of("body", "?", "path", "list.txt", "line", 1))
+          .andExpect(status().isBadRequest());
+      send(post(prs() + "/1/comments"), Map.of("body", "?", "path", "README.md", "line", 1))
+          .andExpect(status().isNotFound());
+      send(post(prs() + "/1/comments"), Map.of("body", "?", "path", "list.txt"))
+          .andExpect(status().isBadRequest());
+      send(post(prs() + "/1/comments"), Map.of("body", "?", "path", "../escape", "line", 1))
+          .andExpect(status().isBadRequest());
+
+      send(get(prs() + "/1/comments"), null)
+          .andExpect(jsonPath("$.data.length()").value(1))
+          .andExpect(jsonPath("$.data[0].line").value(10));
+    }
+  }
 }

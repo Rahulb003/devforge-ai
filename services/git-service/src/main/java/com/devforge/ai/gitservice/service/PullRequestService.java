@@ -290,6 +290,25 @@ public class PullRequestService {
     var repository = load(organizationId, projectId, repositoryId, ProjectAccessClient.Access.WRITE);
     var user = access.requireCurrentUser();
     var entity = find(repository, number);
+
+    String path = null;
+    Integer line = null;
+    if (request.path() != null || request.line() != null) {
+      if (request.path() == null || request.line() == null) {
+        throw new IllegalArgumentException("A line comment needs both a path and a line");
+      }
+      path = GitPaths.requireSafeRepositoryPath(request.path());
+      line = request.line();
+      // Only on a file this pull request changes, and a line that exists on the side under review.
+      var diff = fileDiff(repository, entity, path);
+      final int wanted = line;
+      var onDiff = diff.hunks().stream().flatMap(h -> h.lines().stream())
+          .anyMatch(l -> l.newLine() != null && l.newLine() == wanted);
+      if (!onDiff) {
+        throw new IllegalArgumentException("Line " + line + " of " + path + " is not part of this change");
+      }
+    }
+
     return toComment(comments.save(PullRequestCommentEntity.builder()
         .id(UUID.randomUUID())
         .pullRequestId(entity.getId())
@@ -297,7 +316,31 @@ public class PullRequestService {
         .authorName(user.username())
         .body(request.body().trim())
         .createdAt(Instant.now())
+        .path(path)
+        .line(line)
         .build()));
+  }
+
+  /** One changed file's lines, for line-level review. */
+  @Transactional(readOnly = true)
+  public GitOperations.FileDiff fileDiff(
+      UUID organizationId, UUID projectId, UUID repositoryId, int number, String path) {
+    var repository = load(organizationId, projectId, repositoryId, ProjectAccessClient.Access.READ);
+    return fileDiff(repository, find(repository, number), GitPaths.requireSafeRepositoryPath(path));
+  }
+
+  /** The same range as {@link #diff}: what the pull request changes, open or merged. */
+  private GitOperations.FileDiff fileDiff(
+      RepositoryEntity repository, PullRequestEntity entity, String path) {
+    var directory = directory(repository);
+    if (entity.getStatus() == Status.MERGED) {
+      var merge = wrap(() -> git.commits(directory, entity.getMergeCommitId(), 0, 1)).get(0);
+      return wrap(() -> git.fileDiff(directory, merge.parentIds().get(0), merge.id(), path));
+    }
+    var preview = wrap(() -> git.previewMerge(
+        directory, entity.getTargetBranch(), entity.getSourceBranch()));
+    var from = preview.mergeBase() != null ? preview.mergeBase() : preview.targetHead();
+    return wrap(() -> git.fileDiff(directory, from, preview.sourceHead(), path));
   }
 
   /** Only the author deletes a comment. Someone else's is reported as not found, not forbidden. */
@@ -314,8 +357,8 @@ public class PullRequestService {
   }
 
   private static CommentResponse toComment(PullRequestCommentEntity row) {
-    return new CommentResponse(
-        row.getId(), row.getAuthorId(), row.getAuthorName(), row.getBody(), row.getCreatedAt());
+    return new CommentResponse(row.getId(), row.getAuthorId(), row.getAuthorName(), row.getBody(),
+        row.getCreatedAt(), row.getPath(), row.getLine());
   }
 
   // ---------------------------------------------------------------- helpers

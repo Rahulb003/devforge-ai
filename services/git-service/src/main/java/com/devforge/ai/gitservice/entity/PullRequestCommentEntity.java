@@ -38,4 +38,12 @@ public class PullRequestCommentEntity {
 
   @Column(name = "created_at", nullable = false, updatable = false)
   private Instant createdAt;
+
+  /** The changed file the comment is on, or null for a comment on the whole pull request. */
+  @Column(name = "path", updatable = false, length = 1024)
+  private String path;
+
+  /** Line in the source-side version of {@code path}; null with it. */
+  @Column(name = "line", updatable = false)
+  private Integer line;
 }

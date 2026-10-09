@@ -71,6 +71,18 @@ public class PullRequestController {
         pullRequests.diff(organizationId, projectId, repositoryId, number), null));
   }
 
+  /** One changed file's lines. The path is a query parameter, as for blobs: it contains slashes. */
+  @GetMapping("/{number}/diff/file")
+  public ResponseEntity<ApiResponse<com.devforge.ai.gitservice.git.GitOperations.FileDiff>> fileDiff(
+      @PathVariable UUID organizationId,
+      @PathVariable UUID projectId,
+      @PathVariable UUID repositoryId,
+      @PathVariable int number,
+      @RequestParam String path) {
+    return ResponseEntity.ok(new ApiResponse<>(true,
+        pullRequests.fileDiff(organizationId, projectId, repositoryId, number, path), null));
+  }
+
   @PostMapping("/{number}/merge")
   public ResponseEntity<ApiResponse<PullRequestResponse>> merge(
       @PathVariable UUID organizationId,

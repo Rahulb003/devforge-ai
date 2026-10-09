@@ -77,6 +77,16 @@ test.describe('Pull requests', () => {
     await expect(changed.getByRole('listitem')).toHaveCount(1);
     await expect(changed.getByText('login.ts')).toBeVisible();
 
+    // The file opens into its lines, and a line takes a comment that then shows on it.
+    await changed.getByRole('button', { name: /login\.ts/ }).click();
+    const fileDiff = page.getByRole('table', { name: 'Diff of login.ts' });
+    await expect(fileDiff.getByText('export const login = true;')).toBeVisible();
+    await fileDiff.getByRole('button', { name: 'Comment on line 1' }).click();
+    await fileDiff.getByLabel('Line comment').fill('Should this be configurable?');
+    await fileDiff.getByRole('button', { name: 'Add comment' }).click();
+    await expect(fileDiff.getByText('Should this be configurable?')).toBeVisible();
+    await expect(page.getByText(/1 comment is on lines of the changed files/)).toBeVisible();
+
     await page.getByRole('button', { name: 'Merge', exact: true }).click();
     await expect(page.getByText('Merged', { exact: true })).toBeVisible();
     await expect(page.getByText(/Merged as [0-9a-f]{7}/)).toBeVisible();

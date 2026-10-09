@@ -31,6 +31,7 @@ import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.FileMode;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.ObjectInserter;
+import org.eclipse.jgit.lib.ObjectReader;
 import org.eclipse.jgit.lib.PersonIdent;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.revwalk.RevCommit;
@@ -419,6 +420,124 @@ public class GitOperations {
         return result;
       }
     }
+  }
+
+  /** One line of a file diff. {@code type} is CONTEXT, ADD or DELETE; absent sides are null. */
+  public record DiffLine(String type, Integer oldLine, Integer newLine, String text) {}
+
+  /** A run of changes with the context around it. */
+  public record DiffHunk(int oldStart, int newStart, List<DiffLine> lines) {}
+
+  /**
+   * One file's changes between two commits, as hunks of lines.
+   *
+   * @param binary true when either side is binary: there are no lines to show
+   * @param truncated true when either side exceeds the blob limit: no lines are shown rather than a
+   *     misleading partial diff
+   */
+  public record FileDiff(String path, String changeType, boolean binary, boolean truncated,
+      List<DiffHunk> hunks) {}
+
+  private static final int CONTEXT_LINES = 3;
+
+  /** The diff of {@code path} between {@code from} and {@code to}, for line-level review. */
+  public FileDiff fileDiff(Path directory, String from, String to, String path) throws IOException {
+    try (var repository = open(directory)) {
+      var fromCommit = parse(repository, from);
+      var toCommit = parse(repository, to);
+      try (var formatter = new DiffFormatter(DisabledOutputStream.INSTANCE);
+          var reader = repository.newObjectReader()) {
+        formatter.setRepository(repository);
+        formatter.setDetectRenames(true);
+        var oldTree = new CanonicalTreeParser();
+        oldTree.reset(reader, fromCommit.getTree());
+        var newTree = new CanonicalTreeParser();
+        newTree.reset(reader, toCommit.getTree());
+
+        var entry = formatter.scan(oldTree, newTree).stream()
+            .filter(e -> path.equals(e.getNewPath()) || path.equals(e.getOldPath()))
+            .findFirst()
+            .orElseThrow(() -> new ResourceNotFoundException("No change to " + path + " in this diff"));
+
+        var oldText = text(reader, entry.getOldId().toObjectId(), entry.getChangeType() == DiffEntry.ChangeType.ADD);
+        var newText = text(reader, entry.getNewId().toObjectId(), entry.getChangeType() == DiffEntry.ChangeType.DELETE);
+        if (oldText == BINARY || newText == BINARY || oldText == TOO_LARGE || newText == TOO_LARGE) {
+          return new FileDiff(path, entry.getChangeType().name(),
+              oldText == BINARY || newText == BINARY,
+              oldText == TOO_LARGE || newText == TOO_LARGE, List.of());
+        }
+
+        var a = new org.eclipse.jgit.diff.RawText(oldText.getBytes(StandardCharsets.UTF_8));
+        var b = new org.eclipse.jgit.diff.RawText(newText.getBytes(StandardCharsets.UTF_8));
+        var edits = org.eclipse.jgit.diff.DiffAlgorithm
+            .getAlgorithm(org.eclipse.jgit.diff.DiffAlgorithm.SupportedAlgorithm.HISTOGRAM)
+            .diff(org.eclipse.jgit.diff.RawTextComparator.DEFAULT, a, b);
+        return new FileDiff(path, entry.getChangeType().name(), false, false, hunks(a, b, edits));
+      }
+    }
+  }
+
+  // Sentinels for "no text to diff"; compared by identity.
+  private static final String BINARY = new String("binary");
+  private static final String TOO_LARGE = new String("too large");
+
+  private String text(ObjectReader reader, ObjectId id, boolean absent) throws IOException {
+    if (absent || id.equals(ObjectId.zeroId())) {
+      return "";
+    }
+    var loader = reader.open(id);
+    if (loader.getSize() > maxBlobBytes) {
+      return TOO_LARGE;
+    }
+    var bytes = loader.getBytes();
+    if (org.eclipse.jgit.diff.RawText.isBinary(bytes)) {
+      return BINARY;
+    }
+    return new String(bytes, StandardCharsets.UTF_8);
+  }
+
+  /** Groups edits into hunks with {@link #CONTEXT_LINES} of context, merging hunks that touch. */
+  private static List<DiffHunk> hunks(
+      org.eclipse.jgit.diff.RawText a, org.eclipse.jgit.diff.RawText b, List<Edit> edits) {
+    var hunks = new ArrayList<DiffHunk>();
+    int i = 0;
+    while (i < edits.size()) {
+      // Extend the hunk over every edit whose context overlaps the previous one's.
+      int j = i;
+      while (j + 1 < edits.size()
+          && edits.get(j + 1).getBeginA() - edits.get(j).getEndA() <= 2 * CONTEXT_LINES) {
+        j++;
+      }
+      var first = edits.get(i);
+      var last = edits.get(j);
+      int aStart = Math.max(0, first.getBeginA() - CONTEXT_LINES);
+      int bStart = Math.max(0, first.getBeginB() - CONTEXT_LINES);
+      int aEnd = Math.min(a.size(), last.getEndA() + CONTEXT_LINES);
+
+      var lines = new ArrayList<DiffLine>();
+      int ai = aStart;
+      int bi = bStart;
+      for (int k = i; k <= j; k++) {
+        var edit = edits.get(k);
+        for (; ai < edit.getBeginA(); ai++, bi++) {
+          lines.add(new DiffLine("CONTEXT", ai + 1, bi + 1, a.getString(ai)));
+        }
+        for (int x = edit.getBeginA(); x < edit.getEndA(); x++) {
+          lines.add(new DiffLine("DELETE", x + 1, null, a.getString(x)));
+        }
+        for (int y = edit.getBeginB(); y < edit.getEndB(); y++) {
+          lines.add(new DiffLine("ADD", null, y + 1, b.getString(y)));
+        }
+        ai = edit.getEndA();
+        bi = edit.getEndB();
+      }
+      for (; ai < aEnd && bi < b.size(); ai++, bi++) {
+        lines.add(new DiffLine("CONTEXT", ai + 1, bi + 1, a.getString(ai)));
+      }
+      hunks.add(new DiffHunk(aStart + 1, bStart + 1, lines));
+      i = j + 1;
+    }
+    return hunks;
   }
 
   /**

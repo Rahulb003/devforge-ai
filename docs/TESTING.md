@@ -11,7 +11,7 @@ How the suites are built and why they are built that way. What is planned but un
 
 | Suite | Command | Count | Result |
 |---|---|---|---|
-| Backend | `mvn -B -ntp -f backend/pom.xml test` | 503 | PASS |
+| Backend | `mvn -B -ntp -f backend/pom.xml test` | 505 | PASS |
 | Frontend unit | `cd frontend && npm test` | 79 | PASS |
 | Browser end-to-end | `cd frontend && npm run test:e2e` | 49 | PASS |
 | Testcontainers | — | 0 | **UNVERIFIED** — needs Docker |
@@ -26,7 +26,7 @@ Backend, by module:
 | auth-service | 96 |
 | project-service | 23 |
 | task-service | 29 |
-| git-service | 137 |
+| git-service | 140 |
 | review-service | 83 |
 | documentation-service | 31 |
 | analytics-service | 14 |
