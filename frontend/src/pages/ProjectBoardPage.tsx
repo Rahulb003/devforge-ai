@@ -146,7 +146,7 @@ export function ProjectBoardPage() {
                   {project.data?.status}
                 </Badge>
               </div>
-              <p className="mt-1 font-mono text-sm text-slate-500">{projectKey}</p>
+              <p className="mt-1 font-mono text-sm text-slate-400">{projectKey}</p>
             </>
           )}
         </div>
@@ -290,7 +290,7 @@ export function ProjectBoardPage() {
                   ))}
 
                   {tasks.length === 0 && (
-                    <p className="px-1 py-6 text-center text-xs text-slate-600">Nothing here yet</p>
+                    <p className="px-1 py-6 text-center text-xs text-slate-400">Nothing here yet</p>
                   )}
                 </div>
               </section>

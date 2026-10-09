@@ -103,13 +103,13 @@ export function ChatPage() {
             <li key={m.id} className="rounded-2xl border border-slate-800 bg-slate-900 px-4 py-3">
               <div className="flex items-baseline justify-between gap-3">
                 <p className="text-sm font-semibold text-slate-200">{m.authorName}</p>
-                <time className="text-xs text-slate-500" dateTime={m.createdAt}>
+                <time className="text-xs text-slate-400" dateTime={m.createdAt}>
                   {new Date(m.createdAt).toLocaleTimeString()}
                   {m.edited && ' · edited'}
                 </time>
               </div>
               {m.deleted ? (
-                <p className="mt-1 text-sm italic text-slate-500">Message deleted</p>
+                <p className="mt-1 text-sm italic text-slate-400">Message deleted</p>
               ) : (
                 // Plain text: React escapes it, so a message cannot inject markup.
                 <p className="mt-1 whitespace-pre-wrap wrap-break-word text-sm text-slate-300">
@@ -120,7 +120,7 @@ export function ChatPage() {
                 <button
                   type="button"
                   onClick={() => remove.mutate(m.id)}
-                  className="mt-2 text-xs text-slate-500 hover:text-red-300"
+                  className="mt-2 text-xs text-slate-400 hover:text-red-300"
                   aria-label={`Delete your message: ${m.body ?? ''}`}
                 >
                   Delete

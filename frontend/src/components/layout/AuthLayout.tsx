@@ -8,7 +8,7 @@ export function AuthLayout() {
         <div className="rounded-3xl border border-slate-800 bg-slate-900 p-8 shadow-xl">
           <Outlet />
         </div>
-        <p className="mt-6 text-center text-xs text-slate-600">
+        <p className="mt-6 text-center text-xs text-slate-400">
           DevForge AI — Build. Review. Test. Deploy. Collaborate.
         </p>
       </main>

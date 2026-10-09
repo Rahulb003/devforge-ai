@@ -139,7 +139,7 @@ export function SprintPanel({
       {sprints.isLoading && <Skeleton className="h-16" />}
 
       {sprints.isSuccess && sprints.data.length === 0 && !creating && (
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-slate-400">
           No sprints yet. Create one to plan a slice of the backlog.
         </p>
       )}
@@ -156,7 +156,7 @@ export function SprintPanel({
                   <p className="font-medium text-slate-200">{sprint.name}</p>
                   <Badge tone={statusTone[sprint.status]}>{sprint.status}</Badge>
                 </div>
-                <p className="mt-1 text-xs text-slate-500">
+                <p className="mt-1 text-xs text-slate-400">
                   {sprint.completedTasks} of {sprint.totalTasks} done ({progress(sprint)}%)
                 </p>
               </div>

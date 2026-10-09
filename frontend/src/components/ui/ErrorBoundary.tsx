@@ -67,7 +67,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
           {isDev && this.state.error && (
             <div className="mt-6 space-y-3">
               <div>
-                <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Error</p>
+                <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Error</p>
                 <pre className="mt-1 overflow-x-auto whitespace-pre-wrap rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-xs text-red-300">
                   {this.state.error.message}
                 </pre>
@@ -75,7 +75,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
               {this.state.componentStack && (
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
+                  <p className="text-xs font-medium uppercase tracking-wider text-slate-400">
                     Component stack
                   </p>
                   <pre className="mt-1 max-h-60 overflow-auto whitespace-pre-wrap rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-xs text-slate-400">
@@ -89,7 +89,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
           <button
             type="button"
             onClick={this.handleReload}
-            className="mt-6 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-indigo-500 px-5 text-sm font-semibold text-white transition hover:bg-indigo-400 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
+            className="mt-6 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-indigo-500 px-5 text-sm font-semibold text-on-accent transition hover:bg-indigo-400 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
           >
             <RefreshCw className="h-4 w-4" aria-hidden="true" />
             Reload

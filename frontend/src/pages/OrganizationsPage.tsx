@@ -172,7 +172,7 @@ export function OrganizationsPage() {
                   </Badge>
                 </div>
                 <h2 className="mt-4 font-semibold text-white">{organization.name}</h2>
-                <p className="mt-1 text-sm text-slate-500">/{organization.slug}</p>
+                <p className="mt-1 text-sm text-slate-400">/{organization.slug}</p>
                 {organization.description && (
                   <p className="mt-2 line-clamp-2 text-sm text-slate-400">
                     {organization.description}

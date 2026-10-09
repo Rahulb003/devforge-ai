@@ -45,7 +45,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
           aria-describedby={error ? errorId : hint ? hintId : undefined}
           className={cn(
             'w-full rounded-xl border bg-slate-900 px-4 py-3 text-sm text-slate-100',
-            'placeholder:text-slate-500',
+            'placeholder:text-slate-400',
             'focus:outline-solid focus:outline-2 focus:outline-offset-2',
             error
               ? 'border-red-500/70 focus:outline-red-400'
@@ -75,7 +75,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
           {error}
         </p>
       ) : hint ? (
-        <p id={hintId} className="text-sm text-slate-500">
+        <p id={hintId} className="text-sm text-slate-400">
           {hint}
         </p>
       ) : null}

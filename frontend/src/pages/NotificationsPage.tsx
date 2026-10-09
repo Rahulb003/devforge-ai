@@ -211,7 +211,7 @@ function NotificationRow({
               </span>
             )}
           </p>
-          <time className="shrink-0 text-xs text-slate-500" dateTime={notification.createdAt}>
+          <time className="shrink-0 text-xs text-slate-400" dateTime={notification.createdAt}>
             {relativeTime(notification.createdAt)}
           </time>
         </div>
@@ -247,7 +247,7 @@ function NotificationRow({
             type="button"
             onClick={onRemove}
             aria-label={`Delete notification: ${notification.title}`}
-            className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-slate-500 transition hover:bg-slate-800 hover:text-red-300 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-indigo-400"
+            className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-slate-400 transition hover:bg-slate-800 hover:text-red-300 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-indigo-400"
           >
             <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
             Delete

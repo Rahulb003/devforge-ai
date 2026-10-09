@@ -109,13 +109,13 @@ export function SessionsSection() {
             >
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <Monitor className="h-4 w-4 shrink-0 text-slate-500" aria-hidden="true" />
+                  <Monitor className="h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" />
                   <p className="truncate font-medium text-slate-200">
                     {session.deviceLabel ?? 'Unknown device'}
                   </p>
                   {session.current && <Badge tone="info">This device</Badge>}
                 </div>
-                <p className="mt-1 text-xs text-slate-500">
+                <p className="mt-1 text-xs text-slate-400">
                   {session.ipAddress ?? 'unknown IP'} · signed in {formatWhen(session.createdAt)} ·
                   last used {formatWhen(session.lastUsedAt)}
                 </p>

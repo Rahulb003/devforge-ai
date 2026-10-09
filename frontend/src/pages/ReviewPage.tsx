@@ -339,7 +339,7 @@ function FindingRow({
           <p className="mt-2 font-mono text-sm text-slate-300">
             {finding.filePath}
             {finding.lineNumber !== null && (
-              <span className="text-slate-500">:{finding.lineNumber}</span>
+              <span className="text-slate-400">:{finding.lineNumber}</span>
             )}
           </p>
 
@@ -353,7 +353,7 @@ function FindingRow({
           )}
 
           {finding.dismissed && finding.dismissReason && (
-            <p className="mt-3 text-xs text-slate-500">Dismissed: {finding.dismissReason}</p>
+            <p className="mt-3 text-xs text-slate-400">Dismissed: {finding.dismissReason}</p>
           )}
 
           {rowError && (
@@ -402,7 +402,7 @@ function FindingRow({
                   Cancel
                 </Button>
               </div>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-400">
                 A reason is required, and dismissing does not change the gate result.
               </p>
             </div>

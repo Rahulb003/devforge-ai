@@ -13,7 +13,7 @@ How the suites are built and why they are built that way. What is planned but un
 |---|---|---|---|
 | Backend | `mvn -B -ntp -f backend/pom.xml test` | 503 | PASS |
 | Frontend unit | `cd frontend && npm test` | 79 | PASS |
-| Browser end-to-end | `cd frontend && npm run test:e2e` | 44 | PASS |
+| Browser end-to-end | `cd frontend && npm run test:e2e` | 49 | PASS |
 | Testcontainers | — | 0 | **UNVERIFIED** — needs Docker |
 
 Backend, by module:

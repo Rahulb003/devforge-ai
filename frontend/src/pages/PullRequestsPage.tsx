@@ -291,9 +291,9 @@ export function PullRequestsPage() {
                   to={`${repositoryPath}/pull-requests/${pr.number}`}
                   className="flex items-center gap-3 px-5 py-3 transition hover:bg-slate-800/60"
                 >
-                  <span className="text-sm text-slate-500">#{pr.number}</span>
+                  <span className="text-sm text-slate-400">#{pr.number}</span>
                   <span className="flex-1 truncate text-sm text-slate-100">{pr.title}</span>
-                  <span className="font-mono text-xs text-slate-500">
+                  <span className="font-mono text-xs text-slate-400">
                     {pr.sourceBranch} → {pr.targetBranch}
                   </span>
                   <Badge tone={STATUS_TONE[pr.status]}>{STATUS_LABEL[pr.status]}</Badge>
@@ -424,7 +424,7 @@ export function PullRequestDetailPage() {
 
       <header className="space-y-2">
         <h1 className="text-2xl font-semibold text-white">
-          {data.title} <span className="text-slate-500">#{data.number}</span>
+          {data.title} <span className="text-slate-400">#{data.number}</span>
         </h1>
         <div className="flex flex-wrap items-center gap-3 text-sm text-slate-400">
           <Badge tone={STATUS_TONE[data.status]}>{STATUS_LABEL[data.status]}</Badge>
@@ -582,14 +582,14 @@ export function PullRequestDetailPage() {
           />
         )}
         {comments.isSuccess && comments.data.length === 0 && (
-          <p className="text-sm text-slate-500">No comments yet.</p>
+          <p className="text-sm text-slate-400">No comments yet.</p>
         )}
         {comments.isSuccess && comments.data.length > 0 && (
           <ul aria-label="Comments" className="space-y-3">
             {comments.data.map((comment) => (
               <li key={comment.id}>
                 <Card className="space-y-2">
-                  <div className="flex items-center justify-between gap-3 text-xs text-slate-500">
+                  <div className="flex items-center justify-between gap-3 text-xs text-slate-400">
                     <span>
                       <span className="font-medium text-slate-300">{comment.authorName}</span> ·{' '}
                       {new Date(comment.createdAt).toLocaleString()}

@@ -43,7 +43,7 @@ export function NotificationBell() {
           // aria-hidden because the count is already in the link's accessible
           // name; announcing it twice is worse than not at all.
           aria-hidden="true"
-          className="absolute -right-1 -top-1 grid min-w-5 place-items-center rounded-full bg-indigo-500 px-1 text-xs font-semibold text-white"
+          className="absolute -right-1 -top-1 grid min-w-5 place-items-center rounded-full bg-indigo-500 px-1 text-xs font-semibold text-on-accent"
         >
           {count > 99 ? '99+' : count}
         </span>

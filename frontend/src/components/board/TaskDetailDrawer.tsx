@@ -138,7 +138,7 @@ export function TaskDetailDrawer({
       >
         <header className="flex items-start justify-between gap-4 border-b border-slate-800 p-6">
           <div className="min-w-0">
-            <p className="font-mono text-xs text-slate-500">
+            <p className="font-mono text-xs text-slate-400">
               {projectKey}-{task.taskNumber}
             </p>
             <h2 className="mt-1 text-lg font-semibold text-white">{task.title}</h2>
@@ -200,7 +200,7 @@ export function TaskDetailDrawer({
                       type="button"
                       onClick={() => removeLabel.mutate(label)}
                       aria-label={`Remove label ${label}`}
-                      className="rounded p-0.5 text-slate-500 hover:text-red-400 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-indigo-400"
+                      className="rounded p-0.5 text-slate-400 hover:text-red-400 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-indigo-400"
                     >
                       <X className="h-3 w-3" aria-hidden="true" />
                     </button>
@@ -208,7 +208,7 @@ export function TaskDetailDrawer({
                 ))}
               </ul>
             ) : (
-              <p className="mt-2 text-sm text-slate-500">No labels.</p>
+              <p className="mt-2 text-sm text-slate-400">No labels.</p>
             )}
 
             <form
@@ -243,7 +243,7 @@ export function TaskDetailDrawer({
             {comments.isLoading && <LoadingState label="Loading comments…" />}
 
             {comments.isSuccess && comments.data.length === 0 && (
-              <p className="mt-2 text-sm text-slate-500">No comments yet.</p>
+              <p className="mt-2 text-sm text-slate-400">No comments yet.</p>
             )}
 
             {comments.isSuccess && comments.data.length > 0 && (
@@ -262,13 +262,13 @@ export function TaskDetailDrawer({
                           type="button"
                           onClick={() => deleteComment.mutate(entry.id)}
                           aria-label="Delete comment"
-                          className="rounded p-1 text-slate-500 hover:text-red-400 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-indigo-400"
+                          className="rounded p-1 text-slate-400 hover:text-red-400 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-indigo-400"
                         >
                           <Trash2 className="h-4 w-4" aria-hidden="true" />
                         </button>
                       )}
                     </div>
-                    <p className="mt-1 text-xs text-slate-600">
+                    <p className="mt-1 text-xs text-slate-400">
                       {new Date(entry.createdAt).toLocaleString()}
                     </p>
                   </li>

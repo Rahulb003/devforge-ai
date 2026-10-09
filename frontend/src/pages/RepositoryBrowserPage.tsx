@@ -601,7 +601,7 @@ export function RepositoryBrowserPage() {
                 const upTo = segments.slice(0, index + 1).join('/');
                 return (
                   <span key={upTo} className="flex items-center gap-1">
-                    <span className="text-slate-600">/</span>
+                    <span className="text-slate-400">/</span>
                     {isLast ? (
                       <span className="text-slate-300">{segment}</span>
                     ) : (
@@ -761,12 +761,12 @@ function TreeListing({
               {entry.type === 'DIRECTORY' ? (
                 <Folder className="h-4 w-4 shrink-0 text-indigo-400" aria-hidden="true" />
               ) : (
-                <FileIcon className="h-4 w-4 shrink-0 text-slate-500" aria-hidden="true" />
+                <FileIcon className="h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" />
               )}
               <span className="flex-1 truncate text-sm text-slate-200">{entry.name}</span>
               {/* Announced as part of the row, since the type is otherwise conveyed by icon alone. */}
               <span className="sr-only">{entry.type === 'DIRECTORY' ? 'directory' : 'file'}</span>
-              <span className="shrink-0 text-xs text-slate-500">{formatBytes(entry.size)}</span>
+              <span className="shrink-0 text-xs text-slate-400">{formatBytes(entry.size)}</span>
             </button>
           </li>
         ))}
@@ -848,7 +848,7 @@ function FileView({
               <tr key={index} className="hover:bg-slate-800/40">
                 <td
                   aria-hidden="true"
-                  className="w-12 select-none border-r border-slate-800 px-3 py-0.5 text-right align-top text-xs text-slate-600"
+                  className="w-12 select-none border-r border-slate-800 px-3 py-0.5 text-right align-top text-xs text-slate-400"
                 >
                   {index + 1}
                 </td>
@@ -989,7 +989,7 @@ function CommitList({
                 {commit.shortId}
               </code>
             </div>
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-1 text-xs text-slate-400">
               {commit.authorName ?? 'unknown'}
               {' · '}
               <time dateTime={commit.committedAt}>{relativeTime(commit.committedAt)}</time>

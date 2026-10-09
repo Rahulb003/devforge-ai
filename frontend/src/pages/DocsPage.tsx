@@ -142,7 +142,7 @@ export function DocsPage() {
 
       {docSet?.status === 'COMPLETED' && (
         <>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-slate-400">
             Generated from <span className="font-mono text-slate-400">{docSet.ref}</span> ·{' '}
             {docSet.filesScanned} file{docSet.filesScanned === 1 ? '' : 's'} scanned
           </p>
@@ -186,7 +186,7 @@ export function DocsPage() {
           )}
 
           {available.length > 0 && !selected && (
-            <p className="text-sm text-slate-500">Choose a document above to read it.</p>
+            <p className="text-sm text-slate-400">Choose a document above to read it.</p>
           )}
 
           {selected && current.isLoading && <LoadingState label="Loading document…" />}

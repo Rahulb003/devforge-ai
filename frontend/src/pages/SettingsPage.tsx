@@ -23,17 +23,17 @@ export function SettingsPage() {
         <CardHeader title="Profile" description="Details from your account." />
         <dl className="grid gap-4 sm:grid-cols-2">
           <div>
-            <dt className="text-sm text-slate-500">Name</dt>
+            <dt className="text-sm text-slate-400">Name</dt>
             <dd className="mt-1 text-slate-200">
               {user ? `${user.firstName} ${user.lastName}` : '—'}
             </dd>
           </div>
           <div>
-            <dt className="text-sm text-slate-500">Username</dt>
+            <dt className="text-sm text-slate-400">Username</dt>
             <dd className="mt-1 text-slate-200">{user?.username ?? '—'}</dd>
           </div>
           <div>
-            <dt className="text-sm text-slate-500">Email</dt>
+            <dt className="text-sm text-slate-400">Email</dt>
             <dd className="mt-1 flex items-center gap-2 text-slate-200">
               {user?.email ?? '—'}
               {user && (
@@ -44,11 +44,11 @@ export function SettingsPage() {
             </dd>
           </div>
           <div>
-            <dt className="text-sm text-slate-500">Roles</dt>
+            <dt className="text-sm text-slate-400">Roles</dt>
             <dd className="mt-1 text-slate-200">{user?.roles?.join(', ') ?? '—'}</dd>
           </div>
         </dl>
-        <p className="mt-5 text-xs text-slate-500">
+        <p className="mt-5 text-xs text-slate-400">
           Editing your profile is not built yet — the backend has no update endpoint for it.
         </p>
       </Card>

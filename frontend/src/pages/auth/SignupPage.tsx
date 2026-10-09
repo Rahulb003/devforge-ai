@@ -79,7 +79,7 @@ export function SignupPage() {
 
         {needsVerification && (
           <div className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-left">
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-400">
               Running locally with the development mail provider? Nothing was actually sent — open
               the captured message to continue.
             </p>
@@ -183,7 +183,7 @@ export function SignupPage() {
             <p className="text-xs text-slate-400" aria-live="polite">
               {strength.label}
               {strength.suggestion && (
-                <span className="text-slate-500"> — {strength.suggestion}</span>
+                <span className="text-slate-400"> — {strength.suggestion}</span>
               )}
             </p>
           </div>

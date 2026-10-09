@@ -47,7 +47,7 @@ export function AppLayout() {
     : '';
 
   return (
-    <div className={`min-h-screen bg-slate-950 text-slate-100 ${theme === 'dark' ? 'dark' : ''}`}>
+    <div className="min-h-screen bg-slate-950 text-slate-100">
       <div className="flex min-h-screen">
         <aside className="hidden w-72 border-r border-slate-800 bg-slate-900 px-6 py-8 lg:block">
           <div className="mb-10">
@@ -85,7 +85,7 @@ export function AppLayout() {
         <main className="flex-1 bg-slate-950">
           <header className="flex items-center justify-between border-b border-slate-800 bg-slate-900 px-6 py-4">
             <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Workspace</p>
+              <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Workspace</p>
               <p className="text-lg font-semibold text-white">
                 {user ? `${user.firstName} ${user.lastName}` : 'DevForge'}
               </p>

@@ -60,7 +60,7 @@ export function DashboardPage() {
             <p className="text-sm text-slate-400">Account</p>
           </div>
           <p className="mt-4 text-lg font-semibold text-white">{user?.status ?? '—'}</p>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-slate-400">
             {user?.emailVerified ? 'Email verified' : 'Email not verified'}
           </p>
         </Card>

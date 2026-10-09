@@ -37,7 +37,7 @@ section count would overstate progress.
 | 7 | Documentation set (11 files) | `IMPLEMENTED` | all 11 present as of this commit |
 | 15 | Container images | `IMPLEMENTED` | All images build in CI, run non-root, and each service container starts healthy; frontend container serves its security headers. Multi-container runtime with real infrastructure **UNVERIFIED** |
 | 16 | Secrets and configuration hygiene | `IMPLEMENTED` | no fallbacks for credentials in the default profile; secrets gitignored |
-| 17 | Build must be green | `IMPLEMENTED` | 503 backend + 79 frontend + 44 e2e, all passing |
+| 17 | Build must be green | `IMPLEMENTED` | 503 backend + 79 frontend + 49 e2e, all passing |
 | 18 | RabbitMQ removed unless justified | `IMPLEMENTED` | removed from five places; justification in `EVENT_CATALOG.md` §1 |
 
 ## Identity and access
@@ -94,7 +94,7 @@ section count would overstate progress.
 | 42 | Kanban board | `IMPLEMENTED` | reachable by clicking from a project |
 | 43 | Notification surface | `IMPLEMENTED` | bell with unread badge, feed page |
 | 44 | Loading/empty/error states everywhere | `IMPLEMENTED` for shipped screens | asserted per screen in tests |
-| 45 | Accessibility | `PARTIALLY_IMPLEMENTED` | role-based queries, accessible names on icon-only controls, status not conveyed by colour alone. No axe run, no keyboard-navigation suite |
+| 45 | Accessibility | `PARTIALLY_IMPLEMENTED` | axe (WCAG 2.1 A/AA) runs in the browser suite on every main page in both themes and fails on serious or critical violations: none remain. Automated checks find about a third of real issues; no screen-reader or keyboard-only audit by a person yet |
 
 ## Operations
 

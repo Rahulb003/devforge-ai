@@ -16,11 +16,11 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variants: Record<Variant, string> = {
-  primary: 'bg-indigo-500 text-white hover:bg-indigo-400 focus-visible:outline-indigo-400',
+  primary: 'bg-indigo-500 text-on-accent hover:bg-indigo-400 focus-visible:outline-indigo-400',
   secondary:
     'border border-slate-700 bg-slate-800 text-slate-100 hover:border-slate-600 hover:bg-slate-750 focus-visible:outline-slate-500',
   ghost: 'text-slate-300 hover:bg-slate-800 hover:text-white focus-visible:outline-slate-500',
-  danger: 'bg-red-600 text-white hover:bg-red-500 focus-visible:outline-red-400',
+  danger: 'bg-red-600 text-on-accent hover:bg-red-500 focus-visible:outline-red-400',
 };
 
 const sizes: Record<Size, string> = {

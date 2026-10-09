@@ -97,7 +97,7 @@ export function AnalyticsPage() {
             </table>
           </Card>
 
-          <p className="text-xs text-slate-500">{data.completeness}</p>
+          <p className="text-xs text-slate-400">{data.completeness}</p>
         </>
       )}
 
@@ -172,12 +172,12 @@ function AuditLog({ organizationId, projectId }: { organizationId: string; proje
         <ErrorState message={describeApiError(audit.error)} onRetry={() => void audit.refetch()} />
       )}
       {audit.isSuccess && audit.data.content.length === 0 && (
-        <p className="text-sm text-slate-500">Nothing recorded yet.</p>
+        <p className="text-sm text-slate-400">Nothing recorded yet.</p>
       )}
       {audit.isSuccess && audit.data.content.length > 0 && (
         <Card className="overflow-x-auto p-0">
           <table className="w-full text-left text-sm" aria-label="Audit log">
-            <thead className="text-xs text-slate-500">
+            <thead className="text-xs text-slate-400">
               <tr>
                 <th className="px-4 py-2 font-medium">When</th>
                 <th className="px-4 py-2 font-medium">What</th>
@@ -195,7 +195,7 @@ function AuditLog({ organizationId, projectId }: { organizationId: string; proje
                     {AUDIT_LABELS[entry.eventType] ?? entry.eventType}
                   </td>
                   <td className="px-4 py-2 text-slate-300">{summarise(entry.details)}</td>
-                  <td className="px-4 py-2 text-xs text-slate-500">{entry.source}</td>
+                  <td className="px-4 py-2 text-xs text-slate-400">{entry.source}</td>
                 </tr>
               ))}
             </tbody>

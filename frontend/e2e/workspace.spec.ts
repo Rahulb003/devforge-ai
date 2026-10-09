@@ -24,8 +24,13 @@ test.describe('Workspace', () => {
     await expect(page.getByText('OWNER').first()).toBeVisible();
     await expectNoErrorBoundary(page);
 
-    await page.getByRole('main').getByRole('link', { name: new RegExp(orgName, 'i') }).click();
-    await expect(page.getByRole('heading', { name: /no projects in this organization/i })).toBeVisible();
+    await page
+      .getByRole('main')
+      .getByRole('link', { name: new RegExp(orgName, 'i') })
+      .click();
+    await expect(
+      page.getByRole('heading', { name: /no projects in this organization/i }),
+    ).toBeVisible();
 
     await page.getByRole('button', { name: 'Create project' }).click();
     await page.getByLabel('Name').fill('Core Platform');
@@ -47,10 +52,16 @@ test.describe('Workspace', () => {
     await page.getByLabel('Name').fill(orgName);
     await page.getByRole('button', { name: 'Create', exact: true }).click();
 
-    await page.getByRole('main').getByRole('link', { name: new RegExp(orgName, 'i') }).click();
+    await page
+      .getByRole('main')
+      .getByRole('link', { name: new RegExp(orgName, 'i') })
+      .click();
 
     async function createProject(name: string, key: string) {
-      await page.getByRole('button', { name: /create project|new project/i }).first().click();
+      await page
+        .getByRole('button', { name: /create project|new project/i })
+        .first()
+        .click();
       await page.getByLabel('Name').fill(name);
       await page.getByLabel('Project key').fill(key);
       await page.getByRole('button', { name: 'Create', exact: true }).click();
@@ -81,6 +92,34 @@ test.describe('Workspace', () => {
 
     await navTo(page, 'Dashboard');
     await expect(page.getByRole('heading', { name: /nothing here yet/i })).toHaveCount(0);
+  });
+
+  test('the theme switch changes the theme, and the choice is remembered', async ({ page }) => {
+    const account = uniqueAccount();
+    await signUp(page, account);
+    await signIn(page, account.email, account.password);
+
+    // The page's background brightness, 0 (black) to 1 (white).
+    const brightness = () =>
+      page.evaluate(() => {
+        const [r, g, b] = getComputedStyle(document.body)
+          .backgroundColor.match(/[\d.]+/g)!
+          .slice(0, 3)
+          .map(Number);
+        return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+      });
+
+    expect(await brightness()).toBeLessThan(0.2);
+    // This button once changed only its own label: nothing was styled for the class it set.
+    await page.getByRole('button', { name: 'Switch to light theme' }).click();
+    expect(await brightness()).toBeGreaterThan(0.8);
+
+    await page.reload();
+    await expect(page.getByRole('button', { name: 'Switch to dark theme' })).toBeVisible();
+    expect(await brightness()).toBeGreaterThan(0.8);
+
+    await page.getByRole('button', { name: 'Switch to dark theme' }).click();
+    expect(await brightness()).toBeLessThan(0.2);
   });
 
   test('settings shows the profile, MFA and session state', async ({ page }) => {

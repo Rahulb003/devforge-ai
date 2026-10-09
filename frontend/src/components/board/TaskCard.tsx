@@ -74,7 +74,7 @@ export function TaskCard({
           onClick={() => onOpen(task)}
           className="min-w-0 flex-1 text-left focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
         >
-          <span className="flex items-center gap-2 text-xs font-mono text-slate-500">
+          <span className="flex items-center gap-2 text-xs font-mono text-slate-400">
             <TypeIcon className="h-3.5 w-3.5" aria-hidden="true" />
             {projectKey}-{task.taskNumber}
           </span>
