@@ -5,6 +5,7 @@ import com.devforge.ai.common.events.KafkaTopics;
 import com.devforge.ai.common.events.outbox.OutboxEventRecorder;
 import com.devforge.ai.common.exception.ResourceConflictException;
 import com.devforge.ai.common.exception.ResourceNotFoundException;
+import com.devforge.ai.common.security.client.ProjectAccessClient;
 import com.devforge.ai.gitservice.dto.GitDtos.CreatePullRequestRequest;
 import com.devforge.ai.gitservice.dto.GitDtos.DiffResponse;
 import com.devforge.ai.gitservice.dto.GitDtos.MergePullRequestRequest;
@@ -48,7 +49,7 @@ public class PullRequestService {
   public PullRequestResponse open(
       UUID organizationId, UUID projectId, UUID repositoryId, CreatePullRequestRequest request) {
 
-    access.requireProjectAccess(organizationId, projectId);
+    access.requireProjectAccess(organizationId, projectId, ProjectAccessClient.Access.WRITE);
     var user = access.requireCurrentUser();
     // Locked: the next number is read then written, and two requests must not both take it.
     var repository = repositories.findForUpdate(repositoryId, projectId)
@@ -94,7 +95,7 @@ public class PullRequestService {
   @Transactional(readOnly = true)
   public List<PullRequestResponse> list(
       UUID organizationId, UUID projectId, UUID repositoryId, String status) {
-    var repository = load(organizationId, projectId, repositoryId);
+    var repository = load(organizationId, projectId, repositoryId, ProjectAccessClient.Access.READ);
     var rows = status == null || status.isBlank()
         ? pullRequests.findByRepositoryIdOrderByNumberDesc(repository.getId())
         : pullRequests.findByRepositoryIdAndStatusOrderByNumberDesc(repository.getId(), parse(status));
@@ -103,7 +104,7 @@ public class PullRequestService {
 
   @Transactional(readOnly = true)
   public PullRequestResponse get(UUID organizationId, UUID projectId, UUID repositoryId, int number) {
-    var repository = load(organizationId, projectId, repositoryId);
+    var repository = load(organizationId, projectId, repositoryId, ProjectAccessClient.Access.READ);
     var entity = find(repository, number);
     if (entity.getStatus() != Status.OPEN) {
       return toResponse(entity, null);
@@ -123,7 +124,7 @@ public class PullRequestService {
    */
   @Transactional(readOnly = true)
   public DiffResponse diff(UUID organizationId, UUID projectId, UUID repositoryId, int number) {
-    var repository = load(organizationId, projectId, repositoryId);
+    var repository = load(organizationId, projectId, repositoryId, ProjectAccessClient.Access.READ);
     var entity = find(repository, number);
     var directory = directory(repository);
 
@@ -145,7 +146,7 @@ public class PullRequestService {
       UUID organizationId, UUID projectId, UUID repositoryId, int number,
       MergePullRequestRequest request) {
 
-    var repository = load(organizationId, projectId, repositoryId);
+    var repository = load(organizationId, projectId, repositoryId, ProjectAccessClient.Access.WRITE);
     var user = access.requireCurrentUser();
     var entity = find(repository, number);
     requireOpen(entity);
@@ -170,7 +171,7 @@ public class PullRequestService {
 
   @Transactional
   public PullRequestResponse close(UUID organizationId, UUID projectId, UUID repositoryId, int number) {
-    var repository = load(organizationId, projectId, repositoryId);
+    var repository = load(organizationId, projectId, repositoryId, ProjectAccessClient.Access.WRITE);
     var user = access.requireCurrentUser();
     var entity = find(repository, number);
     requireOpen(entity);
@@ -188,8 +189,9 @@ public class PullRequestService {
 
   // ---------------------------------------------------------------- helpers
 
-  private RepositoryEntity load(UUID organizationId, UUID projectId, UUID repositoryId) {
-    access.requireProjectAccess(organizationId, projectId);
+  private RepositoryEntity load(
+      UUID organizationId, UUID projectId, UUID repositoryId, ProjectAccessClient.Access level) {
+    access.requireProjectAccess(organizationId, projectId, level);
     // 404, not 403, for another project's repository: see RepositoryService#load.
     return repositories.findByIdAndProjectId(repositoryId, projectId)
         .orElseThrow(() -> new ResourceNotFoundException("Repository not found"));

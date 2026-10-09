@@ -58,7 +58,7 @@ public class TaskService {
 
   @Transactional
   public TaskResponse create(UUID organizationId, UUID projectId, CreateTaskRequest request) {
-    access.requireProjectAccess(organizationId, projectId);
+    access.requireProjectWrite(organizationId, projectId);
     var user = access.requireCurrentUser();
 
     TaskEntity parent = null;
@@ -152,7 +152,7 @@ public class TaskService {
   @Transactional
   public TaskResponse update(
       UUID organizationId, UUID projectId, UUID taskId, UpdateTaskRequest request) {
-    access.requireProjectAccess(organizationId, projectId);
+    access.requireProjectWrite(organizationId, projectId);
     var task = loadScoped(projectId, taskId);
 
     if (request.title() != null) {
@@ -191,7 +191,7 @@ public class TaskService {
   @Transactional
   public TaskResponse move(
       UUID organizationId, UUID projectId, UUID taskId, MoveTaskRequest request) {
-    access.requireProjectAccess(organizationId, projectId);
+    access.requireProjectWrite(organizationId, projectId);
     var task = loadScoped(projectId, taskId);
 
     var previousStatus = task.getStatus();
@@ -251,7 +251,7 @@ public class TaskService {
   @Transactional
   public TaskResponse assign(
       UUID organizationId, UUID projectId, UUID taskId, AssignTaskRequest request) {
-    access.requireProjectAccess(organizationId, projectId);
+    access.requireProjectWrite(organizationId, projectId);
     var task = loadScoped(projectId, taskId);
 
     var previousAssignee = task.getAssigneeId();
@@ -267,7 +267,7 @@ public class TaskService {
 
   @Transactional
   public void delete(UUID organizationId, UUID projectId, UUID taskId) {
-    access.requireProjectAccess(organizationId, projectId);
+    access.requireProjectWrite(organizationId, projectId);
     var task = loadScoped(projectId, taskId);
 
     // Subtasks and comments reference this row, so they go first.
@@ -287,7 +287,7 @@ public class TaskService {
 
   @Transactional
   public TaskResponse addLabel(UUID organizationId, UUID projectId, UUID taskId, String label) {
-    access.requireProjectAccess(organizationId, projectId);
+    access.requireProjectWrite(organizationId, projectId);
     var task = loadScoped(projectId, taskId);
 
     var normalised = label.trim();
@@ -307,7 +307,7 @@ public class TaskService {
 
   @Transactional
   public TaskResponse removeLabel(UUID organizationId, UUID projectId, UUID taskId, String label) {
-    access.requireProjectAccess(organizationId, projectId);
+    access.requireProjectWrite(organizationId, projectId);
     var task = loadScoped(projectId, taskId);
 
     taskLabelRepository.findByTaskId(taskId).stream()

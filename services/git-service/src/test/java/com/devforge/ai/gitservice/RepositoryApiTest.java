@@ -570,6 +570,39 @@ class RepositoryApiTest {
   class Authorization {
 
     @Test
+    @DisplayName("a read-only VIEWER can browse but not commit, branch or delete")
+    void viewerIsReadOnly() throws Exception {
+      var id = createRepository("api");
+      commit(id, "a.txt", "a", "First");
+      // What project-service's role check does for a VIEWER: reads pass, anything more is 403.
+      doThrow(new org.springframework.security.access.AccessDeniedException("read-only"))
+          .when(projectAccessClient).requireProjectAccess(eq(organizationId), eq(projectId), any(),
+              eq(ProjectAccessClient.Access.WRITE));
+      doThrow(new org.springframework.security.access.AccessDeniedException("admin only"))
+          .when(projectAccessClient).requireProjectAccess(eq(organizationId), eq(projectId), any(),
+              eq(ProjectAccessClient.Access.ADMIN));
+
+      mockMvc.perform(get(base() + "/" + id + "/blob").param("path", "a.txt")
+              .header(HttpHeaders.AUTHORIZATION, bearer()))
+          .andExpect(status().isOk());
+      mockMvc.perform(post(base() + "/" + id + "/files")
+              .header(HttpHeaders.AUTHORIZATION, bearer())
+              .contentType(MediaType.APPLICATION_JSON)
+              .content(objectMapper.writeValueAsString(
+                  java.util.Map.of("path", "b.txt", "content", "b", "message", "Sneak"))))
+          .andExpect(status().isForbidden());
+      mockMvc.perform(post(base() + "/" + id + "/branches")
+              .header(HttpHeaders.AUTHORIZATION, bearer())
+              .contentType(MediaType.APPLICATION_JSON)
+              .content("{\"name\":\"viewer-branch\"}"))
+          .andExpect(status().isForbidden());
+      mockMvc.perform(delete(base() + "/" + id).header(HttpHeaders.AUTHORIZATION, bearer()))
+          .andExpect(status().isForbidden());
+
+      assertThat(repositories.findById(id)).isPresent();
+    }
+
+    @Test
     @DisplayName("a malformed id or a missing parameter is the caller's error, never a 500")
     void malformedRequestsAreNotServerErrors() throws Exception {
       var id = createRepository("api");
@@ -613,7 +646,7 @@ class RepositoryApiTest {
 
       doThrow(new ResourceNotFoundException("Project not found"))
           .when(projectAccessClient)
-          .requireProjectAccess(eq(organizationId), eq(projectId), any());
+          .requireProjectAccess(eq(organizationId), eq(projectId), any(), any());
 
       mockMvc.perform(get(base()).header(HttpHeaders.AUTHORIZATION, bearer()))
           .andExpect(status().isNotFound());
@@ -626,7 +659,7 @@ class RepositoryApiTest {
               "Cannot verify project access right now. Please try again.",
               new RuntimeException("connection refused")))
           .when(projectAccessClient)
-          .requireProjectAccess(any(), any(), any());
+          .requireProjectAccess(any(), any(), any(), any());
 
       // Treating an unavailable authority as permission would hand out access during an outage.
       mockMvc.perform(get(base()).header(HttpHeaders.AUTHORIZATION, bearer()))
@@ -884,7 +917,7 @@ class RepositoryApiTest {
       var base = commit(id, "a.txt", "a", "First");
       doThrow(new ResourceNotFoundException("Project not found"))
           .when(projectAccessClient)
-          .requireProjectAccess(eq(organizationId), eq(projectId), any());
+          .requireProjectAccess(eq(organizationId), eq(projectId), any(), any());
 
       commitChanges(id, base, java.util.List.of(write("a.txt", "hijacked")))
           .andExpect(status().isNotFound());

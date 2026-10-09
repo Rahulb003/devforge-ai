@@ -165,7 +165,7 @@ class ChatApiTest {
   @DisplayName("a caller without project access can neither read nor post")
   void deniedProjectAccess() throws Exception {
     doThrow(new ResourceNotFoundException("Project not found"))
-        .when(projectAccessClient).requireProjectAccess(eq(organizationId), eq(projectId), any());
+        .when(projectAccessClient).requireProjectAccess(eq(organizationId), eq(projectId), any(), any());
 
     mockMvc.perform(get(base()).header(HttpHeaders.AUTHORIZATION, bearer(alice)))
         .andExpect(status().isNotFound());
@@ -173,6 +173,22 @@ class ChatApiTest {
             .contentType(MediaType.APPLICATION_JSON).content("{\"body\":\"hi\"}"))
         .andExpect(status().isNotFound());
     assertThat(messages.count()).isZero();
+  }
+
+  @Test
+  @DisplayName("a read-only VIEWER can read the channel but not post")
+  void viewerIsReadOnly() throws Exception {
+    postAs(alice, "before");
+    doThrow(new org.springframework.security.access.AccessDeniedException("read-only"))
+        .when(projectAccessClient).requireProjectAccess(eq(organizationId), eq(projectId), any(),
+            eq(com.devforge.ai.common.security.client.ProjectAccessClient.Access.WRITE));
+
+    mockMvc.perform(get(base()).header(HttpHeaders.AUTHORIZATION, bearer(alice)))
+        .andExpect(status().isOk());
+    mockMvc.perform(post(base()).header(HttpHeaders.AUTHORIZATION, bearer(alice))
+            .contentType(MediaType.APPLICATION_JSON).content("{\"body\":\"hi\"}"))
+        .andExpect(status().isForbidden());
+    assertThat(messages.count()).isEqualTo(1);
   }
 
   @Test
@@ -184,7 +200,7 @@ class ChatApiTest {
         .andExpect(status().isUnauthorized());
 
     doThrow(new ProjectAccessClient.ProjectServiceUnavailableException("down", null))
-        .when(projectAccessClient).requireProjectAccess(any(), any(), any());
+        .when(projectAccessClient).requireProjectAccess(any(), any(), any(), any());
     mockMvc.perform(get(base()).header(HttpHeaders.AUTHORIZATION, bearer(alice)))
         .andExpect(status().isServiceUnavailable());
   }
@@ -208,7 +224,7 @@ class ChatApiTest {
   @DisplayName("a stream for a project the caller cannot see is refused")
   void streamRequiresProjectAccess() throws Exception {
     doThrow(new ResourceNotFoundException("Project not found"))
-        .when(projectAccessClient).requireProjectAccess(eq(organizationId), eq(projectId), any());
+        .when(projectAccessClient).requireProjectAccess(eq(organizationId), eq(projectId), any(), any());
 
     mockMvc.perform(get(base() + "/stream").header(HttpHeaders.AUTHORIZATION, bearer(alice)))
         .andExpect(status().isNotFound());

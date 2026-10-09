@@ -58,14 +58,32 @@ public class ProjectAccessClient {
         .build();
   }
 
+  /** What the caller is about to do, and so which project roles may do it. */
+  public enum Access {
+    /** See the project's data: any member. */
+    READ,
+    /** Create or change project content - code, tasks, reviews, messages: every role but VIEWER. */
+    WRITE,
+    /** Change how the project itself works, e.g. merge rules or deleting a repository. */
+    ADMIN
+  }
+
   /**
-   * Asserts the caller may access the project.
+   * Asserts the caller may access the project at the given level.
+   *
+   * <p>Membership alone used to be the whole check, so a VIEWER - a role project-service defines
+   * as read-only - could commit code, merge pull requests, delete repositories and edit tasks in
+   * every service that asked this question. The role comes from the same response that proves
+   * membership: project-service reports the caller's effective role on the project.
    *
    * @throws ResourceNotFoundException when the project does not exist, is in another tenant, or
    *     the caller is not a member. These are deliberately indistinguishable, matching
    *     project-service: telling them apart would let a caller probe ids across tenants.
+   * @throws AccessDeniedException (403) when the caller is a member whose role does not allow
+   *     {@code access}. A 403 reveals nothing here: a member can already see the project exists.
    */
-  public void requireProjectAccess(UUID organizationId, UUID projectId, String bearerToken) {
+  public void requireProjectAccess(
+      UUID organizationId, UUID projectId, String bearerToken, Access access) {
     var url = "%s/api/v1/organizations/%s/projects/%s"
         .formatted(projectServiceBaseUrl, organizationId, projectId);
 
@@ -73,11 +91,14 @@ public class ProjectAccessClient {
     headers.set(HttpHeaders.AUTHORIZATION, bearerToken);
 
     try {
-      restTemplate.exchange(
+      var response = restTemplate.exchange(
           url,
           org.springframework.http.HttpMethod.GET,
           new org.springframework.http.HttpEntity<>(headers),
           String.class);
+      if (access != Access.READ) {
+        requireRole(roleIn(response.getBody()), access);
+      }
     } catch (HttpClientErrorException ex) {
       HttpStatusCode status = ex.getStatusCode();
       if (status.value() == 401 || status.value() == 403 || status.value() == 404) {
@@ -91,6 +112,35 @@ public class ProjectAccessClient {
       log.error("project-service is unreachable; refusing access to project {}", projectId, ex);
       throw new ProjectServiceUnavailableException(
           "Cannot verify project access right now. Please try again.", ex);
+    }
+  }
+
+  private static final com.fasterxml.jackson.databind.ObjectMapper JSON =
+      new com.fasterxml.jackson.databind.ObjectMapper();
+
+  private static String roleIn(String body) {
+    try {
+      var role = JSON.readTree(body == null ? "{}" : body).path("data").path("role");
+      return role.isTextual() ? role.asText() : null;
+    } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
+      return null;
+    }
+  }
+
+  /**
+   * Fails closed: a missing or unrecognised role is no role. A new role added to project-service
+   * gets nothing here until it is deliberately given something.
+   */
+  static void requireRole(String role, Access access) {
+    var allowed = switch (access) {
+      case READ -> true;
+      case WRITE -> role != null && java.util.Set.of("ADMIN", "TEAM_LEAD", "DEVELOPER", "TESTER").contains(role);
+      case ADMIN -> role != null && java.util.Set.of("ADMIN", "TEAM_LEAD").contains(role);
+    };
+    if (!allowed) {
+      throw new org.springframework.security.access.AccessDeniedException(access == Access.ADMIN
+          ? "Only a project admin or team lead can do this"
+          : "Your role on this project is read-only");
     }
   }
 

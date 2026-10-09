@@ -37,7 +37,7 @@ section count would overstate progress.
 | 7 | Documentation set (11 files) | `IMPLEMENTED` | all 11 present as of this commit |
 | 15 | Container images | `IMPLEMENTED` | All images build in CI, run non-root, and each service container starts healthy; frontend container serves its security headers. Multi-container runtime with real infrastructure **UNVERIFIED** |
 | 16 | Secrets and configuration hygiene | `IMPLEMENTED` | no fallbacks for credentials in the default profile; secrets gitignored |
-| 17 | Build must be green | `IMPLEMENTED` | 483 backend + 79 frontend + 42 e2e, all passing |
+| 17 | Build must be green | `IMPLEMENTED` | 494 backend + 79 frontend + 42 e2e, all passing |
 | 18 | RabbitMQ removed unless justified | `IMPLEMENTED` | removed from five places; justification in `EVENT_CATALOG.md` §1 |
 
 ## Identity and access
@@ -50,7 +50,7 @@ section count would overstate progress.
 | 22 | OAuth / social sign-in | `PARTIALLY_IMPLEMENTED` | implemented and conditional; **UNVERIFIED** without provider credentials |
 | 23 | Per-device session management | `IMPLEMENTED` | list, revoke one, revoke others |
 | 24 | Rate limiting on authentication | `IMPLEMENTED` | per-account, time-windowed |
-| 25 | RBAC | `PARTIALLY_IMPLEMENTED` | enforced in project-service and task-service; the scaffolded services have nothing to enforce |
+| 25 | RBAC | `IMPLEMENTED` | Project roles enforced on every write in every service (VIEWER read-only; repository deletion ADMIN/TEAM_LEAD), from project-service's answer; tested per service. Previously only project-service enforced them |
 | 26 | Audit trail | `PARTIALLY_IMPLEMENTED` | auth events only; no audit for project, task or notification changes |
 | 27 | Password reset must not reveal account existence | `IMPLEMENTED` | identical response either way |
 | 32 | Prove user A cannot reach user B's data | `IMPLEMENTED` | 23 tenant-isolation + 3 cross-user tests, 404-not-403 |

@@ -48,6 +48,15 @@ feature that trusts "verified" must check the flag rather than assuming.
 | Cross-user access returns 404, not 403 | Implemented, 3 tests in notification-service |
 | No endpoint accepts a user id to scope a read | Implemented by design |
 | Cross-service authorization forwards the caller's own token | Implemented, fails closed (503) if the authority is unreachable |
+| Project roles enforced on writes in every service | Implemented: VIEWER is read-only everywhere; deleting a repository needs ADMIN or TEAM_LEAD. A VIEWER test in each of task, git, review, documentation and chat |
+
+**Roles were checked only by project-service until this was fixed.** Every other service asked
+project-service "may this caller see the project?" and treated yes as permission to do anything,
+so a VIEWER - defined as read-only - could create and delete tasks, commit code, merge pull requests
+and delete repositories. The requirements matrix even claimed task-service enforced roles; it did
+not. `ProjectAccessClient` now takes the access level a call needs and reads the caller's role from
+the same project-service response that proves membership, failing closed on a missing or unknown
+role. A member refused for their role gets 403, which reveals nothing: they can see the project.
 
 `AuthenticatedUser` carries **identity only** — no organization or project id. A tenant id taken from
 a token the client supplies is a value the client controls.

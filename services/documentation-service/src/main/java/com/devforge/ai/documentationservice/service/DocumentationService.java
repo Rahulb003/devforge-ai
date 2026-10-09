@@ -53,7 +53,7 @@ public class DocumentationService {
   public DocSetResponse generate(
       UUID organizationId, UUID projectId, UUID repositoryId, GenerateRequest request) {
 
-    requireProjectAccess(organizationId, projectId);
+    requireProjectAccess(organizationId, projectId, ProjectAccessClient.Access.WRITE);
     var user = requireCurrentUser();
     var token = currentBearerToken();
 
@@ -122,7 +122,7 @@ public class DocumentationService {
   @Transactional(readOnly = true)
   public Page<DocSetResponse> list(
       UUID organizationId, UUID projectId, UUID repositoryId, Pageable pageable) {
-    requireProjectAccess(organizationId, projectId);
+    requireProjectAccess(organizationId, projectId, ProjectAccessClient.Access.READ);
     return docSets
         .findByRepositoryIdAndProjectIdOrderByCreatedAtDescIdAsc(repositoryId, projectId, pageable)
         .map(DocSetResponse::from);
@@ -130,7 +130,7 @@ public class DocumentationService {
 
   @Transactional(readOnly = true)
   public DocSetResponse latest(UUID organizationId, UUID projectId, UUID repositoryId) {
-    requireProjectAccess(organizationId, projectId);
+    requireProjectAccess(organizationId, projectId, ProjectAccessClient.Access.READ);
     return docSets
         .findFirstByRepositoryIdAndProjectIdOrderByCreatedAtDescIdAsc(repositoryId, projectId)
         .map(DocSetResponse::from)
@@ -161,14 +161,14 @@ public class DocumentationService {
   // ---------------------------------------------------------------- helpers
 
   private DocSetEntity load(UUID organizationId, UUID projectId, UUID docSetId) {
-    requireProjectAccess(organizationId, projectId);
+    requireProjectAccess(organizationId, projectId, ProjectAccessClient.Access.READ);
     return docSets.findByIdAndProjectId(docSetId, projectId)
         // 404 rather than 403 for a set in another project: a 403 would confirm the id exists.
         .orElseThrow(() -> new ResourceNotFoundException("Documentation set not found"));
   }
 
-  private void requireProjectAccess(UUID organizationId, UUID projectId) {
-    projectAccess.requireProjectAccess(organizationId, projectId, currentBearerToken());
+  private void requireProjectAccess(UUID organizationId, UUID projectId, ProjectAccessClient.Access level) {
+    projectAccess.requireProjectAccess(organizationId, projectId, currentBearerToken(), level);
   }
 
   private AuthenticatedUser requireCurrentUser() {

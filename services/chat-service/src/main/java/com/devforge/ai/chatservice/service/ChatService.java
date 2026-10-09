@@ -39,7 +39,7 @@ public class ChatService {
 
   /** Opens a live stream of this channel. Access is checked here, once, when it opens. */
   public SseEmitter subscribe(UUID organizationId, UUID projectId) {
-    requireAccess(organizationId, projectId);
+    requireAccess(organizationId, projectId, ProjectAccessClient.Access.READ);
     return streams.subscribe(projectId);
   }
 
@@ -50,7 +50,7 @@ public class ChatService {
   @Transactional(readOnly = true)
   public List<MessageResponse> list(
       UUID organizationId, UUID projectId, Instant before, Instant after, int limit) {
-    requireAccess(organizationId, projectId);
+    requireAccess(organizationId, projectId, ProjectAccessClient.Access.READ);
     var page = PageRequest.of(0, Math.min(Math.max(limit, 1), MAX_PAGE));
     List<ChatMessageEntity> rows;
     if (after != null) {
@@ -66,7 +66,7 @@ public class ChatService {
 
   @Transactional
   public MessageResponse post(UUID organizationId, UUID projectId, String body) {
-    requireAccess(organizationId, projectId);
+    requireAccess(organizationId, projectId, ProjectAccessClient.Access.WRITE);
     var user = currentUser();
     var saved = MessageResponse.from(messages.save(ChatMessageEntity.builder()
         .projectId(projectId)
@@ -128,7 +128,7 @@ public class ChatService {
    * be a lie that hides nothing.
    */
   private ChatMessageEntity loadOwn(UUID organizationId, UUID projectId, UUID messageId) {
-    requireAccess(organizationId, projectId);
+    requireAccess(organizationId, projectId, ProjectAccessClient.Access.WRITE);
     var message = messages.findByIdAndProjectId(messageId, projectId)
         .orElseThrow(() -> new ResourceNotFoundException("Message not found"));
     if (!message.getAuthorId().equals(currentUser().id())) {
@@ -137,8 +137,8 @@ public class ChatService {
     return message;
   }
 
-  private void requireAccess(UUID organizationId, UUID projectId) {
-    projectAccess.requireProjectAccess(organizationId, projectId, bearerToken());
+  private void requireAccess(UUID organizationId, UUID projectId, ProjectAccessClient.Access level) {
+    projectAccess.requireProjectAccess(organizationId, projectId, bearerToken(), level);
   }
 
   private AuthenticatedUser currentUser() {

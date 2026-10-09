@@ -154,7 +154,7 @@ class AnalyticsApiTest {
     void deniedProjectAccess() throws Exception {
       doThrow(new ResourceNotFoundException("Project not found"))
           .when(projectAccessClient)
-          .requireProjectAccess(eq(organizationId), eq(projectId), any());
+          .requireProjectAccess(eq(organizationId), eq(projectId), any(), any());
 
       mockMvc.perform(get(base()).header(HttpHeaders.AUTHORIZATION, bearer()))
           .andExpect(status().isNotFound());
@@ -165,7 +165,7 @@ class AnalyticsApiTest {
     void unreachableAuthorityFailsClosed() throws Exception {
       doThrow(new ProjectAccessClient.ProjectServiceUnavailableException("unavailable", null))
           .when(projectAccessClient)
-          .requireProjectAccess(any(), any(), any());
+          .requireProjectAccess(any(), any(), any(), any());
 
       mockMvc.perform(get(base()).header(HttpHeaders.AUTHORIZATION, bearer()))
           .andExpect(status().isServiceUnavailable());

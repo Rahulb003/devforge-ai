@@ -42,7 +42,12 @@ public class GitAccessService {
    * git-service blanket access to every project's repositories.
    */
   public void requireProjectAccess(UUID organizationId, UUID projectId) {
-    projectAccessClient.requireProjectAccess(organizationId, projectId, currentBearerToken());
+    requireProjectAccess(organizationId, projectId, ProjectAccessClient.Access.READ);
+  }
+
+  /** At a given level: WRITE for commits, branches and pull requests; ADMIN for deletion. */
+  public void requireProjectAccess(UUID organizationId, UUID projectId, ProjectAccessClient.Access level) {
+    projectAccessClient.requireProjectAccess(organizationId, projectId, currentBearerToken(), level);
   }
 
   private String currentBearerToken() {

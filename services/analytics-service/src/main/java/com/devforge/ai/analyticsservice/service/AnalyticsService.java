@@ -35,7 +35,7 @@ public class AnalyticsService {
   public ProjectActivity activity(
       UUID organizationId, UUID projectId, LocalDate from, LocalDate to) {
 
-    projectAccess.requireProjectAccess(organizationId, projectId, currentBearerToken());
+    projectAccess.requireProjectAccess(organizationId, projectId, currentBearerToken(), ProjectAccessClient.Access.READ);
 
     var end = to == null ? LocalDate.now(ZoneOffset.UTC) : to;
     var start = from == null ? end.minusDays(29) : from;

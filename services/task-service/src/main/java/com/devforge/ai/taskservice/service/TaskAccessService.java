@@ -42,8 +42,16 @@ public class TaskAccessService {
    * would grant task-service blanket access to every project and reduce this to a check nobody
    * enforces.
    */
+  /** Reading: any project member. */
   public void requireProjectAccess(UUID organizationId, UUID projectId) {
-    projectAccessClient.requireProjectAccess(organizationId, projectId, currentBearerToken());
+    projectAccessClient.requireProjectAccess(
+        organizationId, projectId, currentBearerToken(), ProjectAccessClient.Access.READ);
+  }
+
+  /** Creating or changing tasks, sprints and comments: every role but the read-only VIEWER. */
+  public void requireProjectWrite(UUID organizationId, UUID projectId) {
+    projectAccessClient.requireProjectAccess(
+        organizationId, projectId, currentBearerToken(), ProjectAccessClient.Access.WRITE);
   }
 
   private String currentBearerToken() {

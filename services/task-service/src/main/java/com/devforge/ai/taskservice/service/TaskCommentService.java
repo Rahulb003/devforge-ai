@@ -24,7 +24,7 @@ public class TaskCommentService {
   @Transactional
   public CommentResponse add(
       UUID organizationId, UUID projectId, UUID taskId, CreateCommentRequest request) {
-    access.requireProjectAccess(organizationId, projectId);
+    access.requireProjectWrite(organizationId, projectId);
     var user = access.requireCurrentUser();
     var task = loadTask(projectId, taskId);
 
@@ -56,7 +56,7 @@ public class TaskCommentService {
    */
   @Transactional
   public void delete(UUID organizationId, UUID projectId, UUID taskId, UUID commentId) {
-    access.requireProjectAccess(organizationId, projectId);
+    access.requireProjectWrite(organizationId, projectId);
     var user = access.requireCurrentUser();
     loadTask(projectId, taskId);
 

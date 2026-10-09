@@ -5,6 +5,7 @@ import com.devforge.ai.common.events.KafkaTopics;
 import com.devforge.ai.common.events.outbox.OutboxEventRecorder;
 import com.devforge.ai.common.exception.ResourceConflictException;
 import com.devforge.ai.common.exception.ResourceNotFoundException;
+import com.devforge.ai.common.security.client.ProjectAccessClient;
 import com.devforge.ai.gitservice.dto.GitDtos.BlobResponse;
 import com.devforge.ai.gitservice.dto.GitDtos.BranchResponse;
 import com.devforge.ai.gitservice.dto.GitDtos.CommitChangesRequest;
@@ -66,7 +67,7 @@ public class RepositoryService {
   public RepositoryResponse create(
       UUID organizationId, UUID projectId, CreateRepositoryRequest request) {
 
-    access.requireProjectAccess(organizationId, projectId);
+    access.requireProjectAccess(organizationId, projectId, ProjectAccessClient.Access.WRITE);
     var user = access.requireCurrentUser();
 
     var name = GitPaths.requireValidRepositoryName(request.name());
@@ -115,7 +116,7 @@ public class RepositoryService {
 
   @Transactional(readOnly = true)
   public Page<RepositoryResponse> list(UUID organizationId, UUID projectId, Pageable pageable) {
-    access.requireProjectAccess(organizationId, projectId);
+    access.requireProjectAccess(organizationId, projectId, ProjectAccessClient.Access.READ);
     return repositories.findByProjectIdOrderByCreatedAtDesc(projectId, pageable)
         .map(entity -> RepositoryResponse.from(
             entity, git.isEmpty(storage.directoryFor(entity.getOrganizationId(), entity.getId()))));
@@ -123,7 +124,7 @@ public class RepositoryService {
 
   @Transactional(readOnly = true)
   public RepositoryResponse get(UUID organizationId, UUID projectId, UUID repositoryId) {
-    var entity = load(organizationId, projectId, repositoryId);
+    var entity = load(organizationId, projectId, repositoryId, ProjectAccessClient.Access.READ);
     return RepositoryResponse.from(
         entity, git.isEmpty(storage.directoryFor(entity.getOrganizationId(), entity.getId())));
   }
@@ -131,7 +132,7 @@ public class RepositoryService {
   @Transactional
   public RepositoryResponse update(
       UUID organizationId, UUID projectId, UUID repositoryId, UpdateRepositoryRequest request) {
-    var entity = load(organizationId, projectId, repositoryId);
+    var entity = load(organizationId, projectId, repositoryId, ProjectAccessClient.Access.WRITE);
     entity.setDescription(request.description());
     repositories.save(entity);
     return RepositoryResponse.from(
@@ -148,7 +149,7 @@ public class RepositoryService {
    */
   @Transactional
   public void delete(UUID organizationId, UUID projectId, UUID repositoryId) {
-    var entity = load(organizationId, projectId, repositoryId);
+    var entity = load(organizationId, projectId, repositoryId, ProjectAccessClient.Access.ADMIN);
     var actor = access.requireCurrentUser();
     var directory = storage.directoryFor(entity.getOrganizationId(), entity.getId());
 
@@ -180,14 +181,14 @@ public class RepositoryService {
   @Transactional(readOnly = true)
   public java.util.List<BranchResponse> branches(
       UUID organizationId, UUID projectId, UUID repositoryId) {
-    var entity = load(organizationId, projectId, repositoryId);
+    var entity = load(organizationId, projectId, repositoryId, ProjectAccessClient.Access.READ);
     return wrap(() -> git.branches(directory(entity), entity.getDefaultBranch()));
   }
 
   @Transactional(readOnly = true)
   public java.util.List<CommitResponse> commits(
       UUID organizationId, UUID projectId, UUID repositoryId, String ref, Pageable pageable) {
-    var entity = load(organizationId, projectId, repositoryId);
+    var entity = load(organizationId, projectId, repositoryId, ProjectAccessClient.Access.READ);
     var resolved = refOrDefault(entity, ref);
     return wrap(() -> git.commits(
         directory(entity),
@@ -199,7 +200,7 @@ public class RepositoryService {
   @Transactional(readOnly = true)
   public java.util.List<TreeEntryResponse> tree(
       UUID organizationId, UUID projectId, UUID repositoryId, String ref, String path) {
-    var entity = load(organizationId, projectId, repositoryId);
+    var entity = load(organizationId, projectId, repositoryId, ProjectAccessClient.Access.READ);
     var resolved = refOrDefault(entity, ref);
     var safePath = GitPaths.requireSafeRepositoryPath(path);
     return wrap(() -> git.tree(directory(entity), resolved, safePath));
@@ -208,7 +209,7 @@ public class RepositoryService {
   @Transactional(readOnly = true)
   public BlobResponse blob(
       UUID organizationId, UUID projectId, UUID repositoryId, String ref, String path) {
-    var entity = load(organizationId, projectId, repositoryId);
+    var entity = load(organizationId, projectId, repositoryId, ProjectAccessClient.Access.READ);
     var resolved = refOrDefault(entity, ref);
     var safePath = GitPaths.requireSafeRepositoryPath(path);
     return wrap(() -> git.blob(directory(entity), resolved, safePath));
@@ -217,7 +218,7 @@ public class RepositoryService {
   @Transactional(readOnly = true)
   public DiffResponse diff(
       UUID organizationId, UUID projectId, UUID repositoryId, String from, String to) {
-    var entity = load(organizationId, projectId, repositoryId);
+    var entity = load(organizationId, projectId, repositoryId, ProjectAccessClient.Access.READ);
     var fromRef = GitPaths.requireValidRef(from);
     var toRef = GitPaths.requireValidRef(to);
     var entries = wrap(() -> git.diff(directory(entity), fromRef, toRef));
@@ -237,7 +238,7 @@ public class RepositoryService {
   public CommitResponse commitFile(
       UUID organizationId, UUID projectId, UUID repositoryId, CommitFileRequest request) {
 
-    var entity = load(organizationId, projectId, repositoryId);
+    var entity = load(organizationId, projectId, repositoryId, ProjectAccessClient.Access.WRITE);
     var user = access.requireCurrentUser();
 
     var path = GitPaths.requireSafeRepositoryPath(request.path());
@@ -295,7 +296,7 @@ public class RepositoryService {
   public CommitResponse commitChanges(
       UUID organizationId, UUID projectId, UUID repositoryId, CommitChangesRequest request) {
 
-    var entity = load(organizationId, projectId, repositoryId);
+    var entity = load(organizationId, projectId, repositoryId, ProjectAccessClient.Access.WRITE);
     var user = access.requireCurrentUser();
     var branch = request.branch() == null || request.branch().isBlank()
         ? entity.getDefaultBranch()
@@ -352,7 +353,7 @@ public class RepositoryService {
   public BranchResponse createBranch(
       UUID organizationId, UUID projectId, UUID repositoryId, CreateBranchRequest request) {
 
-    var entity = load(organizationId, projectId, repositoryId);
+    var entity = load(organizationId, projectId, repositoryId, ProjectAccessClient.Access.WRITE);
     var name = GitPaths.requireValidBranchName(request.name());
     var from = request.fromRef() == null || request.fromRef().isBlank()
         ? entity.getDefaultBranch()
@@ -364,8 +365,9 @@ public class RepositoryService {
 
   // ---------------------------------------------------------------- helpers
 
-  private RepositoryEntity load(UUID organizationId, UUID projectId, UUID repositoryId) {
-    access.requireProjectAccess(organizationId, projectId);
+  private RepositoryEntity load(
+      UUID organizationId, UUID projectId, UUID repositoryId, ProjectAccessClient.Access level) {
+    access.requireProjectAccess(organizationId, projectId, level);
     return repositories.findByIdAndProjectId(repositoryId, projectId)
         // 404 rather than 403 for a repository in another project: a 403 would confirm the id
         // exists, making this an oracle for enumerating repository ids across tenants.

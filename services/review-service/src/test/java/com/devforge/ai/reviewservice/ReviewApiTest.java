@@ -95,6 +95,20 @@ class ReviewApiTest {
     return UUID.fromString(objectMapper.readTree(response).path("data").path("id").asText());
   }
 
+  @Test
+  @DisplayName("a read-only VIEWER can read reviews but not run one")
+  void viewerIsReadOnly() throws Exception {
+    doThrow(new org.springframework.security.access.AccessDeniedException("read-only"))
+        .when(projectAccessClient).requireProjectAccess(eq(organizationId), eq(projectId), any(),
+            eq(com.devforge.ai.common.security.client.ProjectAccessClient.Access.WRITE));
+
+    mockMvc.perform(get(base()).header(HttpHeaders.AUTHORIZATION, bearer()))
+        .andExpect(status().isOk());
+    mockMvc.perform(post(base()).header(HttpHeaders.AUTHORIZATION, bearer())
+            .contentType(MediaType.APPLICATION_JSON).content("{}"))
+        .andExpect(status().isForbidden());
+  }
+
   @Nested
   @DisplayName("running a review")
   class Running {
@@ -346,7 +360,7 @@ class ReviewApiTest {
     void deniedProjectAccess() throws Exception {
       doThrow(new ResourceNotFoundException("Project not found"))
           .when(projectAccessClient)
-          .requireProjectAccess(eq(organizationId), eq(projectId), any());
+          .requireProjectAccess(eq(organizationId), eq(projectId), any(), any());
 
       mockMvc.perform(get(base()).header(HttpHeaders.AUTHORIZATION, bearer()))
           .andExpect(status().isNotFound());
@@ -365,7 +379,7 @@ class ReviewApiTest {
               "Cannot verify project access right now. Please try again.",
               new RuntimeException("connection refused")))
           .when(projectAccessClient)
-          .requireProjectAccess(any(), any(), any());
+          .requireProjectAccess(any(), any(), any(), any());
 
       mockMvc.perform(get(base()).header(HttpHeaders.AUTHORIZATION, bearer()))
           .andExpect(status().isServiceUnavailable());

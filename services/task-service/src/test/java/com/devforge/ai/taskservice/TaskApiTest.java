@@ -89,7 +89,7 @@ class TaskApiTest {
     // Access to the project under test is granted; the other project is not.
     Mockito.doThrow(new ResourceNotFoundException("Project not found"))
         .when(projectAccessClient)
-        .requireProjectAccess(any(), eq(otherProjectId), any());
+        .requireProjectAccess(any(), eq(otherProjectId), any(), any());
   }
 
   private MockHttpServletRequestBuilder authed(MockHttpServletRequestBuilder builder) {
@@ -288,6 +288,29 @@ class TaskApiTest {
   class Access {
 
     @Test
+    @DisplayName("a read-only VIEWER can see tasks but not create, change or delete them")
+    void viewerIsReadOnly() throws Exception {
+      var taskId = createTask("Existing");
+      Mockito.doThrow(new org.springframework.security.access.AccessDeniedException("read-only"))
+          .when(projectAccessClient).requireProjectAccess(eq(organizationId), eq(projectId), any(),
+              eq(ProjectAccessClient.Access.WRITE));
+
+      mockMvc.perform(authed(get(tasksUrl() + "/" + taskId))).andExpect(status().isOk());
+      mockMvc.perform(authed(post(tasksUrl()))
+              .contentType(MediaType.APPLICATION_JSON).content("{\"title\":\"Sneak\"}"))
+          .andExpect(status().isForbidden());
+      mockMvc.perform(authed(patch(tasksUrl() + "/" + taskId))
+              .contentType(MediaType.APPLICATION_JSON).content("{\"title\":\"Renamed\"}"))
+          .andExpect(status().isForbidden());
+      mockMvc.perform(authed(delete(tasksUrl() + "/" + taskId))).andExpect(status().isForbidden());
+      mockMvc.perform(authed(post(tasksUrl() + "/" + taskId + "/comments"))
+              .contentType(MediaType.APPLICATION_JSON).content("{\"body\":\"hi\"}"))
+          .andExpect(status().isForbidden());
+
+      assertThat(taskRepository.findAll()).hasSize(1);
+    }
+
+    @Test
     @DisplayName("an anonymous request is refused")
     void anonymousRefused() throws Exception {
       mockMvc.perform(get(tasksUrl())).andExpect(status().isUnauthorized());
@@ -362,7 +385,7 @@ class TaskApiTest {
       mockMvc.perform(authed(get(tasksUrl() + "/" + taskId))).andExpect(status().isOk());
 
       // Not cached anywhere: a membership revoked a moment ago must take effect.
-      Mockito.verify(projectAccessClient).requireProjectAccess(eq(organizationId), eq(projectId), any());
+      Mockito.verify(projectAccessClient).requireProjectAccess(eq(organizationId), eq(projectId), any(), any());
     }
   }
 

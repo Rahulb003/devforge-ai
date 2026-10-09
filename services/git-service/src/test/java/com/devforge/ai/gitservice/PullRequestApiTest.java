@@ -268,7 +268,7 @@ class PullRequestApiTest {
       commit("feature", "a.txt", "a\n");
       open("feature", "Change a").andExpect(status().isCreated());
       doThrow(new ResourceNotFoundException("Project not found"))
-          .when(projectAccessClient).requireProjectAccess(eq(organizationId), eq(projectId), any());
+          .when(projectAccessClient).requireProjectAccess(eq(organizationId), eq(projectId), any(), any());
 
       send(get(prs()), null).andExpect(status().isNotFound());
       send(post(prs() + "/1/merge"), null).andExpect(status().isNotFound());

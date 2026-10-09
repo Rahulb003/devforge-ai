@@ -27,7 +27,7 @@ public class SprintService {
 
   @Transactional
   public SprintResponse create(UUID organizationId, UUID projectId, CreateSprintRequest request) {
-    access.requireProjectAccess(organizationId, projectId);
+    access.requireProjectWrite(organizationId, projectId);
     var user = access.requireCurrentUser();
 
     if (request.startDate() != null
@@ -68,7 +68,7 @@ public class SprintService {
    */
   @Transactional
   public SprintResponse start(UUID organizationId, UUID projectId, UUID sprintId) {
-    access.requireProjectAccess(organizationId, projectId);
+    access.requireProjectWrite(organizationId, projectId);
     var sprint = loadScoped(projectId, sprintId);
 
     if (sprint.getStatus() == SprintStatus.COMPLETED) {
@@ -87,7 +87,7 @@ public class SprintService {
 
   @Transactional
   public SprintResponse complete(UUID organizationId, UUID projectId, UUID sprintId) {
-    access.requireProjectAccess(organizationId, projectId);
+    access.requireProjectWrite(organizationId, projectId);
     var sprint = loadScoped(projectId, sprintId);
 
     if (sprint.getStatus() != SprintStatus.ACTIVE) {

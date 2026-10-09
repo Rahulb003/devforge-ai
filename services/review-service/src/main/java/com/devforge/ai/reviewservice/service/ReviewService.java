@@ -66,7 +66,7 @@ public class ReviewService {
   public ReviewResponse run(
       UUID organizationId, UUID projectId, UUID repositoryId, RunReviewRequest request) {
 
-    requireProjectAccess(organizationId, projectId);
+    requireProjectAccess(organizationId, projectId, ProjectAccessClient.Access.WRITE);
     var user = requireCurrentUser();
     var token = currentBearerToken();
 
@@ -145,7 +145,7 @@ public class ReviewService {
   @Transactional(readOnly = true)
   public Page<ReviewResponse> list(
       UUID organizationId, UUID projectId, UUID repositoryId, Pageable pageable) {
-    requireProjectAccess(organizationId, projectId);
+    requireProjectAccess(organizationId, projectId, ProjectAccessClient.Access.READ);
     return reviews
         .findByRepositoryIdAndProjectIdOrderByCreatedAtDescIdAsc(repositoryId, projectId, pageable)
         .map(ReviewResponse::from);
@@ -153,13 +153,13 @@ public class ReviewService {
 
   @Transactional(readOnly = true)
   public ReviewResponse get(UUID organizationId, UUID projectId, UUID reviewId) {
-    return ReviewResponse.from(load(organizationId, projectId, reviewId));
+    return ReviewResponse.from(load(organizationId, projectId, reviewId, ProjectAccessClient.Access.READ));
   }
 
   /** The newest review for a repository, which is what a status badge shows. */
   @Transactional(readOnly = true)
   public ReviewResponse latest(UUID organizationId, UUID projectId, UUID repositoryId) {
-    requireProjectAccess(organizationId, projectId);
+    requireProjectAccess(organizationId, projectId, ProjectAccessClient.Access.READ);
     return reviews
         .findFirstByRepositoryIdAndProjectIdOrderByCreatedAtDescIdAsc(repositoryId, projectId)
         .map(ReviewResponse::from)
@@ -168,7 +168,7 @@ public class ReviewService {
 
   @Transactional(readOnly = true)
   public List<FindingResponse> findings(UUID organizationId, UUID projectId, UUID reviewId) {
-    var review = load(organizationId, projectId, reviewId);
+    var review = load(organizationId, projectId, reviewId, ProjectAccessClient.Access.READ);
     return findings.findByReviewIdOrderBySeverityAscFilePathAscLineNumberAsc(review.getId())
         .stream()
         .map(FindingResponse::from)
@@ -190,7 +190,7 @@ public class ReviewService {
       UUID organizationId, UUID projectId, UUID reviewId, UUID findingId,
       DismissFindingRequest request) {
 
-    var review = load(organizationId, projectId, reviewId);
+    var review = load(organizationId, projectId, reviewId, ProjectAccessClient.Access.WRITE);
     var user = requireCurrentUser();
 
     var finding = findings.findByIdAndReviewId(findingId, review.getId())
@@ -216,15 +216,15 @@ public class ReviewService {
         new GitContentClient.Context(organizationId, projectId, repositoryId), token);
   }
 
-  private ReviewEntity load(UUID organizationId, UUID projectId, UUID reviewId) {
-    requireProjectAccess(organizationId, projectId);
+  private ReviewEntity load(UUID organizationId, UUID projectId, UUID reviewId, ProjectAccessClient.Access level) {
+    requireProjectAccess(organizationId, projectId, level);
     return reviews.findByIdAndProjectId(reviewId, projectId)
         // 404 rather than 403 for a review in another project: a 403 would confirm the id exists.
         .orElseThrow(() -> new ResourceNotFoundException("Review not found"));
   }
 
-  private void requireProjectAccess(UUID organizationId, UUID projectId) {
-    projectAccess.requireProjectAccess(organizationId, projectId, currentBearerToken());
+  private void requireProjectAccess(UUID organizationId, UUID projectId, ProjectAccessClient.Access level) {
+    projectAccess.requireProjectAccess(organizationId, projectId, currentBearerToken(), level);
   }
 
   private AuthenticatedUser requireCurrentUser() {
