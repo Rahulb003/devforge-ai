@@ -26,9 +26,9 @@
   </modules>
   <properties>
     <java.version>21</java.version>
-    <spring.boot.version>3.4.13</spring.boot.version>
+    <spring.boot.version>3.5.16</spring.boot.version>
     <mapstruct.version>1.6.3</mapstruct.version>
-    <springdoc.version>2.7.0</springdoc.version>
+    <springdoc.version>2.8.17</springdoc.version>
     <jjwt.version>0.12.6</jjwt.version>
     <!-- JGit 7.x requires Java 17+, which this reactor already targets. Used by
          git-service to perform real git operations rather than shelling out to a
@@ -36,7 +36,7 @@
          attacker-supplied branch and file names. -->
     <jgit.version>7.8.0.202609011348-r</jgit.version>
     <!-- The 2024.0.x train targets Spring Boot 3.4.x. -->
-    <spring-cloud.version>2024.0.3</spring-cloud.version>
+    <spring-cloud.version>2025.0.3</spring-cloud.version>
     <lombok.version>1.18.34</lombok.version>
     <maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
     <maven-surefire-plugin.version>3.2.5</maven-surefire-plugin.version>

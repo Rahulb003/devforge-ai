@@ -213,7 +213,7 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 
 | # | Decision | Rationale |
 |---|---|---|
-| AD-1 | springdoc pinned to **2.7.0**, not latest | 2.7.0's parent is `spring-boot-starter-parent:3.4.0`, matching our Boot version. 2.8.x targets Boot 3.5 and breaks resource-handler pattern parsing at startup. |
+| AD-1 | Boot, Spring Cloud and springdoc upgraded together (3.5.16 / 2025.0.3 / 2.8.17) | springdoc 2.8 targets Boot 3.5 and breaks at startup on 3.4, so they were held at 3.4 / 2.7.0 until the Boot 3.4 line stopped receiving fixes. Moved together in one change; verified by starting every service and fetching its OpenAPI document. |
 | AD-2 | springdoc is compile-scope in `common-library`; JPA is `optional` | `OpenApiConfig` is component-scanned by every consumer, so swagger classes must be present at runtime. `BaseEntity` is a `@MappedSuperclass` that is never scanned, so JPA stays opt-in and infrastructure modules avoid `DataSource` auto-configuration. |
 | AD-3 | Tests use H2-in-PostgreSQL-mode running the real migrations, not `create-drop` | Validates migrations *and* entity mappings together, with no Docker dependency. Testcontainers remains the tool for true PostgreSQL behaviour. |
 | AD-4 | OAuth2 login is wired conditionally | A platform that cannot boot without third-party credentials is not deployable locally or testable in CI. |
