@@ -49,7 +49,12 @@ public class KafkaConfig {
     configs.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, 5);
     configs.put(ProducerConfig.RETRIES_CONFIG, Integer.MAX_VALUE);
     configs.put(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 120_000);
-    configs.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "snappy");
+    // lz4, not snappy. snappy-java needs its glibc native library, and the service images are
+    // Alpine (musl): every send threw NoClassDefFoundError for org.xerial.snappy.Snappy, so no
+    // outbox ever drained in a container while every test, on a glibc JVM, passed. Found the first
+    // time the stack ran under docker compose. lz4-java falls back to pure Java when its native
+    // library cannot load.
+    configs.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "lz4");
 
     return new KafkaTemplate<>(
         new org.springframework.kafka.core.DefaultKafkaProducerFactory<>(configs));
