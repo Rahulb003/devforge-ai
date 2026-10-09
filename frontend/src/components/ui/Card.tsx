@@ -16,7 +16,7 @@ export function Card({
 }: HTMLAttributes<HTMLElement> & { as?: ElementType }) {
   return (
     <Component
-      className={cn('rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-sm', className)}
+      className={cn('rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xs', className)}
       {...props}
     />
   );

@@ -233,12 +233,13 @@ Ordered by how much they matter.
    advisories with no 6.2 fix are accepted in `.trivyignore`, each with the reason it does not
    apply here. CI starts every image (services under the standalone profile) and requires each to
    report healthy; the containers have never run together against real infrastructure.
-5. **Dependency scanning blocks only on shipped frontend code.** CI fails on a high or critical
-   advisory in the frontend production dependencies, and Dependabot proposes weekly updates. Trivy
-   blocks on the auth-service image; its filesystem scan of the Maven and npm trees only reports. The frontend dev
-   tooling carries high and critical advisories (vite, vitest, tailwind, typescript-eslint), all
-   needing major upgrades; none of it ships to a browser. The shipped code has two moderate
-   react-router advisories, also behind a major upgrade.
+5. **Dependency scanning blocks; it covers one image.** CI fails on any high or critical npm
+   advisory (build tooling included), on any Trivy finding in the Maven and npm trees or a
+   committed secret, and on the auth-service image. Dependabot proposes weekly updates. npm audit
+   went from 23 advisories (4 critical) to 0 by upgrading to Vite 8, Vitest 5, typescript-eslint 8,
+   react-router 7 and Tailwind 4; Tailwind 4 was checked by pixel-comparing key pages before and
+   after. Only the auth-service image is scanned; the other images share its base and most of its
+   libraries, but are not scanned themselves.
 6. **Audit logging exists for auth events only.** There is no audit trail for project, task or
    notification changes.
 

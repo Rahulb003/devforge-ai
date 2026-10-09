@@ -207,7 +207,7 @@ function NotificationRow({
         </div>
 
         {notification.body && (
-          <p className="mt-1 break-words text-sm text-slate-400">{notification.body}</p>
+          <p className="mt-1 wrap-break-word text-sm text-slate-400">{notification.body}</p>
         )}
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -227,7 +227,7 @@ function NotificationRow({
           <button
             type="button"
             onClick={notification.read ? onMarkUnread : onMarkRead}
-            className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-slate-400 transition hover:bg-slate-800 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-400"
+            className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-slate-400 transition hover:bg-slate-800 hover:text-white focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-indigo-400"
           >
             <Check className="h-3.5 w-3.5" aria-hidden="true" />
             {notification.read ? 'Mark unread' : 'Mark read'}
@@ -237,7 +237,7 @@ function NotificationRow({
             type="button"
             onClick={onRemove}
             aria-label={`Delete notification: ${notification.title}`}
-            className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-slate-500 transition hover:bg-slate-800 hover:text-red-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-400"
+            className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-slate-500 transition hover:bg-slate-800 hover:text-red-300 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-indigo-400"
           >
             <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
             Delete

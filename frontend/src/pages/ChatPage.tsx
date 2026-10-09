@@ -112,7 +112,7 @@ export function ChatPage() {
                 <p className="mt-1 text-sm italic text-slate-500">Message deleted</p>
               ) : (
                 // Plain text: React escapes it, so a message cannot inject markup.
-                <p className="mt-1 whitespace-pre-wrap break-words text-sm text-slate-300">
+                <p className="mt-1 whitespace-pre-wrap wrap-break-word text-sm text-slate-300">
                   {m.body}
                 </p>
               )}
@@ -147,7 +147,7 @@ export function ChatPage() {
           onChange={(e) => setDraft(e.target.value)}
           maxLength={4000}
           placeholder="Write a message"
-          className="flex-1 rounded-xl border border-slate-700 bg-slate-800 px-4 py-2 text-sm text-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-400"
+          className="flex-1 rounded-xl border border-slate-700 bg-slate-800 px-4 py-2 text-sm text-slate-100 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-indigo-400"
         />
         <Button type="submit" loading={send.isPending} disabled={!draft.trim()}>
           Send

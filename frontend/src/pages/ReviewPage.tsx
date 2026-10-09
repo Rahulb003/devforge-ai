@@ -366,7 +366,7 @@ function FindingRow({
             <button
               type="button"
               onClick={() => setDismissing(true)}
-              className="mt-3 rounded-lg px-2 py-1 text-xs font-medium text-slate-400 transition hover:bg-slate-800 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-400"
+              className="mt-3 rounded-lg px-2 py-1 text-xs font-medium text-slate-400 transition hover:bg-slate-800 hover:text-white focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-indigo-400"
             >
               Dismiss…
             </button>
@@ -385,7 +385,7 @@ function FindingRow({
                 value={reason}
                 onChange={(event) => setReason(event.target.value)}
                 placeholder="e.g. key already rotated"
-                className="w-full rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-400"
+                className="w-full rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-100 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-indigo-400"
               />
               <div className="flex gap-2">
                 <Button size="sm" onClick={submit} loading={pending} disabled={!reason.trim()}>

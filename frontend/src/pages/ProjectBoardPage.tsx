@@ -137,21 +137,21 @@ export function ProjectBoardPage() {
         <div className="flex items-center gap-3">
           <Link
             to={`/organizations/${organizationId}/projects/${projectId}/repositories`}
-            className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-700 bg-slate-800 px-5 text-sm font-medium text-slate-100 transition hover:border-slate-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-400"
+            className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-700 bg-slate-800 px-5 text-sm font-medium text-slate-100 transition hover:border-slate-600 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-indigo-400"
           >
             <GitBranch className="h-4 w-4" aria-hidden="true" />
             Repositories
           </Link>
           <Link
             to={`/organizations/${organizationId}/projects/${projectId}/chat`}
-            className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-700 bg-slate-800 px-5 text-sm font-medium text-slate-100 transition hover:border-slate-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-400"
+            className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-700 bg-slate-800 px-5 text-sm font-medium text-slate-100 transition hover:border-slate-600 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-indigo-400"
           >
             <MessageSquare className="h-4 w-4" aria-hidden="true" />
             Chat
           </Link>
           <Link
             to={`/organizations/${organizationId}/projects/${projectId}/analytics`}
-            className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-700 bg-slate-800 px-5 text-sm font-medium text-slate-100 transition hover:border-slate-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-400"
+            className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-700 bg-slate-800 px-5 text-sm font-medium text-slate-100 transition hover:border-slate-600 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-indigo-400"
           >
             <BarChart3 className="h-4 w-4" aria-hidden="true" />
             Activity

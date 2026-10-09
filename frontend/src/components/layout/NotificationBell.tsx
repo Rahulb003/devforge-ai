@@ -35,7 +35,7 @@ export function NotificationBell() {
       to="/notifications"
       aria-label={label}
       title={label}
-      className="relative inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-700 bg-slate-800 text-slate-300 transition hover:border-slate-600 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-400"
+      className="relative inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-700 bg-slate-800 text-slate-300 transition hover:border-slate-600 hover:text-white focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-indigo-400"
     >
       <Bell className="h-5 w-5" aria-hidden="true" />
       {count > 0 && (

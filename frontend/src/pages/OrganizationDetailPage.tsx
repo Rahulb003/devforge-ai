@@ -201,7 +201,7 @@ export function OrganizationDetailPage() {
               <Link
                 key={project.id}
                 to={`/organizations/${organizationId}/projects/${project.id}`}
-                className="rounded-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
+                className="rounded-2xl focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
               >
                 <Card className="h-full transition-colors hover:border-slate-700">
                   <div className="flex items-start justify-between gap-3">

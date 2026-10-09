@@ -141,7 +141,7 @@ never reachable from code the platform is asked to analyse.
   here, so pod security, network policy and ingress TLS are all unassessed.
 - **Physical and insider threats.**
 - **Volumetric denial of service.** The gateway limits the unauthenticated auth endpoints per address, which blunts credential spraying and signup floods, but it is not a DDoS defence: that belongs in front of the gateway.
-- **Supply chain.** Partly covered: CI blocks high/critical advisories in shipped frontend code, Dependabot proposes updates, and Trivy reports on the rest without blocking. No lockfile policy beyond
+- **Supply chain.** Partly covered: CI blocks high/critical advisories in npm and Maven dependencies and in the auth-service image, and Dependabot proposes updates. No lockfile policy beyond
   `package-lock.json` being committed.
 
 ---
@@ -150,4 +150,4 @@ never reachable from code the platform is asked to analyse.
 
 1. A code-execution sandbox, before any feature needs one.
 2. Per-service Kafka identities and topic ACLs.
-3. Major upgrades of the frontend dev toolchain, then making the filesystem Trivy scan blocking.
+3. Scanning every service image, not only auth-service.

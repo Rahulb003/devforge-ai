@@ -134,7 +134,7 @@ export function TaskDetailDrawer({
         aria-modal="true"
         aria-label={`Task ${projectKey}-${task.taskNumber}: ${task.title}`}
         tabIndex={-1}
-        className="relative flex h-full w-full max-w-lg flex-col overflow-y-auto border-l border-slate-800 bg-slate-950 shadow-2xl focus:outline-none"
+        className="relative flex h-full w-full max-w-lg flex-col overflow-y-auto border-l border-slate-800 bg-slate-950 shadow-2xl focus:outline-hidden"
       >
         <header className="flex items-start justify-between gap-4 border-b border-slate-800 p-6">
           <div className="min-w-0">
@@ -179,7 +179,7 @@ export function TaskDetailDrawer({
               id="task-priority"
               value={task.priority}
               onChange={(event) => updateTask.mutate(event.target.value as TaskPriority)}
-              className="mt-2 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-200 focus:outline focus:outline-2 focus:outline-indigo-400"
+              className="mt-2 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-200 focus:outline-solid focus:outline-2 focus:outline-indigo-400"
             >
               {(Object.keys(PRIORITY_LABELS) as TaskPriority[]).map((priority) => (
                 <option key={priority} value={priority}>
@@ -200,7 +200,7 @@ export function TaskDetailDrawer({
                       type="button"
                       onClick={() => removeLabel.mutate(label)}
                       aria-label={`Remove label ${label}`}
-                      className="rounded p-0.5 text-slate-500 hover:text-red-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-400"
+                      className="rounded p-0.5 text-slate-500 hover:text-red-400 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-indigo-400"
                     >
                       <X className="h-3 w-3" aria-hidden="true" />
                     </button>
@@ -262,7 +262,7 @@ export function TaskDetailDrawer({
                           type="button"
                           onClick={() => deleteComment.mutate(entry.id)}
                           aria-label="Delete comment"
-                          className="rounded p-1 text-slate-500 hover:text-red-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-400"
+                          className="rounded p-1 text-slate-500 hover:text-red-400 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-indigo-400"
                         >
                           <Trash2 className="h-4 w-4" aria-hidden="true" />
                         </button>

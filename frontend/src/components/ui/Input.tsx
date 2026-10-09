@@ -46,7 +46,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
           className={cn(
             'w-full rounded-xl border bg-slate-900 px-4 py-3 text-sm text-slate-100',
             'placeholder:text-slate-500',
-            'focus:outline focus:outline-2 focus:outline-offset-2',
+            'focus:outline-solid focus:outline-2 focus:outline-offset-2',
             error
               ? 'border-red-500/70 focus:outline-red-400'
               : 'border-slate-700 focus:border-slate-600 focus:outline-indigo-400',
@@ -63,7 +63,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
             // Not a form control: excluded from tab order would hide it from
             // keyboard users, so it stays focusable with a real accessible name.
             aria-label={revealed ? 'Hide password' : 'Show password'}
-            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 text-slate-400 transition hover:text-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-400"
+            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 text-slate-400 transition hover:text-slate-200 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-indigo-400"
           >
             {revealed ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>

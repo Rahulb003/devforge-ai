@@ -191,7 +191,7 @@ export function RepositoryBrowserPage() {
           {!isEmpty && repository.isSuccess && (
             <Link
               to={`/organizations/${organizationId}/projects/${projectId}/repositories/${repositoryId}/review`}
-              className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-700 bg-slate-800 px-5 text-sm font-medium text-slate-100 transition hover:border-slate-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-400"
+              className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-700 bg-slate-800 px-5 text-sm font-medium text-slate-100 transition hover:border-slate-600 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-indigo-400"
             >
               <ShieldCheck className="h-4 w-4" aria-hidden="true" />
               Review
@@ -201,7 +201,7 @@ export function RepositoryBrowserPage() {
           {!isEmpty && repository.isSuccess && (
             <Link
               to={`/organizations/${organizationId}/projects/${projectId}/repositories/${repositoryId}/docs`}
-              className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-700 bg-slate-800 px-5 text-sm font-medium text-slate-100 transition hover:border-slate-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-400"
+              className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-700 bg-slate-800 px-5 text-sm font-medium text-slate-100 transition hover:border-slate-600 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-indigo-400"
             >
               <BookText className="h-4 w-4" aria-hidden="true" />
               Docs
@@ -225,7 +225,7 @@ export function RepositoryBrowserPage() {
               <select
                 value={ref ?? ''}
                 onChange={(event) => navigate({ ref: event.target.value, path: '', file: '' })}
-                className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-400"
+                className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-100 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-indigo-400"
               >
                 {branches.data.map((branch) => (
                   <option key={branch.name} value={branch.name}>
@@ -285,7 +285,7 @@ export function RepositoryBrowserPage() {
                 value={newContent}
                 onChange={(event) => setNewContent(event.target.value)}
                 rows={10}
-                className="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 font-mono text-sm text-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-400"
+                className="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 font-mono text-sm text-slate-100 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-indigo-400"
               />
             </div>
             <Input
@@ -451,7 +451,7 @@ function TreeListing({
             <button
               type="button"
               onClick={() => onOpen(entry)}
-              className="flex w-full items-center gap-3 px-5 py-3 text-left transition hover:bg-slate-800/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-400"
+              className="flex w-full items-center gap-3 px-5 py-3 text-left transition hover:bg-slate-800/60 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-indigo-400"
             >
               {entry.type === 'DIRECTORY' ? (
                 <Folder className="h-4 w-4 shrink-0 text-indigo-400" aria-hidden="true" />
@@ -522,7 +522,7 @@ function FileView({
                 >
                   {index + 1}
                 </td>
-                <td className="whitespace-pre-wrap break-words px-4 py-0.5 text-slate-200">
+                <td className="whitespace-pre-wrap wrap-break-word px-4 py-0.5 text-slate-200">
                   {line || ' '}
                 </td>
               </tr>

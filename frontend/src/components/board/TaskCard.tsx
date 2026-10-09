@@ -72,7 +72,7 @@ export function TaskCard({
         <button
           type="button"
           onClick={() => onOpen(task)}
-          className="min-w-0 flex-1 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
+          className="min-w-0 flex-1 text-left focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
         >
           <span className="flex items-center gap-2 text-xs font-mono text-slate-500">
             <TypeIcon className="h-3.5 w-3.5" aria-hidden="true" />
@@ -121,7 +121,7 @@ export function TaskCard({
           id={`move-${task.id}`}
           value={task.status}
           onChange={(event) => onMoveTo(task, event.target.value as TaskStatus)}
-          className="rounded-lg border border-slate-700 bg-slate-800 px-2 py-1 text-xs text-slate-300 focus:outline focus:outline-2 focus:outline-indigo-400"
+          className="rounded-lg border border-slate-700 bg-slate-800 px-2 py-1 text-xs text-slate-300 focus:outline-solid focus:outline-2 focus:outline-indigo-400"
         >
           {TASK_STATUSES.map((status) => (
             <option key={status} value={status}>

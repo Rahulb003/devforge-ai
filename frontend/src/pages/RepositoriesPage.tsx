@@ -152,7 +152,7 @@ export function RepositoriesPage() {
             <li key={repository.id}>
               <Link
                 to={`/organizations/${organizationId}/projects/${projectId}/repositories/${repository.id}`}
-                className="block rounded-2xl border border-slate-800 bg-slate-900 p-5 transition hover:border-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-400"
+                className="block rounded-2xl border border-slate-800 bg-slate-900 p-5 transition hover:border-slate-700 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-indigo-400"
               >
                 <div className="flex items-start justify-between gap-3">
                   <h2 className="font-semibold text-white">{repository.name}</h2>

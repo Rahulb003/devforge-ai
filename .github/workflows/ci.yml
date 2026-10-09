@@ -40,11 +40,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Blocks on high or critical advisories in what ships to the browser. Dev tooling is left out
-      # here: its findings (vite, vitest, tailwind, typescript-eslint) all need major upgrades and are
-      # tracked in docs/SECURITY.md, and none of it reaches a user.
-      - name: Audit production dependencies
-        run: npm audit --omit=dev --audit-level=high
+      # Blocks on any high or critical advisory, build tooling included: a compromised build tool
+      # writes the bundle every user runs. Zero today, after the Vite 8 / Tailwind 4 upgrades.
+      - name: Audit dependencies
+        run: npm audit --audit-level=high
 
       - name: Lint
         run: npm run lint
@@ -351,16 +350,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      # Filesystem scan covers both the npm lockfile and the Maven dependency tree,
-      # plus hard-coded secrets. exit-code is 0 for now so the scan reports without
-      # blocking; tighten to 1 once the current findings are triaged.
+      # Filesystem scan of the npm lockfile and the Maven dependency tree, plus hard-coded
+      # secrets. Blocking: every POM and the lockfile scanned clean. Accepted exceptions live in
+      # .trivyignore with their reasons.
       - name: Trivy filesystem scan
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: fs
           scanners: vuln,secret
           format: table
-          exit-code: '0'
+          exit-code: '1'
+          trivyignores: .trivyignore
           ignore-unfixed: true
           severity: HIGH,CRITICAL
 

@@ -205,7 +205,7 @@ export function DocsPage() {
                 derived from repository files, which are attacker-supplied — rendering it as HTML
                 would turn a crafted README into stored XSS. Plain text cannot.
               */}
-              <pre className="overflow-x-auto whitespace-pre-wrap break-words font-mono text-sm text-slate-300">
+              <pre className="overflow-x-auto whitespace-pre-wrap wrap-break-word font-mono text-sm text-slate-300">
                 {current.data.content}
               </pre>
             </Card>

@@ -69,7 +69,7 @@ export function AppLayout() {
                   className={({ isActive }) =>
                     `flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-colors ${
                       isActive
-                        ? 'bg-slate-800 text-white shadow'
+                        ? 'bg-slate-800 text-white shadow-sm'
                         : 'text-slate-400 hover:bg-slate-800 hover:text-white'
                     }`
                   }
@@ -100,7 +100,7 @@ export function AppLayout() {
                 // Icon-only controls need an explicit name, or a screen reader
                 // announces only "button".
                 aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-                className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-700 bg-slate-800 text-slate-200 transition hover:border-slate-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-400"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-700 bg-slate-800 text-slate-200 transition hover:border-slate-600 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-indigo-400"
               >
                 {theme === 'dark' ? (
                   <Sun className="h-5 w-5" aria-hidden="true" />
@@ -121,7 +121,7 @@ export function AppLayout() {
                     type="button"
                     onClick={handleSignOut}
                     aria-label="Sign out"
-                    className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-700 bg-slate-800 text-slate-300 transition hover:border-slate-600 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-400"
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-700 bg-slate-800 text-slate-300 transition hover:border-slate-600 hover:text-white focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-indigo-400"
                   >
                     <LogOut className="h-5 w-5" aria-hidden="true" />
                   </button>
