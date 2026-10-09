@@ -41,6 +41,8 @@ public class NotificationFactory {
     return switch (envelope.eventType()) {
       case TASK_ASSIGNED -> taskAssigned(envelope, payload);
       case TASK_COMPLETED -> taskCompleted(envelope, payload);
+      case EventTypes.PULL_REQUEST_MERGED -> pullRequestDecided(envelope, payload, "merged");
+      case EventTypes.PULL_REQUEST_CLOSED -> pullRequestDecided(envelope, payload, "closed");
       case EventTypes.USER_PASSWORD_RESET -> securityAlert(envelope, payload,
           "Your password was changed",
           "If this was not you, reset your password and sign out every device immediately.");
@@ -68,7 +70,7 @@ public class NotificationFactory {
     var assignee = uuid(payload.get("assigneeId"));
     var previous = uuid(payload.get("previousAssigneeId"));
     var label = taskLabel(payload);
-    var link = taskLink(payload);
+    var link = taskLink(envelope, payload);
     var notifications = new java.util.ArrayList<NotificationEntity>(2);
 
     // Someone assigning a task to themselves does not need telling. This is the single most
@@ -102,7 +104,7 @@ public class NotificationFactory {
     return List.of(build(envelope, assignee, NotificationCategory.TASK,
         taskLabel(payload) + " was completed",
         text(payload.get("title")),
-        taskLink(payload)));
+        taskLink(envelope, payload)));
   }
 
   /**
@@ -129,8 +131,10 @@ public class NotificationFactory {
           envelope.eventType(), envelope.eventId());
       return List.of();
     }
+    // "/settings", the page that exists. This was "/settings/security", which no route serves,
+    // so every security alert linked to the not-found page.
     return List.of(build(envelope, userId, NotificationCategory.SECURITY, title, body,
-        "/settings/security"));
+        "/settings"));
   }
 
   private NotificationEntity build(
@@ -161,13 +165,43 @@ public class NotificationFactory {
     return number == null ? "a task" : "task #" + number;
   }
 
-  private String taskLink(Map<String, Object> payload) {
+  /**
+   * The task on its project board, which opens it from {@code ?task=}.
+   *
+   * <p>This was {@code /projects/{p}/tasks/{t}}, a route the app has never had, so every task
+   * notification linked to the not-found page. Board URLs need the organization too: it is the
+   * event's tenant.
+   */
+  private String taskLink(EventEnvelope<Map<String, Object>> envelope, Map<String, Object> payload) {
     var projectId = text(payload.get("projectId"));
     var taskId = text(payload.get("taskId"));
-    if (projectId == null || taskId == null) {
+    if (envelope.tenantId() == null || projectId == null || taskId == null) {
       return null;
     }
-    return "/projects/" + projectId + "/tasks/" + taskId;
+    return "/organizations/" + envelope.tenantId() + "/projects/" + projectId + "?task=" + taskId;
+  }
+
+  /**
+   * Tells a pull request's author that someone else merged or closed it. Their own action needs
+   * no notice, as with tasks.
+   */
+  private List<NotificationEntity> pullRequestDecided(
+      EventEnvelope<Map<String, Object>> envelope, Map<String, Object> payload, String outcome) {
+    var author = uuid(payload.get("authorId"));
+    if (author == null || author.equals(envelope.actorId())) {
+      return List.of();
+    }
+    var number = payload.get("number");
+    var projectId = text(payload.get("projectId"));
+    var repositoryId = text(payload.get("repositoryId"));
+    var link = envelope.tenantId() == null || projectId == null || repositoryId == null || number == null
+        ? null
+        : "/organizations/" + envelope.tenantId() + "/projects/" + projectId + "/repositories/"
+            + repositoryId + "/pull-requests/" + number;
+    return List.of(build(envelope, author, NotificationCategory.CODE,
+        "Your pull request #" + number + " was " + outcome,
+        text(payload.get("title")),
+        link));
   }
 
   private static UUID uuid(Object value) {

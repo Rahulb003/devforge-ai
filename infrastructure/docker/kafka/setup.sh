@@ -51,7 +51,7 @@ produces auth-service devforge.identity.v1 devforge.security.v1
 produces task-service devforge.tasks.v1
 produces git-service devforge.repositories.v1
 
-consumes notification-service devforge.identity.v1 devforge.security.v1 devforge.tasks.v1
+consumes notification-service devforge.identity.v1 devforge.security.v1 devforge.tasks.v1 devforge.repositories.v1
 consumes analytics-service devforge.tasks.v1 devforge.repositories.v1
 
 # review-service, documentation-service and chat-service have an identity and no grants: they

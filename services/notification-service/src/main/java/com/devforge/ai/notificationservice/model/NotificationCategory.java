@@ -18,6 +18,9 @@ public enum NotificationCategory {
   /** Membership and project lifecycle. */
   PROJECT,
 
+  /** Repositories and pull requests: a change of yours merged or closed by someone else. */
+  CODE,
+
   /** Platform-level messages not caused by a specific domain event. */
   SYSTEM
 }

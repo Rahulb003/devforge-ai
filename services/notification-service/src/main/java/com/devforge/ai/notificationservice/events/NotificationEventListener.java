@@ -47,7 +47,7 @@ public class NotificationEventListener {
   private final ObjectMapper objectMapper;
 
   @KafkaListener(
-      topics = {KafkaTopics.IDENTITY, KafkaTopics.SECURITY, KafkaTopics.TASKS},
+      topics = {KafkaTopics.IDENTITY, KafkaTopics.SECURITY, KafkaTopics.TASKS, KafkaTopics.REPOSITORIES},
       groupId = CONSUMER_GROUP)
   public void onEvent(String message) {
     var envelope = parse(message);

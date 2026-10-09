@@ -124,7 +124,7 @@ Topic `devforge.repositories.v1`. Tenant is the organization; actor is the user 
 | `RepositoryCreated` | `repositoryId`, `projectId`, `name`, `defaultBranch` | A repository is created |
 | `RepositoryDeleted` | `repositoryId`, `projectId`, `name` | A repository is deleted |
 | `RepositoryPushed` | `repositoryId`, `projectId`, `branch`, `commitId`, `path`, `paths` | A commit is written through the API; `paths` lists every file in a multi-file commit, `path` is its first |
-| `PullRequestOpened` | `repositoryId`, `projectId`, `pullRequestId`, `number`, `sourceBranch`, `targetBranch` | A pull request is opened |
+| `PullRequestOpened` | `repositoryId`, `projectId`, `pullRequestId`, `number`, `sourceBranch`, `targetBranch`, `authorId`, `title` | A pull request is opened |
 | `PullRequestMerged` | same | A pull request is merged; the merge commit is on the target branch |
 | `PullRequestClosed` | same | A pull request is closed without merging |
 
@@ -132,7 +132,7 @@ Topic `devforge.repositories.v1`. Tenant is the organization; actor is the user 
 commits one file at a time, and a real push over HTTP or SSH is a transport this service does not
 yet speak. Consumers should treat it as "the repository gained a commit".
 
-No consumer subscribes to this topic yet. That is the normal direction for the asymmetry — an
+notification-service now consumes this topic: a pull request merged or closed by someone other than its author notifies the author. analytics-service counts pushes. Earlier, no consumer subscribed. That is the normal direction for the asymmetry — an
 event with no consumer is inert, whereas a consumer for an event nobody emits is dead code that
 reads like a feature.
 

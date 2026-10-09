@@ -37,7 +37,7 @@ section count would overstate progress.
 | 7 | Documentation set (11 files) | `IMPLEMENTED` | all 11 present as of this commit |
 | 15 | Container images | `IMPLEMENTED` | All images build in CI, run non-root, and each service container starts healthy; frontend container serves its security headers. Multi-container runtime with real infrastructure **UNVERIFIED** |
 | 16 | Secrets and configuration hygiene | `IMPLEMENTED` | no fallbacks for credentials in the default profile; secrets gitignored |
-| 17 | Build must be green | `IMPLEMENTED` | 498 backend + 79 frontend + 43 e2e, all passing |
+| 17 | Build must be green | `IMPLEMENTED` | 499 backend + 79 frontend + 44 e2e, all passing |
 | 18 | RabbitMQ removed unless justified | `IMPLEMENTED` | removed from five places; justification in `EVENT_CATALOG.md` §1 |
 
 ## Identity and access

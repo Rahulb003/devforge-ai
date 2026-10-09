@@ -36,7 +36,7 @@ import org.springframework.test.context.TestPropertySource;
 @SpringBootTest
 @EmbeddedKafka(
     partitions = 1,
-    topics = {KafkaTopics.IDENTITY, KafkaTopics.SECURITY, KafkaTopics.TASKS})
+    topics = {KafkaTopics.IDENTITY, KafkaTopics.SECURITY, KafkaTopics.TASKS, KafkaTopics.REPOSITORIES})
 @TestPropertySource(properties = {
     // The listener is off by default in tests so the API tests need no broker; this class
     // supplies one and switches it on.
@@ -62,10 +62,12 @@ class NotificationConsumerIntegrationTest {
   void taskAssignedNotifiesAssignee() {
     var assigner = UUID.randomUUID();
     var assignee = UUID.randomUUID();
+    var taskId = UUID.randomUUID();
+    var projectId = UUID.randomUUID();
 
     publish(KafkaTopics.TASKS, taskEvent("TaskAssigned", assigner, Map.of(
-        "taskId", UUID.randomUUID().toString(),
-        "projectId", UUID.randomUUID().toString(),
+        "taskId", taskId.toString(),
+        "projectId", projectId.toString(),
         "taskNumber", 12,
         "title", "Harden the CORS configuration",
         "assigneeId", assignee.toString())));
@@ -78,11 +80,55 @@ class NotificationConsumerIntegrationTest {
     assertThat(notification.getBody()).isEqualTo("Harden the CORS configuration");
     assertThat(notification.getCategory()).isEqualTo(NotificationCategory.TASK);
     assertThat(notification.getOrganizationId()).isEqualTo(organizationId);
-    assertThat(notification.getLink()).startsWith("/projects/");
+    // A route the app serves: the board opens the task from ?task=. This used to assert a
+    // "/projects/..." link, which locked in a path no route ever served.
+    assertThat(notification.getLink()).isEqualTo(
+        "/organizations/" + organizationId + "/projects/" + projectId + "?task=" + taskId);
     assertThat(notification.isRead()).isFalse();
 
     // The person who performed the action already knows they did it.
     assertThat(notificationRepository.countByRecipientIdAndReadAtIsNull(assigner)).isZero();
+  }
+
+  @Test
+  @DisplayName("a pull request merged by someone else notifies its author; merging your own does not")
+  void pullRequestDecisionNotifiesAuthor() {
+    var author = UUID.randomUUID();
+    var merger = UUID.randomUUID();
+    var projectId = UUID.randomUUID();
+    var repositoryId = UUID.randomUUID();
+    var payload = Map.<String, Object>of(
+        "repositoryId", repositoryId.toString(),
+        "projectId", projectId.toString(),
+        "pullRequestId", UUID.randomUUID().toString(),
+        "number", 7,
+        "authorId", author.toString(),
+        "title", "Add login");
+
+    publish(KafkaTopics.REPOSITORIES, taskEvent("PullRequestMerged", merger, payload));
+    await(() -> notificationRepository.countByRecipientIdAndReadAtIsNull(author) == 1,
+        "the author to be notified");
+
+    var notification = onlyNotificationFor(author);
+    assertThat(notification.getTitle()).isEqualTo("Your pull request #7 was merged");
+    assertThat(notification.getBody()).isEqualTo("Add login");
+    assertThat(notification.getCategory()).isEqualTo(NotificationCategory.CODE);
+    assertThat(notification.getLink()).isEqualTo("/organizations/" + organizationId + "/projects/"
+        + projectId + "/repositories/" + repositoryId + "/pull-requests/7");
+    assertThat(notificationRepository.countByRecipientIdAndReadAtIsNull(merger)).isZero();
+
+    // The author closing their own pull request needs no notice.
+    publish(KafkaTopics.REPOSITORIES, taskEvent("PullRequestClosed", author, payload));
+    // A marker after it on the same single-partition consumer: once the marker is processed, the
+    // close has been too, so "still one notification" means the close created none.
+    var marker = UUID.randomUUID();
+    publish(KafkaTopics.REPOSITORIES, taskEvent("PullRequestMerged", merger, Map.<String, Object>of(
+        "repositoryId", repositoryId.toString(), "projectId", projectId.toString(),
+        "pullRequestId", UUID.randomUUID().toString(), "number", 8,
+        "authorId", marker.toString(), "title", "marker")));
+    await(() -> notificationRepository.countByRecipientIdAndReadAtIsNull(marker) == 1,
+        "the marker to be processed");
+    assertThat(notificationRepository.countByRecipientIdAndReadAtIsNull(author)).isEqualTo(1);
   }
 
   @Test

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, BarChart3, GitBranch, MessageSquare, Plus } from 'lucide-react';
 import { useState, type DragEvent, type FormEvent } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 
 import { projectApi } from '@/api/project.api';
 import { STATUS_LABELS, TASK_STATUSES, taskApi, type Task, type TaskStatus } from '@/api/task.api';
@@ -29,7 +29,17 @@ export function ProjectBoardPage() {
 
   const [dragged, setDragged] = useState<Task | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<TaskStatus | null>(null);
-  const [openTask, setOpenTask] = useState<Task | null>(null);
+  const [openTask, setOpenTaskState] = useState<Task | null>(null);
+  // The open task is mirrored in ?task=, so a notification - or anyone - can link straight to it.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const linkedTaskId = searchParams.get('task');
+  const setOpenTask = (task: Task | null) => {
+    setOpenTaskState(task);
+    const params = new URLSearchParams(searchParams);
+    if (task) params.set('task', task.id);
+    else params.delete('task');
+    setSearchParams(params, { replace: true });
+  };
   const [creating, setCreating] = useState(false);
   const [title, setTitle] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -95,6 +105,12 @@ export function ProjectBoardPage() {
     moveTask.mutate({ task: dragged, status });
     setDragged(null);
   }
+
+  const linkedTask =
+    linkedTaskId && !openTask
+      ? board.data?.flatMap((column) => column.tasks).find((t) => t.id === linkedTaskId)
+      : undefined;
+  const shownTask = openTask ?? linkedTask ?? null;
 
   if (project.isError) {
     return (
@@ -283,7 +299,7 @@ export function ProjectBoardPage() {
         </div>
       )}
 
-      {openTask && (
+      {shownTask && (
         <TaskDetailDrawer
           organizationId={organizationId}
           projectId={projectId}
@@ -291,8 +307,8 @@ export function ProjectBoardPage() {
           // Re-read from the freshly fetched board so the drawer does not show a
           // stale copy after a label or comment changes.
           task={
-            board.data?.flatMap((column) => column.tasks).find((t) => t.id === openTask.id) ??
-            openTask
+            board.data?.flatMap((column) => column.tasks).find((t) => t.id === shownTask.id) ??
+            shownTask
           }
           onClose={() => setOpenTask(null)}
         />

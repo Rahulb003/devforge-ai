@@ -362,7 +362,10 @@ public class PullRequestService {
             "pullRequestId", entity.getId().toString(),
             "number", entity.getNumber(),
             "sourceBranch", entity.getSourceBranch(),
-            "targetBranch", entity.getTargetBranch()));
+            "targetBranch", entity.getTargetBranch(),
+            // Who to tell when someone else merges or closes it; the title says which one.
+            "authorId", entity.getAuthorId().toString(),
+            "title", entity.getTitle()));
   }
 
   private static PullRequestResponse toResponse(

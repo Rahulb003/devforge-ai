@@ -1,5 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Bell, Check, CheckCheck, ShieldAlert, SquareKanban, Trash2 } from 'lucide-react';
+import {
+  Bell,
+  Check,
+  CheckCheck,
+  GitPullRequest,
+  ShieldAlert,
+  SquareKanban,
+  Trash2,
+} from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
@@ -13,6 +21,7 @@ const CATEGORY_ICON: Record<NotificationCategory, typeof Bell> = {
   SECURITY: ShieldAlert,
   TASK: SquareKanban,
   PROJECT: SquareKanban,
+  CODE: GitPullRequest,
   SYSTEM: Bell,
 };
 
@@ -21,6 +30,7 @@ const CATEGORY_STYLE: Record<NotificationCategory, string> = {
   SECURITY: 'bg-amber-500/10 text-amber-300',
   TASK: 'bg-indigo-500/10 text-indigo-300',
   PROJECT: 'bg-sky-500/10 text-sky-300',
+  CODE: 'bg-emerald-500/10 text-emerald-300',
   SYSTEM: 'bg-slate-700/40 text-slate-300',
 };
 

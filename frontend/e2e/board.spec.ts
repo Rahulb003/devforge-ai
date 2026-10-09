@@ -115,6 +115,23 @@ test.describe('Kanban board', () => {
     await expect(page.getByRole('dialog')).toHaveCount(0);
   });
 
+  test('an open task is in the URL, so a link or a reload opens it again', async ({ page }) => {
+    await openBoard(page);
+    await createTask(page, 'Linkable task');
+
+    await page.getByRole('button', { name: /Linkable task/ }).click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+    // Where task notifications link: they used to point at a route that did not exist.
+    await expect(page).toHaveURL(/\?task=[0-9a-f-]{36}$/);
+
+    await page.reload();
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await expect(page.getByRole('dialog')).toContainText('Linkable task');
+
+    await page.keyboard.press('Escape');
+    await expect(page).not.toHaveURL(/task=/);
+  });
+
   test('a task can be deleted from the drawer', async ({ page }) => {
     await openBoard(page);
     await createTask(page, 'Doomed task');

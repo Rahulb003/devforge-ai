@@ -3,7 +3,7 @@ import type { Page } from './project.api';
 
 import api from '@/lib/axios';
 
-export type NotificationCategory = 'SECURITY' | 'TASK' | 'PROJECT' | 'SYSTEM';
+export type NotificationCategory = 'SECURITY' | 'TASK' | 'PROJECT' | 'CODE' | 'SYSTEM';
 
 /**
  * A notification belonging to the signed-in user.
@@ -31,6 +31,7 @@ export const CATEGORY_LABELS: Record<NotificationCategory, string> = {
   SECURITY: 'Security',
   TASK: 'Task',
   PROJECT: 'Project',
+  CODE: 'Code',
   SYSTEM: 'System',
 };
 
