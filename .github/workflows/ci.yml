@@ -281,6 +281,41 @@ jobs:
           done
           docker rm -f web
 
+      # Start every built service image and wait for it to report healthy. Building an image proves
+      # little: a missing Main-Class, a wrong jar path or a startup failure only shows when it runs.
+      # The standalone profile needs no database or broker, so each runs alone.
+      - name: Verify service images start and report healthy
+        run: |
+          set -euo pipefail
+          services=(
+            "auth-service:9001" "project-service:9002" "task-service:9003" "git-service:9005"
+            "review-service:9006" "documentation-service:9007" "chat-service:9008"
+            "analytics-service:9010" "notification-service:9011" "api-gateway:8080"
+          )
+          for entry in "${services[@]}"; do
+            name="${entry%%:*}"; port="${entry##*:}"
+            docker run -d --name "$name" -p "$port:$port" \
+              -e SPRING_PROFILES_ACTIVE=standalone "devforge-ai/$name:${GITHUB_SHA}" > /dev/null
+          done
+          failed=0
+          for entry in "${services[@]}"; do
+            name="${entry%%:*}"; port="${entry##*:}"
+            ok=0
+            for _ in $(seq 1 90); do
+              if curl -sf -o /dev/null "http://localhost:$port/actuator/health"; then ok=1; break; fi
+              sleep 2
+            done
+            if [ "$ok" = 1 ]; then
+              echo "healthy: $name"
+            else
+              echo "::error::$name did not become healthy"
+              docker logs "$name" 2>&1 | tail -40
+              failed=1
+            fi
+          done
+          docker rm -f "${services[@]%%:*}" > /dev/null
+          exit "$failed"
+
       # Fails the job if any image would run as root. The previous images all
       # did; this keeps that from silently regressing.
       - name: Verify images do not run as root
