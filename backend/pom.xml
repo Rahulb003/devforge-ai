@@ -46,6 +46,7 @@
     <tomcat-override.version>10.1.60</tomcat-override.version>
     <postgresql-override.version>42.7.12</postgresql-override.version>
     <lz4-override.version>1.11.4</lz4-override.version>
+    <bouncycastle-override.version>1.85</bouncycastle-override.version>
   </properties>
   <dependencyManagement>
     <dependencies>
@@ -88,6 +89,12 @@
         <groupId>org.postgresql</groupId>
         <artifactId>postgresql</artifactId>
         <version>${postgresql-override.version}</version>
+      </dependency>
+      <!-- Pulled in by spring-cloud-commons, so api-gateway ships it; the Spring Cloud BOM pins 1.80.2. -->
+      <dependency>
+        <groupId>org.bouncycastle</groupId>
+        <artifactId>bcprov-jdk18on</artifactId>
+        <version>${bouncycastle-override.version}</version>
       </dependency>
       <!-- Pulled in by kafka-clients for compression. -->
       <dependency>

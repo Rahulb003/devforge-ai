@@ -26,7 +26,9 @@ RUN npm run build
 # nginx-unprivileged runs as a non-root user and listens on 8080, so the
 # container needs no privileged port bind. The stock nginx image runs its
 # master process as root.
-FROM nginxinc/nginx-unprivileged:1.27-alpine AS runtime
+# Stable nginx on a pinned, current Alpine. 1.27-alpine sat on Alpine 3.21 with 43 high/critical
+# OS-package advisories, found the first time CI scanned this image.
+FROM nginxinc/nginx-unprivileged:1.30-alpine3.24 AS runtime
 
 # Single-page app: unknown paths must fall through to index.html or a deep link
 # like /projects/42 returns 404 from nginx before React Router ever sees it.
