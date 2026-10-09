@@ -28,6 +28,10 @@ spec:
       labels:
         app: api-gateway
     spec:
+      # The images run as uid 10001; fsGroup makes a mounted volume writable for it, where it would
+      # otherwise be owned by root.
+      securityContext:
+        fsGroup: 10001
       containers:
         - name: api-gateway
           image: devforge-ai/api-gateway:latest
@@ -122,6 +126,10 @@ spec:
       labels:
         app: auth-service
     spec:
+      # The images run as uid 10001; fsGroup makes a mounted volume writable for it, where it would
+      # otherwise be owned by root.
+      securityContext:
+        fsGroup: 10001
       containers:
         - name: auth-service
           image: devforge-ai/auth-service:latest
@@ -289,6 +297,10 @@ spec:
       labels:
         app: project-service
     spec:
+      # The images run as uid 10001; fsGroup makes a mounted volume writable for it, where it would
+      # otherwise be owned by root.
+      securityContext:
+        fsGroup: 10001
       containers:
         - name: project-service
           image: devforge-ai/project-service:latest
@@ -402,6 +414,10 @@ spec:
       labels:
         app: task-service
     spec:
+      # The images run as uid 10001; fsGroup makes a mounted volume writable for it, where it would
+      # otherwise be owned by root.
+      securityContext:
+        fsGroup: 10001
       containers:
         - name: task-service
           image: devforge-ai/task-service:latest
@@ -526,6 +542,10 @@ spec:
       labels:
         app: git-service
     spec:
+      # The images run as uid 10001; fsGroup makes a mounted volume writable for it, where it would
+      # otherwise be owned by root.
+      securityContext:
+        fsGroup: 10001
       containers:
         - name: git-service
           image: devforge-ai/git-service:latest
@@ -592,6 +612,8 @@ spec:
                 secretKeyRef:
                   name: devforge-ai-secrets
                   key: kafka-password-git-service
+            - name: DEVFORGE_GIT_STORAGE_ROOT
+              value: "/app/data/git-repositories"
           # Startup is slow (JVM, Flyway); readiness gates traffic, liveness restarts a stuck pod.
           startupProbe:
             httpGet: { path: /actuator/health, port: 9005 }
@@ -646,6 +668,10 @@ spec:
       labels:
         app: review-service
     spec:
+      # The images run as uid 10001; fsGroup makes a mounted volume writable for it, where it would
+      # otherwise be owned by root.
+      securityContext:
+        fsGroup: 10001
       containers:
         - name: review-service
           image: devforge-ai/review-service:latest
@@ -759,6 +785,10 @@ spec:
       labels:
         app: documentation-service
     spec:
+      # The images run as uid 10001; fsGroup makes a mounted volume writable for it, where it would
+      # otherwise be owned by root.
+      securityContext:
+        fsGroup: 10001
       containers:
         - name: documentation-service
           image: devforge-ai/documentation-service:latest
@@ -872,6 +902,10 @@ spec:
       labels:
         app: chat-service
     spec:
+      # The images run as uid 10001; fsGroup makes a mounted volume writable for it, where it would
+      # otherwise be owned by root.
+      securityContext:
+        fsGroup: 10001
       containers:
         - name: chat-service
           image: devforge-ai/chat-service:latest
@@ -985,6 +1019,10 @@ spec:
       labels:
         app: analytics-service
     spec:
+      # The images run as uid 10001; fsGroup makes a mounted volume writable for it, where it would
+      # otherwise be owned by root.
+      securityContext:
+        fsGroup: 10001
       containers:
         - name: analytics-service
           image: devforge-ai/analytics-service:latest
@@ -1098,6 +1136,10 @@ spec:
       labels:
         app: notification-service
     spec:
+      # The images run as uid 10001; fsGroup makes a mounted volume writable for it, where it would
+      # otherwise be owned by root.
+      securityContext:
+        fsGroup: 10001
       containers:
         - name: notification-service
           image: devforge-ai/notification-service:latest

@@ -33,7 +33,9 @@ const SERVICES = [
   ] },
   { name: "project-service", port: 9002, db: "devforge_project", kafka: true },
   { name: "task-service", port: 9003, db: "devforge_task", kafka: true },
-  { name: "git-service", port: 9005, db: "devforge_git", kafka: true, volume: "/app/data/git-repositories" },
+  { name: "git-service", port: 9005, db: "devforge_git", kafka: true, volume: "/app/data/git-repositories",
+    // No default in the base config; without it the service fails at startup.
+    env: [["DEVFORGE_GIT_STORAGE_ROOT", "/app/data/git-repositories"]] },
   { name: "review-service", port: 9006, db: "devforge_review", kafka: true },
   { name: "documentation-service", port: 9007, db: "devforge_documentation", kafka: true },
   { name: "chat-service", port: 9008, db: "devforge_chat", kafka: true },
@@ -131,6 +133,10 @@ spec:
       labels:
         app: ${svc.name}
     spec:
+      # The images run as uid 10001; fsGroup makes a mounted volume writable for it, where it would
+      # otherwise be owned by root.
+      securityContext:
+        fsGroup: 10001
       containers:
         - name: ${svc.name}
           image: devforge-ai/${svc.name}:latest
