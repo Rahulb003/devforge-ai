@@ -70,6 +70,8 @@ class PullRequestApiTest {
   private final UUID organizationId = UUID.randomUUID();
   private final UUID projectId = UUID.randomUUID();
   private final UUID user = UUID.randomUUID();
+  /** A second project member, to review the author's pull requests. */
+  private final UUID reviewer = UUID.randomUUID();
   private UUID repo;
 
   private String base() {
@@ -91,6 +93,11 @@ class PullRequestApiTest {
       request.contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(body));
     }
     return mockMvc.perform(request);
+  }
+
+  private ResultActions sendAs(UUID who,
+      org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder request) throws Exception {
+    return mockMvc.perform(request.header(HttpHeaders.AUTHORIZATION, "Bearer " + TestTokens.accessToken(who)));
   }
 
   private JsonNode data(ResultActions result) throws Exception {
@@ -283,6 +290,96 @@ class PullRequestApiTest {
 
       send(delete(base() + "/" + repo), null).andExpect(status().is2xxSuccessful());
       assertThat(pullRequests.findAll()).isEmpty();
+    }
+  }
+
+  @Nested
+  @DisplayName("review")
+  class Review {
+
+    private void requireApprovals(int count) throws Exception {
+      send(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put(base() + "/" + repo + "/merge-rules"), Map.of("requiredApprovals", count))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.data.requiredApprovals").value(count));
+    }
+
+    @Test
+    @DisplayName("an author cannot approve their own pull request; a reviewer can")
+    void approvalsNeedASecondPerson() throws Exception {
+      commit("feature", "a.txt", "a\n");
+      open("feature", "Change a").andExpect(status().isCreated());
+
+      send(post(prs() + "/1/approve"), null).andExpect(status().isBadRequest());
+      sendAs(reviewer, post(prs() + "/1/approve"))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.data.currentApprovals").value(1))
+          .andExpect(jsonPath("$.data.approvals[0].current").value(true));
+      // Approving twice is still one approval.
+      sendAs(reviewer, post(prs() + "/1/approve"))
+          .andExpect(jsonPath("$.data.approvals.length()").value(1));
+    }
+
+    @Test
+    @DisplayName("a merge rule blocks merging until the current changes are approved")
+    void requiredApprovalsBlockMerge() throws Exception {
+      requireApprovals(1);
+      commit("feature", "a.txt", "a\n");
+      open("feature", "Change a").andExpect(status().isCreated());
+
+      send(post(prs() + "/1/merge"), null)
+          .andExpect(status().isConflict())
+          .andExpect(jsonPath("$.message").value(
+              "This repository needs 1 approval of the current changes before merging; it has 0"));
+
+      sendAs(reviewer, post(prs() + "/1/approve")).andExpect(status().isOk());
+      // New commits after the approval: it no longer covers what would be merged.
+      commit("feature", "a.txt", "changed after approval\n");
+      send(get(prs() + "/1"), null)
+          .andExpect(jsonPath("$.data.currentApprovals").value(0))
+          .andExpect(jsonPath("$.data.approvals[0].current").value(false));
+      send(post(prs() + "/1/merge"), null).andExpect(status().isConflict());
+
+      // Approving again covers the new head, and it merges.
+      sendAs(reviewer, post(prs() + "/1/approve")).andExpect(status().isOk());
+      send(post(prs() + "/1/merge"), null).andExpect(status().isOk());
+      assertThat(file("main", "a.txt")).isEqualTo("changed after approval\n");
+    }
+
+    @Test
+    @DisplayName("only a project admin can change the merge rules, within bounds")
+    void mergeRulesNeedAdmin() throws Exception {
+      send(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put(base() + "/" + repo + "/merge-rules"), Map.of("requiredApprovals", 11))
+          .andExpect(status().isBadRequest());
+
+      doThrow(new org.springframework.security.access.AccessDeniedException("admin only"))
+          .when(projectAccessClient).requireProjectAccess(eq(organizationId), eq(projectId), any(),
+              eq(com.devforge.ai.common.security.client.ProjectAccessClient.Access.ADMIN));
+      send(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put(base() + "/" + repo + "/merge-rules"), Map.of("requiredApprovals", 2))
+          .andExpect(status().isForbidden());
+      assertThat(repositories.findById(repo).orElseThrow().getRequiredApprovals()).isZero();
+    }
+
+    @Test
+    @DisplayName("comments are listed in order, and only their author can delete one")
+    void comments() throws Exception {
+      commit("feature", "a.txt", "a\n");
+      open("feature", "Change a").andExpect(status().isCreated());
+
+      var mine = data(send(post(prs() + "/1/comments"), Map.of("body", "Looks good?"))
+          .andExpect(status().isCreated())).path("id").asText();
+      sendAs(reviewer, post(prs() + "/1/comments")
+              .contentType(MediaType.APPLICATION_JSON).content("{\"body\":\"Needs a test\"}"))
+          .andExpect(status().isCreated());
+
+      send(get(prs() + "/1/comments"), null)
+          .andExpect(jsonPath("$.data.length()").value(2))
+          .andExpect(jsonPath("$.data[0].body").value("Looks good?"))
+          .andExpect(jsonPath("$.data[1].body").value("Needs a test"));
+
+      // Another member's comment is not found, not forbidden.
+      sendAs(reviewer, org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete(prs() + "/1/comments/" + mine)).andExpect(status().isNotFound());
+      send(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete(prs() + "/1/comments/" + mine), null).andExpect(status().isOk());
+      send(get(prs() + "/1/comments"), null).andExpect(jsonPath("$.data.length()").value(1));
     }
   }
 }

@@ -80,7 +80,8 @@ public final class GitDtos {
       boolean empty,
       UUID createdBy,
       Instant createdAt,
-      Instant updatedAt) {
+      Instant updatedAt,
+      int requiredApprovals) {
 
     public static RepositoryResponse from(RepositoryEntity entity, boolean empty) {
       return new RepositoryResponse(
@@ -93,7 +94,8 @@ public final class GitDtos {
           empty,
           entity.getCreatedBy(),
           entity.getCreatedAt(),
-          entity.getUpdatedAt());
+          entity.getUpdatedAt(),
+          entity.getRequiredApprovals());
     }
   }
 
@@ -167,5 +169,19 @@ public final class GitDtos {
       String targetHead,
       String mergeBase,
       Boolean alreadyMerged,
-      List<String> conflicts) {}
+      List<String> conflicts,
+      /** Approvals of the commit now at the source head; the only ones that count. Null in a list. */
+      Integer currentApprovals,
+      Integer requiredApprovals,
+      List<ApprovalResponse> approvals) {}
+
+  /** {@code current}: the approval is of the commit now at the source head. */
+  public record ApprovalResponse(UUID userId, String userName, String commitId, boolean current, Instant createdAt) {}
+
+  public record CommentResponse(UUID id, UUID authorId, String authorName, String body, Instant createdAt) {}
+
+  public record AddCommentRequest(@NotBlank @Size(max = 10000) String body) {}
+
+  public record MergeRulesRequest(
+      @jakarta.validation.constraints.Min(0) @jakarta.validation.constraints.Max(10) int requiredApprovals) {}
 }

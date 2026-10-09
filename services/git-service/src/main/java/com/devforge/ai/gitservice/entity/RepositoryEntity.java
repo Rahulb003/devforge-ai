@@ -59,6 +59,11 @@ public class RepositoryEntity {
   @Column(name = "created_by", nullable = false, updatable = false)
   private UUID createdBy;
 
+  /** Approvals of the current changes a pull request needs to merge. Changed only by an admin. */
+  @Builder.Default
+  @Column(name = "required_approvals", nullable = false)
+  private int requiredApprovals = 0;
+
   @Column(name = "created_at", nullable = false, updatable = false)
   private Instant createdAt;
 

@@ -192,6 +192,18 @@ public class RepositoryController {
         "Committed"));
   }
 
+  /** Merge rules for the repository's pull requests. Project admins only. */
+  @org.springframework.web.bind.annotation.PutMapping("/{repositoryId}/merge-rules")
+  public ResponseEntity<ApiResponse<RepositoryResponse>> updateMergeRules(
+      @PathVariable UUID organizationId,
+      @PathVariable UUID projectId,
+      @PathVariable UUID repositoryId,
+      @Valid @RequestBody com.devforge.ai.gitservice.dto.GitDtos.MergeRulesRequest request) {
+    return ResponseEntity.ok(new ApiResponse<>(true,
+        repositoryService.updateMergeRules(organizationId, projectId, repositoryId, request),
+        "Merge rules updated"));
+  }
+
   /** Several file changes as one commit; 409 if the branch moved past {@code baseCommitId}. */
   @PostMapping("/{repositoryId}/commits")
   public ResponseEntity<ApiResponse<CommitResponse>> commitChanges(

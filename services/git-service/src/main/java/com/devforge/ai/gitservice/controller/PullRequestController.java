@@ -82,6 +82,58 @@ public class PullRequestController {
         pullRequests.merge(organizationId, projectId, repositoryId, number, request), "Merged"));
   }
 
+  @PostMapping("/{number}/approve")
+  public ResponseEntity<ApiResponse<PullRequestResponse>> approve(
+      @PathVariable UUID organizationId,
+      @PathVariable UUID projectId,
+      @PathVariable UUID repositoryId,
+      @PathVariable int number) {
+    return ResponseEntity.ok(new ApiResponse<>(true,
+        pullRequests.approve(organizationId, projectId, repositoryId, number), "Approved"));
+  }
+
+  @org.springframework.web.bind.annotation.DeleteMapping("/{number}/approve")
+  public ResponseEntity<ApiResponse<PullRequestResponse>> withdrawApproval(
+      @PathVariable UUID organizationId,
+      @PathVariable UUID projectId,
+      @PathVariable UUID repositoryId,
+      @PathVariable int number) {
+    return ResponseEntity.ok(new ApiResponse<>(true,
+        pullRequests.withdrawApproval(organizationId, projectId, repositoryId, number), "Approval withdrawn"));
+  }
+
+  @GetMapping("/{number}/comments")
+  public ResponseEntity<ApiResponse<List<com.devforge.ai.gitservice.dto.GitDtos.CommentResponse>>> comments(
+      @PathVariable UUID organizationId,
+      @PathVariable UUID projectId,
+      @PathVariable UUID repositoryId,
+      @PathVariable int number) {
+    return ResponseEntity.ok(new ApiResponse<>(true,
+        pullRequests.comments(organizationId, projectId, repositoryId, number), null));
+  }
+
+  @PostMapping("/{number}/comments")
+  public ResponseEntity<ApiResponse<com.devforge.ai.gitservice.dto.GitDtos.CommentResponse>> addComment(
+      @PathVariable UUID organizationId,
+      @PathVariable UUID projectId,
+      @PathVariable UUID repositoryId,
+      @PathVariable int number,
+      @Valid @RequestBody com.devforge.ai.gitservice.dto.GitDtos.AddCommentRequest request) {
+    return ResponseEntity.status(HttpStatus.CREATED).body(new ApiResponse<>(true,
+        pullRequests.addComment(organizationId, projectId, repositoryId, number, request), "Comment added"));
+  }
+
+  @org.springframework.web.bind.annotation.DeleteMapping("/{number}/comments/{commentId}")
+  public ResponseEntity<ApiResponse<Void>> deleteComment(
+      @PathVariable UUID organizationId,
+      @PathVariable UUID projectId,
+      @PathVariable UUID repositoryId,
+      @PathVariable int number,
+      @PathVariable UUID commentId) {
+    pullRequests.deleteComment(organizationId, projectId, repositoryId, number, commentId);
+    return ResponseEntity.ok(new ApiResponse<>(true, null, "Comment deleted"));
+  }
+
   @PostMapping("/{number}/close")
   public ResponseEntity<ApiResponse<PullRequestResponse>> close(
       @PathVariable UUID organizationId,

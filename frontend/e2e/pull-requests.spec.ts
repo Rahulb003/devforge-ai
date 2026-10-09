@@ -125,4 +125,49 @@ test.describe('Pull requests', () => {
     await page.getByRole('button', { name: 'Close without merging' }).click();
     await expect(page.getByText('Closed', { exact: true })).toBeVisible();
   });
+
+  test('a merge rule holds the merge until it is met, and the discussion is kept', async ({
+    page,
+  }) => {
+    await openRepository(page);
+    await addFile(page, 'README.md', '# readme');
+    await newBranch(page, 'feature/docs');
+    await addFile(page, 'docs.md', 'how it works');
+
+    // The repository's creator is a project admin, so may set the rule.
+    await page.getByRole('link', { name: 'Pull requests' }).click();
+    const rules = page.getByRole('form', { name: 'Merge rules' });
+    await rules.getByLabel('Approvals required to merge').fill('1');
+    await rules.getByRole('button', { name: 'Save' }).click();
+    await expect(rules.getByRole('button', { name: 'Save' })).toBeHidden();
+
+    await page.getByRole('button', { name: 'New pull request' }).click();
+    const form = page.getByRole('form', { name: 'New pull request' });
+    await form.getByLabel('From branch').selectOption('feature/docs');
+    await form.getByLabel('Title').fill('Document it');
+    await form.getByRole('button', { name: 'Open pull request' }).click();
+
+    // The author cannot approve their own change, so with one approval required it cannot merge.
+    await expect(page.getByText('0 of 1 required approval of the current changes')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Approve', exact: true })).toHaveCount(0);
+    await expect(page.getByText('Needs 1 more approval before it can merge.')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Merge', exact: true })).toBeDisabled();
+
+    const discussion = page.getByRole('form', { name: 'Add a comment' });
+    await discussion.getByLabel('Comment').fill('Waiting on a reviewer.');
+    await discussion.getByRole('button', { name: 'Comment' }).click();
+    const comments = page.getByRole('list', { name: 'Comments' });
+    await expect(comments.getByText('Waiting on a reviewer.')).toBeVisible();
+    await comments.getByRole('button', { name: 'Delete comment' }).click();
+    await expect(page.getByText('No comments yet.')).toBeVisible();
+
+    // Relaxing the rule lets it merge.
+    await page.getByRole('link', { name: 'All pull requests' }).click();
+    await rules.getByLabel('Approvals required to merge').fill('0');
+    await rules.getByRole('button', { name: 'Save' }).click();
+    await expect(rules.getByRole('button', { name: 'Save' })).toBeHidden();
+    await page.getByRole('link', { name: /Document it/ }).click();
+    await page.getByRole('button', { name: 'Merge', exact: true }).click();
+    await expect(page.getByText('Merged', { exact: true })).toBeVisible();
+  });
 });

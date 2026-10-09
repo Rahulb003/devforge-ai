@@ -6,10 +6,15 @@ import com.devforge.ai.common.events.outbox.OutboxEventRecorder;
 import com.devforge.ai.common.exception.ResourceConflictException;
 import com.devforge.ai.common.exception.ResourceNotFoundException;
 import com.devforge.ai.common.security.client.ProjectAccessClient;
+import com.devforge.ai.gitservice.dto.GitDtos.AddCommentRequest;
+import com.devforge.ai.gitservice.dto.GitDtos.ApprovalResponse;
+import com.devforge.ai.gitservice.dto.GitDtos.CommentResponse;
 import com.devforge.ai.gitservice.dto.GitDtos.CreatePullRequestRequest;
 import com.devforge.ai.gitservice.dto.GitDtos.DiffResponse;
 import com.devforge.ai.gitservice.dto.GitDtos.MergePullRequestRequest;
 import com.devforge.ai.gitservice.dto.GitDtos.PullRequestResponse;
+import com.devforge.ai.gitservice.entity.PullRequestApprovalEntity;
+import com.devforge.ai.gitservice.entity.PullRequestCommentEntity;
 import com.devforge.ai.gitservice.entity.PullRequestEntity;
 import com.devforge.ai.gitservice.entity.PullRequestEntity.Status;
 import com.devforge.ai.gitservice.entity.RepositoryEntity;
@@ -44,6 +49,8 @@ public class PullRequestService {
   private final RepositoryStorage storage;
   private final GitOperations git;
   private final OutboxEventRecorder outbox;
+  private final com.devforge.ai.gitservice.repository.PullRequestApprovalRepository approvals;
+  private final com.devforge.ai.gitservice.repository.PullRequestCommentRepository comments;
 
   @Transactional
   public PullRequestResponse open(
@@ -106,16 +113,35 @@ public class PullRequestService {
   public PullRequestResponse get(UUID organizationId, UUID projectId, UUID repositoryId, int number) {
     var repository = load(organizationId, projectId, repositoryId, ProjectAccessClient.Access.READ);
     var entity = find(repository, number);
-    if (entity.getStatus() != Status.OPEN) {
-      return toResponse(entity, null);
+    GitOperations.MergePreview preview = null;
+    if (entity.getStatus() == Status.OPEN) {
+      try {
+        preview = wrap(() -> git.previewMerge(
+            directory(repository), entity.getTargetBranch(), entity.getSourceBranch()));
+      } catch (ResourceNotFoundException ex) {
+        // A branch was deleted under an open pull request: still readable, just not mergeable.
+      }
     }
-    try {
-      return toResponse(entity, wrap(() -> git.previewMerge(
-          directory(repository), entity.getTargetBranch(), entity.getSourceBranch())));
-    } catch (ResourceNotFoundException ex) {
-      // A branch was deleted under an open pull request: still readable, just not mergeable.
-      return toResponse(entity, null);
-    }
+    return withReview(toResponse(entity, preview), entity, repository,
+        preview == null ? null : preview.sourceHead());
+  }
+
+  /** Adds the approvals, marking which are of the commit now at the source head. */
+  private PullRequestResponse withReview(
+      PullRequestResponse response, PullRequestEntity entity, RepositoryEntity repository,
+      String sourceHead) {
+    var approvalRows = approvals.findByPullRequestIdOrderByCreatedAtAsc(entity.getId());
+    var list = approvalRows.stream()
+        .map(row -> new ApprovalResponse(row.getUserId(), row.getUserName(), row.getCommitId(),
+            row.getCommitId().equals(sourceHead), row.getCreatedAt()))
+        .toList();
+    var current = (int) list.stream().filter(ApprovalResponse::current).count();
+    return new PullRequestResponse(
+        response.id(), response.number(), response.title(), response.description(),
+        response.sourceBranch(), response.targetBranch(), response.status(), response.authorId(),
+        response.createdAt(), response.mergedBy(), response.mergeCommitId(), response.closedAt(),
+        response.sourceHead(), response.targetHead(), response.mergeBase(), response.alreadyMerged(),
+        response.conflicts(), current, repository.getRequiredApprovals(), list);
   }
 
   /**
@@ -151,11 +177,29 @@ public class PullRequestService {
     var entity = find(repository, number);
     requireOpen(entity);
 
+    // The head being merged decides which approvals count, and it is then pinned for the merge
+    // itself: if the branch moves between this read and the merge, git.merge refuses.
+    var sourceHead = wrap(() -> git.previewMerge(
+        directory(repository), entity.getTargetBranch(), entity.getSourceBranch())).sourceHead();
+    var expected = request == null ? null : request.expectedSourceHead();
+    if (expected != null && !expected.equals(sourceHead)) {
+      throw new ResourceConflictException(
+          "The source branch has new commits since this pull request was reviewed. Review them first.");
+    }
+    var required = repository.getRequiredApprovals();
+    var current = approvals.findByPullRequestIdOrderByCreatedAtAsc(entity.getId()).stream()
+        .filter(row -> row.getCommitId().equals(sourceHead))
+        .count();
+    if (current < required) {
+      throw new ResourceConflictException("This repository needs " + required + " approval"
+          + (required == 1 ? "" : "s") + " of the current changes before merging; it has " + current);
+    }
+
     var message = "Merge pull request #" + entity.getNumber() + " from " + entity.getSourceBranch()
         + "\n\n" + entity.getTitle();
     var commitId = wrap(() -> git.merge(
         directory(repository), entity.getTargetBranch(), entity.getSourceBranch(),
-        request == null ? null : request.expectedSourceHead(), message, user.username(), user.email()));
+        sourceHead, message, user.username(), user.email()));
 
     var now = Instant.now();
     entity.setStatus(Status.MERGED);
@@ -185,6 +229,93 @@ public class PullRequestService {
 
     record(EventTypes.PULL_REQUEST_CLOSED, organizationId, projectId, repository, entity, user.id());
     return toResponse(entity, null);
+  }
+
+  // ---------------------------------------------------------------- review
+
+  /**
+   * Approves the pull request as it is now: the approval is pinned to the current source head.
+   *
+   * <p>An author cannot approve their own change - the point of approval is a second pair of eyes.
+   * Approving again after new commits moves the pin to the new head.
+   */
+  @Transactional
+  public PullRequestResponse approve(UUID organizationId, UUID projectId, UUID repositoryId, int number) {
+    var repository = load(organizationId, projectId, repositoryId, ProjectAccessClient.Access.WRITE);
+    var user = access.requireCurrentUser();
+    var entity = find(repository, number);
+    requireOpen(entity);
+    if (entity.getAuthorId().equals(user.id())) {
+      throw new IllegalArgumentException("You cannot approve your own pull request");
+    }
+    var head = wrap(() -> git.previewMerge(
+        directory(repository), entity.getTargetBranch(), entity.getSourceBranch())).sourceHead();
+
+    var approval = approvals.findByPullRequestIdAndUserId(entity.getId(), user.id())
+        .orElseGet(() -> PullRequestApprovalEntity.builder()
+            .id(UUID.randomUUID())
+            .pullRequestId(entity.getId())
+            .userId(user.id())
+            .build());
+    approval.setUserName(user.username());
+    approval.setCommitId(head);
+    approval.setCreatedAt(Instant.now());
+    approvals.save(approval);
+    return get(organizationId, projectId, repositoryId, number);
+  }
+
+  @Transactional
+  public PullRequestResponse withdrawApproval(
+      UUID organizationId, UUID projectId, UUID repositoryId, int number) {
+    var repository = load(organizationId, projectId, repositoryId, ProjectAccessClient.Access.WRITE);
+    var user = access.requireCurrentUser();
+    var entity = find(repository, number);
+    approvals.findByPullRequestIdAndUserId(entity.getId(), user.id()).ifPresent(approvals::delete);
+    return get(organizationId, projectId, repositoryId, number);
+  }
+
+  @Transactional(readOnly = true)
+  public List<CommentResponse> comments(
+      UUID organizationId, UUID projectId, UUID repositoryId, int number) {
+    var repository = load(organizationId, projectId, repositoryId, ProjectAccessClient.Access.READ);
+    var entity = find(repository, number);
+    return comments.findByPullRequestIdOrderByCreatedAtAsc(entity.getId()).stream()
+        .map(PullRequestService::toComment)
+        .toList();
+  }
+
+  @Transactional
+  public CommentResponse addComment(
+      UUID organizationId, UUID projectId, UUID repositoryId, int number, AddCommentRequest request) {
+    var repository = load(organizationId, projectId, repositoryId, ProjectAccessClient.Access.WRITE);
+    var user = access.requireCurrentUser();
+    var entity = find(repository, number);
+    return toComment(comments.save(PullRequestCommentEntity.builder()
+        .id(UUID.randomUUID())
+        .pullRequestId(entity.getId())
+        .authorId(user.id())
+        .authorName(user.username())
+        .body(request.body().trim())
+        .createdAt(Instant.now())
+        .build()));
+  }
+
+  /** Only the author deletes a comment. Someone else's is reported as not found, not forbidden. */
+  @Transactional
+  public void deleteComment(
+      UUID organizationId, UUID projectId, UUID repositoryId, int number, UUID commentId) {
+    var repository = load(organizationId, projectId, repositoryId, ProjectAccessClient.Access.WRITE);
+    var user = access.requireCurrentUser();
+    var entity = find(repository, number);
+    var comment = comments.findByIdAndPullRequestId(commentId, entity.getId())
+        .filter(row -> row.getAuthorId().equals(user.id()))
+        .orElseThrow(() -> new ResourceNotFoundException("Comment not found"));
+    comments.delete(comment);
+  }
+
+  private static CommentResponse toComment(PullRequestCommentEntity row) {
+    return new CommentResponse(
+        row.getId(), row.getAuthorId(), row.getAuthorName(), row.getBody(), row.getCreatedAt());
   }
 
   // ---------------------------------------------------------------- helpers
@@ -245,7 +376,8 @@ public class PullRequestService {
         preview == null ? null : preview.targetHead(),
         preview == null ? null : preview.mergeBase(),
         preview == null ? null : preview.alreadyMerged(),
-        preview == null ? null : preview.conflicts());
+        preview == null ? null : preview.conflicts(),
+        null, null, null);
   }
 
   private static <T> T wrap(GitCall<T> call) {

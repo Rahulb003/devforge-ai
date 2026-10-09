@@ -140,6 +140,22 @@ public class RepositoryService {
   }
 
   /**
+   * Sets how many approvals of the current changes a pull request needs before it can merge.
+   *
+   * <p>ADMIN, not WRITE: a rule a developer could lower for their own pull request is no rule.
+   */
+  @Transactional
+  public RepositoryResponse updateMergeRules(
+      UUID organizationId, UUID projectId, UUID repositoryId,
+      com.devforge.ai.gitservice.dto.GitDtos.MergeRulesRequest request) {
+    var entity = load(organizationId, projectId, repositoryId, ProjectAccessClient.Access.ADMIN);
+    entity.setRequiredApprovals(request.requiredApprovals());
+    repositories.save(entity);
+    return RepositoryResponse.from(
+        entity, git.isEmpty(storage.directoryFor(entity.getOrganizationId(), entity.getId())));
+  }
+
+  /**
    * Deletes the metadata row and the objects.
    *
    * <p>The row goes first here, the opposite order from {@link #create}, for the same reason: if the

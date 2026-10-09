@@ -18,6 +18,7 @@ import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/states';
 import { describeApiError } from '@/lib/errors';
+import { useAuthStore } from '@/stores/authStore';
 
 const STATUS_TONE: Record<PullRequestStatus, 'info' | 'success' | 'neutral'> = {
   OPEN: 'info',
@@ -41,6 +42,7 @@ function useRepositoryParams() {
 export function PullRequestsPage() {
   const { organizationId, projectId, repositoryId, repositoryPath } = useRepositoryParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [filter, setFilter] = useState<PullRequestStatus | undefined>('OPEN');
   const [opening, setOpening] = useState(false);
   const [title, setTitle] = useState('');
@@ -73,13 +75,33 @@ export function PullRequestsPage() {
         sourceBranch: source,
         targetBranch,
       }),
-    onSuccess: (response) =>
-      navigate(`${repositoryPath}/pull-requests/${response.data.data.number}`),
+    onSuccess: (response) => {
+      // Queries stay fresh for five minutes app-wide, so without this the list kept showing its
+      // old contents - a just-opened pull request was missing from it until the cache expired.
+      void queryClient.invalidateQueries({ queryKey: ['pull-requests', repositoryId] });
+      navigate(`${repositoryPath}/pull-requests/${response.data.data.number}`);
+    },
     // The server decides what can be proposed (nothing to merge, a duplicate), so its words are used.
     onError: (err) => setError(describeApiError(err)),
   });
 
   const sources = (branches.data ?? []).filter((branch) => branch.name !== targetBranch);
+
+  const [rule, setRule] = useState<string | null>(null);
+  const [ruleError, setRuleError] = useState<string | null>(null);
+  const saveRule = useMutation({
+    mutationFn: () =>
+      pullRequestApi.setRequiredApprovals(organizationId, projectId, repositoryId, Number(rule)),
+    onSuccess: () => {
+      setRule(null);
+      setRuleError(null);
+      void queryClient.invalidateQueries({ queryKey: ['repository'] });
+      // Each pull request reports the rule it is held to; a cached one would still show the old.
+      void queryClient.invalidateQueries({ queryKey: ['pull-request', repositoryId] });
+    },
+    // Admins only: anyone else sees the server's refusal rather than a control that silently fails.
+    onError: (err) => setRuleError(describeApiError(err)),
+  });
 
   return (
     <div className="space-y-6">
@@ -108,6 +130,39 @@ export function PullRequestsPage() {
           </Button>
         )}
       </header>
+
+      {repository.isSuccess && (
+        <form
+          aria-label="Merge rules"
+          className="flex flex-wrap items-end gap-3 text-sm"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (rule !== null) saveRule.mutate();
+          }}
+        >
+          <label className="space-y-1.5 text-slate-300">
+            <span className="block">Approvals required to merge</span>
+            <input
+              type="number"
+              min={0}
+              max={10}
+              value={rule ?? String(repository.data.requiredApprovals ?? 0)}
+              onChange={(event) => setRule(event.target.value)}
+              className="w-24 rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-slate-100"
+            />
+          </label>
+          {rule !== null && (
+            <Button type="submit" size="sm" loading={saveRule.isPending}>
+              Save
+            </Button>
+          )}
+          {ruleError && (
+            <p role="alert" className="w-full text-sm text-red-300">
+              {ruleError}
+            </p>
+          )}
+        </form>
+      )}
 
       {opening && (
         <Card>
@@ -299,6 +354,50 @@ export function PullRequestDetailPage() {
     onError: (err) => setActionError(describeApiError(err)),
   });
 
+  const me = useAuthStore((state) => state.user?.id);
+  const approve = useMutation({
+    mutationFn: (withdraw: boolean) =>
+      withdraw
+        ? pullRequestApi.withdrawApproval(organizationId, projectId, repositoryId, number)
+        : pullRequestApi.approve(organizationId, projectId, repositoryId, number),
+    onSuccess: refresh,
+    onError: (err) => setActionError(describeApiError(err)),
+  });
+
+  const [commentBody, setCommentBody] = useState('');
+  const [commentError, setCommentError] = useState<string | null>(null);
+  const comments = useQuery({
+    queryKey: ['pull-request-comments', repositoryId, number],
+    queryFn: async () =>
+      (await pullRequestApi.comments(organizationId, projectId, repositoryId, number)).data.data,
+  });
+  const refreshComments = () =>
+    void queryClient.invalidateQueries({
+      queryKey: ['pull-request-comments', repositoryId, number],
+    });
+  const addComment = useMutation({
+    mutationFn: () =>
+      pullRequestApi.addComment(
+        organizationId,
+        projectId,
+        repositoryId,
+        number,
+        commentBody.trim(),
+      ),
+    onSuccess: () => {
+      setCommentBody('');
+      setCommentError(null);
+      refreshComments();
+    },
+    onError: (err) => setCommentError(describeApiError(err)),
+  });
+  const deleteComment = useMutation({
+    mutationFn: (commentId: string) =>
+      pullRequestApi.deleteComment(organizationId, projectId, repositoryId, number, commentId),
+    onSuccess: refreshComments,
+    onError: (err) => setCommentError(describeApiError(err)),
+  });
+
   if (pr.isLoading) return <LoadingState label="Loading pull request…" />;
   if (pr.isError) {
     return <ErrorState message={describeApiError(pr.error)} onRetry={() => void pr.refetch()} />;
@@ -307,6 +406,11 @@ export function PullRequestDetailPage() {
   const conflicts = data.conflicts ?? [];
   const branchMissing = data.status === 'OPEN' && data.sourceHead === null;
   const canMerge = data.status === 'OPEN' && !branchMissing && conflicts.length === 0;
+  const required = data.requiredApprovals ?? 0;
+  const current = data.currentApprovals ?? 0;
+  const approvalsMet = current >= required;
+  const isAuthor = me === data.authorId;
+  const myApproval = (data.approvals ?? []).find((approval) => approval.userId === me);
 
   return (
     <div className="space-y-6">
@@ -366,6 +470,46 @@ export function PullRequestDetailPage() {
               No conflicts with {data.targetBranch}.
             </p>
           )}
+          <div className="space-y-2 border-t border-slate-800 pt-4" aria-label="Approvals">
+            <p className="text-sm text-slate-300">
+              {required > 0
+                ? `${current} of ${required} required ${required === 1 ? 'approval' : 'approvals'} of the current changes`
+                : `${current} ${current === 1 ? 'approval' : 'approvals'} of the current changes`}
+            </p>
+            {(data.approvals ?? []).length > 0 && (
+              <ul className="flex flex-wrap gap-2">
+                {(data.approvals ?? []).map((approval) => (
+                  <li key={approval.userId}>
+                    <Badge tone={approval.current ? 'success' : 'neutral'}>
+                      {approval.userName}
+                      {approval.current ? '' : ' — outdated'}
+                    </Badge>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {/* The author is not offered approval; the server refuses it too. */}
+            {!isAuthor && (
+              <Button
+                size="sm"
+                variant="secondary"
+                loading={approve.isPending}
+                onClick={() => approve.mutate(Boolean(myApproval?.current))}
+              >
+                {myApproval?.current
+                  ? 'Withdraw approval'
+                  : myApproval
+                    ? 'Approve the new changes'
+                    : 'Approve'}
+              </Button>
+            )}
+          </div>
+          {canMerge && !approvalsMet && (
+            <p className="text-sm text-amber-300">
+              Needs {required - current} more {required - current === 1 ? 'approval' : 'approvals'}{' '}
+              before it can merge.
+            </p>
+          )}
           {actionError && (
             <p
               role="alert"
@@ -379,7 +523,7 @@ export function PullRequestDetailPage() {
               leftIcon={<GitMerge className="h-4 w-4" />}
               onClick={() => merge.mutate()}
               loading={merge.isPending}
-              disabled={!canMerge}
+              disabled={!canMerge || !approvalsMet}
             >
               Merge
             </Button>
@@ -424,6 +568,80 @@ export function PullRequestDetailPage() {
             </ul>
           </Card>
         )}
+      </section>
+
+      <section aria-labelledby="discussion" className="space-y-3">
+        <h2 id="discussion" className="text-lg font-semibold text-white">
+          Discussion
+        </h2>
+        {comments.isLoading && <LoadingState label="Loading comments…" />}
+        {comments.isError && (
+          <ErrorState
+            message={describeApiError(comments.error)}
+            onRetry={() => void comments.refetch()}
+          />
+        )}
+        {comments.isSuccess && comments.data.length === 0 && (
+          <p className="text-sm text-slate-500">No comments yet.</p>
+        )}
+        {comments.isSuccess && comments.data.length > 0 && (
+          <ul aria-label="Comments" className="space-y-3">
+            {comments.data.map((comment) => (
+              <li key={comment.id}>
+                <Card className="space-y-2">
+                  <div className="flex items-center justify-between gap-3 text-xs text-slate-500">
+                    <span>
+                      <span className="font-medium text-slate-300">{comment.authorName}</span> ·{' '}
+                      {new Date(comment.createdAt).toLocaleString()}
+                    </span>
+                    {comment.authorId === me && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        aria-label="Delete comment"
+                        onClick={() => deleteComment.mutate(comment.id)}
+                      >
+                        Delete
+                      </Button>
+                    )}
+                  </div>
+                  <p className="whitespace-pre-wrap text-sm text-slate-200">{comment.body}</p>
+                </Card>
+              </li>
+            ))}
+          </ul>
+        )}
+        <form
+          aria-label="Add a comment"
+          className="space-y-3"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (commentBody.trim()) addComment.mutate();
+          }}
+        >
+          <label htmlFor="pr-comment" className="sr-only">
+            Comment
+          </label>
+          <textarea
+            id="pr-comment"
+            value={commentBody}
+            onChange={(event) => setCommentBody(event.target.value)}
+            rows={3}
+            placeholder="Leave a comment"
+            className="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-slate-100"
+          />
+          {commentError && (
+            <p
+              role="alert"
+              className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300"
+            >
+              {commentError}
+            </p>
+          )}
+          <Button type="submit" loading={addComment.isPending} disabled={!commentBody.trim()}>
+            Comment
+          </Button>
+        </form>
       </section>
     </div>
   );

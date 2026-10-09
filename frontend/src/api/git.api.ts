@@ -21,6 +21,8 @@ export interface Repository {
   createdBy: string;
   createdAt: string;
   updatedAt: string | null;
+  /** Approvals of the current changes a pull request needs to merge. */
+  requiredApprovals?: number;
 }
 
 export interface Branch {
@@ -222,6 +224,27 @@ export interface PullRequest {
   mergeBase: string | null;
   alreadyMerged: boolean | null;
   conflicts: string[] | null;
+  /** Approvals of the commit now at the source head - the only ones that count. Null in a list. */
+  currentApprovals: number | null;
+  requiredApprovals: number | null;
+  approvals: Approval[] | null;
+}
+
+export interface Approval {
+  userId: string;
+  userName: string;
+  commitId: string;
+  /** False once the branch has moved past the commit this approval was given for. */
+  current: boolean;
+  createdAt: string;
+}
+
+export interface PullRequestComment {
+  id: string;
+  authorId: string;
+  authorName: string;
+  body: string;
+  createdAt: string;
 }
 
 export interface OpenPullRequestData {
@@ -275,6 +298,63 @@ export const pullRequestApi = {
     api.post<ApiEnvelope<PullRequest>>(
       `${pullRequests(organizationId, projectId, repositoryId)}/${number}/merge`,
       { expectedSourceHead },
+    ),
+
+  approve: (organizationId: string, projectId: string, repositoryId: string, number: number) =>
+    api.post<ApiEnvelope<PullRequest>>(
+      `${pullRequests(organizationId, projectId, repositoryId)}/${number}/approve`,
+    ),
+
+  withdrawApproval: (
+    organizationId: string,
+    projectId: string,
+    repositoryId: string,
+    number: number,
+  ) =>
+    api.delete<ApiEnvelope<PullRequest>>(
+      `${pullRequests(organizationId, projectId, repositoryId)}/${number}/approve`,
+    ),
+
+  comments: (organizationId: string, projectId: string, repositoryId: string, number: number) =>
+    api.get<ApiEnvelope<PullRequestComment[]>>(
+      `${pullRequests(organizationId, projectId, repositoryId)}/${number}/comments`,
+    ),
+
+  addComment: (
+    organizationId: string,
+    projectId: string,
+    repositoryId: string,
+    number: number,
+    body: string,
+  ) =>
+    api.post<ApiEnvelope<PullRequestComment>>(
+      `${pullRequests(organizationId, projectId, repositoryId)}/${number}/comments`,
+      { body },
+    ),
+
+  deleteComment: (
+    organizationId: string,
+    projectId: string,
+    repositoryId: string,
+    number: number,
+    commentId: string,
+  ) =>
+    api.delete(
+      `${pullRequests(organizationId, projectId, repositoryId)}/${number}/comments/${commentId}`,
+    ),
+
+  /** Project admins only; the server answers 403 to anyone else. */
+  setRequiredApprovals: (
+    organizationId: string,
+    projectId: string,
+    repositoryId: string,
+    requiredApprovals: number,
+  ) =>
+    api.put<ApiEnvelope<Repository>>(
+      `${base(organizationId, projectId)}/${repositoryId}/merge-rules`,
+      {
+        requiredApprovals,
+      },
     ),
 
   close: (organizationId: string, projectId: string, repositoryId: string, number: number) =>
