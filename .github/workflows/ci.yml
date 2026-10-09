@@ -517,9 +517,11 @@ jobs:
           set -euo pipefail
           docker compose --profile observability up -d prometheus grafana
           up=0
+          # Tolerant while Prometheus starts: an early request can be reset (curl exit 56), and under
+          # "set -e" that ended the step before Prometheus had scraped anything.
           for _ in $(seq 1 30); do
-            up="$(curl -s http://localhost:9090/api/v1/targets \
-              | jq '[.data.activeTargets[] | select(.labels.job=="devforge-services" and .health=="up")] | length')"
+            up="$( (curl -s http://localhost:9090/api/v1/targets || true) \
+              | jq '[.data.activeTargets[]? | select(.labels.job=="devforge-services" and .health=="up")] | length' 2>/dev/null || echo 0)"
             [ "$up" = 10 ] && break
             sleep 4
           done
