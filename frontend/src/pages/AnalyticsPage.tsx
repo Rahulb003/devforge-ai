@@ -100,6 +100,108 @@ export function AnalyticsPage() {
           <p className="text-xs text-slate-500">{data.completeness}</p>
         </>
       )}
+
+      <AuditLog organizationId={organizationId} projectId={projectId} />
     </div>
+  );
+}
+
+/** Event types in plain words; anything new shows its raw name rather than nothing. */
+const AUDIT_LABELS: Record<string, string> = {
+  ProjectCreated: 'Project created',
+  ProjectUpdated: 'Project updated',
+  ProjectArchived: 'Project archived',
+  ProjectDeleted: 'Project deleted',
+  ProjectMemberAdded: 'Member added',
+  ProjectMemberRemoved: 'Member removed',
+  TaskCreated: 'Task created',
+  TaskUpdated: 'Task updated',
+  TaskAssigned: 'Task assigned',
+  TaskCompleted: 'Task completed',
+  TaskDeleted: 'Task deleted',
+  RepositoryCreated: 'Repository created',
+  RepositoryDeleted: 'Repository deleted',
+  RepositoryPushed: 'Commit',
+  PullRequestOpened: 'Pull request opened',
+  PullRequestMerged: 'Pull request merged',
+  PullRequestClosed: 'Pull request closed',
+};
+
+/** The few details worth a glance; the rest are ids. */
+function summarise(details: Record<string, unknown>): string {
+  const parts: string[] = [];
+  for (const key of ['name', 'title', 'role', 'branch', 'number']) {
+    const value = details[key];
+    if (value !== undefined && value !== null && value !== '') {
+      parts.push(key === 'number' ? `#${String(value)}` : String(value));
+    }
+  }
+  return parts.join(' · ');
+}
+
+/**
+ * Who changed what in this project, newest first. Visible to project admins; for anyone else the
+ * server answers 403 and this says so, rather than showing an empty log that implies nothing
+ * happened.
+ */
+function AuditLog({ organizationId, projectId }: { organizationId: string; projectId: string }) {
+  const audit = useQuery({
+    queryKey: ['audit', organizationId, projectId],
+    queryFn: async () => (await analyticsApi.audit(organizationId, projectId)).data.data,
+    retry: false,
+  });
+  const forbidden =
+    audit.isError &&
+    typeof audit.error === 'object' &&
+    audit.error !== null &&
+    'response' in audit.error &&
+    (audit.error as { response?: { status?: number } }).response?.status === 403;
+
+  return (
+    <section aria-labelledby="audit-log" className="space-y-3">
+      <h2 id="audit-log" className="text-lg font-semibold text-white">
+        Audit log
+      </h2>
+      {audit.isLoading && <LoadingState label="Loading the audit log…" />}
+      {forbidden && (
+        <p className="text-sm text-slate-400">
+          Only project admins and team leads can see the audit log.
+        </p>
+      )}
+      {audit.isError && !forbidden && (
+        <ErrorState message={describeApiError(audit.error)} onRetry={() => void audit.refetch()} />
+      )}
+      {audit.isSuccess && audit.data.content.length === 0 && (
+        <p className="text-sm text-slate-500">Nothing recorded yet.</p>
+      )}
+      {audit.isSuccess && audit.data.content.length > 0 && (
+        <Card className="overflow-x-auto p-0">
+          <table className="w-full text-left text-sm" aria-label="Audit log">
+            <thead className="text-xs text-slate-500">
+              <tr>
+                <th className="px-4 py-2 font-medium">When</th>
+                <th className="px-4 py-2 font-medium">What</th>
+                <th className="px-4 py-2 font-medium">Details</th>
+                <th className="px-4 py-2 font-medium">Source</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800">
+              {audit.data.content.map((entry) => (
+                <tr key={entry.eventId}>
+                  <td className="px-4 py-2 whitespace-nowrap text-slate-400">
+                    {new Date(entry.occurredAt).toLocaleString()}
+                  </td>
+                  <td className="px-4 py-2 text-slate-200">
+                    {AUDIT_LABELS[entry.eventType] ?? entry.eventType}
+                  </td>
+                  <td className="px-4 py-2 text-slate-300">{summarise(entry.details)}</td>
+                  <td className="px-4 py-2 text-xs text-slate-500">{entry.source}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
+      )}
+    </section>
   );
 }

@@ -13,12 +13,18 @@ async function openBoard(page: Page) {
   await page.getByRole('button', { name: 'Create organization' }).click();
   await page.getByLabel('Name').fill(orgName);
   await page.getByRole('button', { name: 'Create', exact: true }).click();
-  await page.getByRole('main').getByRole('link', { name: new RegExp(orgName, 'i') }).click();
+  await page
+    .getByRole('main')
+    .getByRole('link', { name: new RegExp(orgName, 'i') })
+    .click();
 
   await page.getByRole('button', { name: 'Create project' }).click();
   await page.getByLabel('Name').fill('Chat Project');
   await page.getByRole('button', { name: 'Create', exact: true }).click();
-  await page.getByRole('main').getByRole('link', { name: /Chat Project/i }).click();
+  await page
+    .getByRole('main')
+    .getByRole('link', { name: /Chat Project/i })
+    .click();
   await expect(page.getByRole('heading', { name: 'Chat Project' })).toBeVisible();
 }
 
@@ -46,8 +52,27 @@ test.describe('Chat and activity', () => {
     // The standalone stack has no broker, so these are zero — and the page must say why.
     await expect(page.getByText(/Counted from domain events/)).toBeVisible();
     await expectNoErrorBoundary(page);
+
+    // The project's creator is its admin, so sees the audit log rather than the refusal.
+    await expect(page.getByRole('heading', { name: 'Audit log' })).toBeVisible();
+    await expect(page.getByText(/Only project admins/)).toHaveCount(0);
+    if (process.env.E2E_FULL_STACK) {
+      // With a real broker the whole path runs: project-service's outbox, Kafka, analytics-service
+      // writing the log. The creation of this very project must arrive in it.
+      const log = page.getByRole('table', { name: 'Audit log' });
+      await expect(async () => {
+        await page.reload();
+        await expect(log.getByText('Project created')).toBeVisible({ timeout: 2_000 });
+      }).toPass({ timeout: 30_000 });
+    } else {
+      // Standalone runs without a broker, so nothing reaches the log - and it says so.
+      await expect(page.getByText('Nothing recorded yet.')).toBeVisible();
+    }
   });
-  test('a message appears for another viewer live, without reloading', async ({ page, browser }) => {
+  test('a message appears for another viewer live, without reloading', async ({
+    page,
+    browser,
+  }) => {
     await openBoard(page);
     await page.getByRole('link', { name: 'Chat' }).click();
     await expect(page.getByText(/new messages appear as they are sent/i)).toBeVisible();

@@ -7,6 +7,11 @@ import java.util.List;
 /** Response shapes for analytics-service. */
 public final class AnalyticsDtos {
 
+  /** One audit-log entry. {@code details} is the event payload as recorded. */
+  public record AuditEntry(
+      java.util.UUID eventId, String eventType, String source, java.util.UUID actorId,
+      java.time.Instant occurredAt, com.fasterxml.jackson.databind.JsonNode details) {}
+
   private AnalyticsDtos() {}
 
   public record DailyMetrics(

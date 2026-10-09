@@ -50,3 +50,12 @@ management:
 logging:
   level:
     com.devforge.ai: DEBUG
+
+devforge:
+  kafka:
+    # No broker. The outbox still records events, so publishing is inspectable
+    # in the OUTBOX_EVENTS table.
+    enabled: false
+  outbox:
+    enabled: false
+    use-skip-locked: false

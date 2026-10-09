@@ -54,6 +54,12 @@
       <artifactId>common-security</artifactId>
       <version>0.1.0</version>
     </dependency>
+    <!-- The transactional outbox: membership and project changes are published as events. -->
+    <dependency>
+      <groupId>com.devforge.ai</groupId>
+      <artifactId>common-events</artifactId>
+      <version>${project.version}</version>
+    </dependency>
 
     <!-- standalone-h2 -->
     <!--

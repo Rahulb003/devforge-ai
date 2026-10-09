@@ -431,6 +431,9 @@ jobs:
 
       - name: Run the browser suite against the stack
         working-directory: frontend
+        # Switches on the assertions that need a real broker, e.g. the audit log filling.
+        env:
+          E2E_FULL_STACK: "1"
         run: npm run test:e2e
 
       # The browser suite cannot see Kafka, so check the event pipeline directly: every outbox the

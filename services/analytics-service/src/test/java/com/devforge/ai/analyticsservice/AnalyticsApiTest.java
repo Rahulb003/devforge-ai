@@ -33,6 +33,7 @@ class AnalyticsApiTest {
 
   @Autowired private MockMvc mockMvc;
   @Autowired private ProjectDailyMetricsRepository metrics;
+  @Autowired private com.devforge.ai.analyticsservice.repository.AuditEntryRepository auditEntries;
 
   @MockitoBean private ProjectAccessClient projectAccessClient;
 
@@ -55,6 +56,7 @@ class AnalyticsApiTest {
   @BeforeEach
   void setUp() {
     metrics.deleteAll();
+    auditEntries.deleteAll();
   }
 
   private void store(LocalDate day, int created, int completed, int commits) {
@@ -181,6 +183,57 @@ class AnalyticsApiTest {
       mockMvc.perform(get(base())
               .header(HttpHeaders.AUTHORIZATION, "Bearer " + TestTokens.wronglySignedToken(user)))
           .andExpect(status().isUnauthorized());
+    }
+  }
+
+  @Nested
+  @DisplayName("the audit log")
+  class Audit {
+
+    private void audited(String type, UUID project, UUID organization, java.time.Instant when) {
+      auditEntries.save(com.devforge.ai.analyticsservice.entity.AuditEntryEntity.builder()
+          .id(UUID.randomUUID())
+          .eventId(UUID.randomUUID())
+          .eventType(type)
+          .source("project-service")
+          .organizationId(organization)
+          .projectId(project)
+          .actorId(user)
+          .occurredAt(when)
+          .details("{\"role\":\"VIEWER\"}")
+          .build());
+    }
+
+    @Test
+    @DisplayName("lists the project's entries newest first, with their details, to an admin")
+    void adminReadsTheLog() throws Exception {
+      var now = java.time.Instant.now();
+      audited("ProjectMemberAdded", projectId, organizationId, now.minusSeconds(60));
+      audited("ProjectMemberRemoved", projectId, organizationId, now);
+      // Another project's entry, and the same project id under another tenant: neither is shown.
+      audited("ProjectDeleted", UUID.randomUUID(), organizationId, now);
+      audited("ProjectDeleted", projectId, UUID.randomUUID(), now);
+
+      mockMvc.perform(get(base() + "/audit").header(HttpHeaders.AUTHORIZATION, bearer()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.data.content.length()").value(2))
+          .andExpect(jsonPath("$.data.content[0].eventType").value("ProjectMemberRemoved"))
+          .andExpect(jsonPath("$.data.content[1].eventType").value("ProjectMemberAdded"))
+          .andExpect(jsonPath("$.data.content[0].details.role").value("VIEWER"));
+    }
+
+    @Test
+    @DisplayName("is refused to a member who is not a project admin")
+    void nonAdminIsRefused() throws Exception {
+      doThrow(new org.springframework.security.access.AccessDeniedException("admin only"))
+          .when(projectAccessClient).requireProjectAccess(eq(organizationId), eq(projectId), any(),
+              eq(ProjectAccessClient.Access.ADMIN));
+
+      mockMvc.perform(get(base() + "/audit").header(HttpHeaders.AUTHORIZATION, bearer()))
+          .andExpect(status().isForbidden());
+      // The activity numbers stay readable to every member.
+      mockMvc.perform(get(base()).header(HttpHeaders.AUTHORIZATION, bearer()))
+          .andExpect(status().isOk());
     }
   }
 }

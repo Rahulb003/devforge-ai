@@ -26,6 +26,7 @@ public class OrganizationService {
   private final OrganizationRepository organizationRepository;
   private final OrganizationMemberRepository organizationMemberRepository;
   private final AccessControlService accessControl;
+  private final com.devforge.ai.common.events.outbox.OutboxEventRecorder outbox;
 
   /** Creates an organization and enrols the caller as its OWNER in the same transaction. */
   @Transactional
@@ -48,6 +49,8 @@ public class OrganizationService {
         .role(OrganizationRole.OWNER)
         .build());
 
+    publish(com.devforge.ai.common.events.EventTypes.ORGANIZATION_CREATED, organization.getId(), user,
+        java.util.Map.of("organizationId", organization.getId().toString(), "name", organization.getName()));
     log.info("Organization {} created by user {}", organization.getId(), user.id());
     return toResponse(organization, OrganizationRole.OWNER);
   }
@@ -79,7 +82,16 @@ public class OrganizationService {
     var organization = organizationRepository.findById(organizationId)
         .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
     organizationRepository.delete(organization);
+    publish(com.devforge.ai.common.events.EventTypes.ORGANIZATION_DELETED, organizationId, user,
+        java.util.Map.of("organizationId", organizationId.toString(), "name", organization.getName()));
     log.info("Organization {} deleted by user {}", organizationId, user.id());
+  }
+
+  /** Through the outbox, in the change's own transaction; feeds the audit trail. */
+  private void publish(String type, UUID organizationId, AuthenticatedUser user,
+      java.util.Map<String, Object> payload) {
+    outbox.record(com.devforge.ai.common.events.KafkaTopics.PROJECTS, type, organizationId,
+        user.id(), org.slf4j.MDC.get("correlationId"), payload);
   }
 
   private OrganizationResponse toResponse(OrganizationEntity organization, OrganizationRole role) {

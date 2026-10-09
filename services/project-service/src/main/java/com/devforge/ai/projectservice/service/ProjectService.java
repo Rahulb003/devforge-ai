@@ -1,5 +1,6 @@
 package com.devforge.ai.projectservice.service;
 
+import com.devforge.ai.common.events.EventTypes;
 import com.devforge.ai.common.exception.ResourceNotFoundException;
 
 import com.devforge.ai.common.exception.ResourceConflictException;
@@ -42,6 +43,7 @@ public class ProjectService {
   private final ProjectMemberRepository projectMemberRepository;
   private final OrganizationRepository organizationRepository;
   private final AccessControlService accessControl;
+  private final com.devforge.ai.common.events.outbox.OutboxEventRecorder outbox;
 
   @Transactional
   public ProjectResponse create(UUID organizationId, CreateProjectRequest request, AuthenticatedUser user) {
@@ -70,6 +72,9 @@ public class ProjectService {
         .role(ProjectRole.ADMIN)
         .build());
 
+    publish(EventTypes.PROJECT_CREATED, organizationId, user, java.util.Map.of(
+        "projectId", project.getId().toString(), "name", project.getName(),
+        "projectKey", project.getProjectKey()));
     log.info("Project {} created in organization {} by {}", project.getId(), organizationId, user.id());
     return toResponse(project, ProjectRole.ADMIN);
   }
@@ -105,6 +110,8 @@ public class ProjectService {
     if (request.description() != null) {
       project.setDescription(request.description());
     }
+    publish(EventTypes.PROJECT_UPDATED, organizationId, user, java.util.Map.of(
+        "projectId", projectId.toString(), "name", project.getName()));
     return toResponse(projectRepository.save(project), role);
   }
 
@@ -113,6 +120,8 @@ public class ProjectService {
     var project = loadScoped(organizationId, projectId);
     var role = accessControl.requireProjectAdmin(project, user);
     project.setStatus(ProjectStatus.ARCHIVED);
+    publish(EventTypes.PROJECT_ARCHIVED, organizationId, user, java.util.Map.of(
+        "projectId", projectId.toString(), "name", project.getName()));
     return toResponse(projectRepository.save(project), role);
   }
 
@@ -123,6 +132,8 @@ public class ProjectService {
     // Membership rows reference the project, so they go first.
     projectMemberRepository.deleteAll(projectMemberRepository.findByProjectId(projectId));
     projectRepository.delete(project);
+    publish(EventTypes.PROJECT_DELETED, organizationId, user, java.util.Map.of(
+        "projectId", projectId.toString(), "name", project.getName()));
     log.info("Project {} deleted by {}", projectId, user.id());
   }
 
@@ -157,6 +168,9 @@ public class ProjectService {
         .userId(request.userId())
         .role(request.role())
         .build());
+    publish(EventTypes.PROJECT_MEMBER_ADDED, organizationId, user, java.util.Map.of(
+        "projectId", projectId.toString(), "userId", request.userId().toString(),
+        "role", request.role().name()));
     return new ProjectMemberResponse(
         member.getId(), member.getUserId(), member.getRole(), member.getCreatedAt());
   }
@@ -166,7 +180,23 @@ public class ProjectService {
     var project = loadScoped(organizationId, projectId);
     accessControl.requireProjectAdmin(project, user);
     projectMemberRepository.findByProjectIdAndUserId(projectId, memberUserId)
-        .ifPresent(projectMemberRepository::delete);
+        .ifPresent(member -> {
+          projectMemberRepository.delete(member);
+          publish(EventTypes.PROJECT_MEMBER_REMOVED, organizationId, user, java.util.Map.of(
+              "projectId", projectId.toString(), "userId", memberUserId.toString(),
+              "role", member.getRole().name()));
+        });
+  }
+
+  /**
+   * Publishes a change through the outbox, in the same transaction as the change itself, so the
+   * event exists exactly when the change does. These feed the audit trail; before them, project
+   * and membership changes - including who was given access to what - were recorded nowhere else.
+   */
+  private void publish(String type, UUID organizationId, AuthenticatedUser user,
+      java.util.Map<String, Object> payload) {
+    outbox.record(com.devforge.ai.common.events.KafkaTopics.PROJECTS, type, organizationId,
+        user.id(), org.slf4j.MDC.get("correlationId"), payload);
   }
 
   /** Resolves a project within its organization, or reports it as absent. */

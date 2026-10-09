@@ -45,6 +45,7 @@ class TenantIsolationTest {
   @Autowired private OrganizationMemberRepository organizationMemberRepository;
   @Autowired private ProjectRepository projectRepository;
   @Autowired private ProjectMemberRepository projectMemberRepository;
+  @Autowired private com.devforge.ai.common.events.outbox.OutboxEventRepository outboxEvents;
 
   private final UUID alice = UUID.randomUUID();
   private final UUID bob = UUID.randomUUID();
@@ -58,6 +59,7 @@ class TenantIsolationTest {
 
   @BeforeEach
   void setUp() throws Exception {
+    outboxEvents.deleteAll();
     projectMemberRepository.deleteAll();
     projectRepository.deleteAll();
     organizationMemberRepository.deleteAll();
@@ -273,6 +275,42 @@ class TenantIsolationTest {
   @Nested
   @DisplayName("Own tenant")
   class OwnTenant {
+
+    @Test
+    @DisplayName("creating, granting and revoking access are each published for the audit trail")
+    void changesArePublished() throws Exception {
+      // setUp created two organizations and two projects.
+      assertThat(outboxEvents.findAll())
+          .filteredOn(row -> row.getEventType().equals("ProjectCreated"))
+          .hasSize(2)
+          .allSatisfy(row -> assertThat(row.getTopic()).isEqualTo("devforge.projects.v1"));
+      outboxEvents.deleteAll();
+
+      // Bob joins Alice's organization; Alice then adds him to her project as a VIEWER.
+      organizationMemberRepository.save(
+          com.devforge.ai.projectservice.entity.OrganizationMemberEntity.builder()
+              .organization(organizationRepository.findById(aliceOrgId).orElseThrow())
+              .userId(bob)
+              .role(com.devforge.ai.projectservice.model.OrganizationRole.MEMBER)
+              .build());
+      var members = ORGS + "/" + aliceOrgId + "/projects/" + aliceProjectId + "/members";
+      mockMvc.perform(asUser(post(members), aliceToken)
+              .contentType(MediaType.APPLICATION_JSON)
+              .content(objectMapper.writeValueAsString(
+                  Map.of("userId", bob.toString(), "role", "VIEWER"))))
+          .andExpect(status().isCreated());
+      mockMvc.perform(asUser(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+              .delete(members + "/" + bob), aliceToken))
+          .andExpect(status().is2xxSuccessful());
+
+      var events = outboxEvents.findAll();
+      assertThat(events).extracting(row -> row.getEventType())
+          .containsExactlyInAnyOrder("ProjectMemberAdded", "ProjectMemberRemoved");
+      assertThat(events).allSatisfy(row -> {
+        assertThat(row.getPayload()).contains(bob.toString(), "\"role\":\"VIEWER\"");
+        assertThat(row.getPartitionKey()).isEqualTo(aliceOrgId.toString());
+      });
+    }
 
     @Test
     @DisplayName("the owner can read their own project")

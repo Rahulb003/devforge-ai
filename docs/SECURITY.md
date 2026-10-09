@@ -258,8 +258,10 @@ Ordered by how much they matter.
    react-router 7 and Tailwind 4; Tailwind 4 was checked by pixel-comparing key pages before and
    after. Only the auth-service image is scanned; the other images share its base and most of its
    libraries, but are not scanned themselves.
-6. **Audit logging exists for auth events only.** There is no audit trail for project, task or
-   notification changes.
+6. **The audit trail has no tamper evidence.** Project,
+   membership, task, repository and pull request changes are recorded append-only by analytics-service
+   from the events, readable by project admins. Auth events stay in auth-service's own audit table.
+   Nothing stops someone with database access editing rows; there is no hash chain or external sink.
 
 ---
 

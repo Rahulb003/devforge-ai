@@ -19,6 +19,8 @@ spring:
     enabled: true
     locations: classpath:db/migration
     baseline-on-migrate: true
+  kafka:
+    bootstrap-servers: localhost:9092
 
 security:
   jwt:
@@ -31,3 +33,12 @@ management:
     web:
       exposure:
         include: health, info
+
+devforge:
+  kafka:
+    enabled: false
+  outbox:
+    # The recorder still writes rows, which the event assertions check. The
+    # scheduled publisher is off because there is no broker.
+    enabled: false
+    use-skip-locked: false

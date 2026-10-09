@@ -29,6 +29,16 @@ public class AnalyticsController {
 
   private final AnalyticsService analyticsService;
 
+  /** The project's audit log, newest first, 50 to a page. Project admins only. */
+  @GetMapping("/audit")
+  public ResponseEntity<ApiResponse<org.springframework.data.domain.Page<com.devforge.ai.analyticsservice.dto.AnalyticsDtos.AuditEntry>>> audit(
+      @PathVariable UUID organizationId,
+      @PathVariable UUID projectId,
+      @org.springframework.data.web.PageableDefault(size = 50) org.springframework.data.domain.Pageable pageable) {
+    return ResponseEntity.ok(new ApiResponse<>(
+        true, analyticsService.audit(organizationId, projectId, pageable), null));
+  }
+
   /** Defaults to the last 30 days when no range is given. */
   @GetMapping
   public ResponseEntity<ApiResponse<ProjectActivity>> activity(

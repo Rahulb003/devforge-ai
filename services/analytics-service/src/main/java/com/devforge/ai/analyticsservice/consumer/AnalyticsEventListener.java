@@ -40,10 +40,11 @@ public class AnalyticsEventListener {
 
   private final IdempotentEventProcessor processor;
   private final MetricsRecorder recorder;
+  private final AuditRecorder audit;
   private final ObjectMapper objectMapper;
 
   @KafkaListener(
-      topics = {KafkaTopics.TASKS, KafkaTopics.REPOSITORIES},
+      topics = {KafkaTopics.TASKS, KafkaTopics.REPOSITORIES, KafkaTopics.PROJECTS},
       groupId = CONSUMER_GROUP)
   public void onEvent(String message) {
     var envelope = parse(message);
@@ -53,7 +54,11 @@ public class AnalyticsEventListener {
       MDC.put("correlationId", correlationId);
     }
     try {
-      processor.processOnce(envelope, CONSUMER_GROUP, recorder::record);
+      // Both in the one transaction the processor opens: counted and audited exactly once.
+      processor.processOnce(envelope, CONSUMER_GROUP, event -> {
+        recorder.record(event);
+        audit.record(event);
+      });
     } finally {
       // Listener threads are pooled, so a value left behind would be attributed to the next event.
       MDC.remove("correlationId");

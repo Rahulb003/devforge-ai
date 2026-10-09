@@ -26,10 +26,36 @@ public class AnalyticsService {
 
   private final ProjectDailyMetricsRepository metrics;
   private final ProjectAccessClient projectAccess;
+  private final com.devforge.ai.analyticsservice.repository.AuditEntryRepository auditEntries;
+  private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
   /** Longest window a single request may ask for, so one query cannot pull years of rows. */
   @Value("${devforge.analytics.max-range-days:366}")
   private int maxRangeDays;
+
+  /**
+   * The project's audit log, newest first. Project admins only: it shows who changed access
+   * and who deleted what, which is not every member's business.
+   */
+  @Transactional(readOnly = true)
+  public org.springframework.data.domain.Page<com.devforge.ai.analyticsservice.dto.AnalyticsDtos.AuditEntry> audit(
+      UUID organizationId, UUID projectId, org.springframework.data.domain.Pageable pageable) {
+    projectAccess.requireProjectAccess(
+        organizationId, projectId, currentBearerToken(), ProjectAccessClient.Access.ADMIN);
+    return auditEntries
+        .findByOrganizationIdAndProjectIdOrderByOccurredAtDesc(organizationId, projectId, pageable)
+        .map(row -> new com.devforge.ai.analyticsservice.dto.AnalyticsDtos.AuditEntry(
+            row.getEventId(), row.getEventType(), row.getSource(), row.getActorId(),
+            row.getOccurredAt(), parse(row.getDetails())));
+  }
+
+  private com.fasterxml.jackson.databind.JsonNode parse(String details) {
+    try {
+      return objectMapper.readTree(details);
+    } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
+      return objectMapper.getNodeFactory().textNode(details);
+    }
+  }
 
   @Transactional(readOnly = true)
   public ProjectActivity activity(

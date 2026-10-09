@@ -33,7 +33,7 @@ import org.springframework.test.context.TestPropertySource;
  * proven where redelivery actually happens.
  */
 @SpringBootTest
-@EmbeddedKafka(partitions = 1, topics = {KafkaTopics.TASKS, KafkaTopics.REPOSITORIES})
+@EmbeddedKafka(partitions = 1, topics = {KafkaTopics.TASKS, KafkaTopics.REPOSITORIES, KafkaTopics.PROJECTS})
 @TestPropertySource(properties = {
     "devforge.kafka.enabled=true",
     "spring.kafka.bootstrap-servers=${spring.embedded.kafka.brokers}",
@@ -43,6 +43,7 @@ class AnalyticsConsumerIntegrationTest {
 
   @Autowired private KafkaTemplate<String, String> kafkaTemplate;
   @Autowired private ProjectDailyMetricsRepository metrics;
+  @Autowired private com.devforge.ai.analyticsservice.repository.AuditEntryRepository auditEntries;
   @Autowired private ObjectMapper objectMapper;
 
   private final UUID organizationId = UUID.randomUUID();
@@ -51,6 +52,7 @@ class AnalyticsConsumerIntegrationTest {
   @BeforeEach
   void setUp() {
     metrics.deleteAll();
+    auditEntries.deleteAll();
     // A project per test, so one test's counters cannot be mistaken for another's.
     projectId = UUID.randomUUID();
   }
@@ -83,6 +85,34 @@ class AnalyticsConsumerIntegrationTest {
 
   private LocalDate today() {
     return LocalDate.now(ZoneOffset.UTC);
+  }
+
+  @Test
+  @DisplayName("every event is written to the audit log, including types no metric counts")
+  void everyEventIsAudited() {
+    var now = Instant.now();
+    var granted = new EventEnvelope<Map<String, Object>>(
+        UUID.randomUUID(), "ProjectMemberAdded", EventEnvelope.CURRENT_VERSION, now,
+        "project-service", organizationId, UUID.randomUUID(), "corr-audit",
+        Map.of("projectId", projectId.toString(), "userId", UUID.randomUUID().toString(),
+            "role", "VIEWER"));
+    publish(KafkaTopics.PROJECTS, granted);
+    publish(KafkaTopics.TASKS, event("TaskCreated", now));
+    // Delivered twice, recorded once.
+    publish(KafkaTopics.PROJECTS, granted);
+
+    await(() -> auditEntries.findAll().size() == 2, "both distinct events to be audited");
+    settle();
+
+    var entries = auditEntries.findAll();
+    assertThat(entries).hasSize(2);
+    var membership = entries.stream()
+        .filter(e -> e.getEventType().equals("ProjectMemberAdded")).findFirst().orElseThrow();
+    assertThat(membership.getProjectId()).isEqualTo(projectId);
+    assertThat(membership.getOrganizationId()).isEqualTo(organizationId);
+    assertThat(membership.getActorId()).isEqualTo(granted.actorId());
+    assertThat(membership.getSource()).isEqualTo("project-service");
+    assertThat(membership.getDetails()).contains("\"role\":\"VIEWER\"");
   }
 
   @Test
