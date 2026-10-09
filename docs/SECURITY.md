@@ -231,7 +231,8 @@ Ordered by how much they matter.
    3.4.0) -> 48 (3.4.13) -> 14 (3.5.16) -> 0, the last step by overriding Jackson, Netty, Tomcat,
    the PostgreSQL driver and lz4 ahead of the Boot BOM (`backend/pom.xml`). Two Spring Framework
    advisories with no 6.2 fix are accepted in `.trivyignore`, each with the reason it does not
-   apply here. CI runs only the frontend image; no service container has been started.
+   apply here. CI starts every image (services under the standalone profile) and requires each to
+   report healthy; the containers have never run together against real infrastructure.
 5. **Dependency scanning blocks only on shipped frontend code.** CI fails on a high or critical
    advisory in the frontend production dependencies, and Dependabot proposes weekly updates. Trivy
    blocks on the auth-service image; its filesystem scan of the Maven and npm trees only reports. The frontend dev

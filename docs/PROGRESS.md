@@ -21,7 +21,7 @@ Phase 2's event backbone is written but has never run against a real broker.
 | Frontend build | `npm run build` | **PASS** |
 | End-to-end tests | `npm run test:e2e` (Playwright, stack running) | **PASS** — 28 tests, through the gateway. Needs a machine not otherwise loaded; see docs/TESTING.md |
 | YAML validity | js-yaml parse of all 24 YAML files | **PASS** — 0 invalid |
-| Docker image builds | CI `docker` job | **PASS in CI** — all 15 images build; non-root checked. Containers never started: **UNVERIFIED** |
+| Docker image builds | CI `docker` job | **PASS in CI** — all images build, run non-root, and every service container starts and reports healthy (standalone profile). Compose against real PostgreSQL/Kafka/Redis: **UNVERIFIED** |
 | Testcontainers tests | — | **UNVERIFIED** — requires Docker |
 | CI workflow end-to-end | GitHub Actions | **UNVERIFIED** — not executed here |
 

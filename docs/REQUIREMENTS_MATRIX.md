@@ -35,7 +35,7 @@ section count would overstate progress.
 | 4 | Never claim unverified success | `IMPLEMENTED` | `UNVERIFIED` used literally throughout |
 | 5 | Phased execution | `PARTIALLY_IMPLEMENTED` | phases 0–4 and §12 done; 5–20 outstanding |
 | 7 | Documentation set (11 files) | `IMPLEMENTED` | all 11 present as of this commit |
-| 15 | Container images | `PARTIALLY_IMPLEMENTED` | All images build in CI and are checked non-root; never started, so runtime **UNVERIFIED** |
+| 15 | Container images | `IMPLEMENTED` | All images build in CI, run non-root, and each service container starts healthy; frontend container serves its security headers. Multi-container runtime with real infrastructure **UNVERIFIED** |
 | 16 | Secrets and configuration hygiene | `IMPLEMENTED` | no fallbacks for credentials in the default profile; secrets gitignored |
 | 17 | Build must be green | `IMPLEMENTED` | 465 backend + 74 frontend + 38 e2e, all passing |
 | 18 | RabbitMQ removed unless justified | `IMPLEMENTED` | removed from five places; justification in `EVENT_CATALOG.md` §1 |
