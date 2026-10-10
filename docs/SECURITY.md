@@ -222,6 +222,17 @@ headers filter runs first, and these header names replace rather than append.
   `*.p12` and `*.jks` are ignored. The `standalone` profile's signing key is a known development
   value and is labelled as such everywhere it appears.
 
+### Outbound requests: webhooks
+
+A webhook is a URL a project admin chooses and the server then calls - the textbook shape of a
+server-side request forgery. `WebhookUrlGuard` refuses, both when the webhook is saved and again
+before every delivery: anything but `https`, credentials in the URL, and any host resolving to a
+loopback, private, link-local (including `169.254.169.254` metadata), carrier-grade NAT, multicast,
+wildcard or IPv6 unique-local address. Every address a name resolves to is checked, not just the
+first. Redirects are never followed, because a redirect would skip the check. The secret is shown
+once and never listed. `devforge.webhooks.allow-private-addresses` and `allow-http` exist for the
+tests and default to false.
+
 ---
 
 ## 5. Verification
@@ -246,6 +257,7 @@ The security-relevant suites specifically:
 | `ReviewApiTest` | unreadable content records `FAILED` rather than a pass; dismissal needs a reason |
 | `RoutePrecedenceTest` | a nested path is never routed to the wrong service |
 | `JwtConfigValidationTest` | a weak or missing signing key refuses to boot |
+| `WebhookUrlGuardTest` | loopback, private, metadata, IPv6 local, CGNAT, http and credentialed URLs refused |
 
 ---
 
@@ -295,6 +307,11 @@ Ordered by how much they matter.
    audit table, chained the same way in one chain for all accounts; platform administrators verify
    it at `GET /api/v1/auth/audit/verification`, and its head is logged hourly too. Entries from
    before either chain existed are reported as unchained.
+
+7. **Webhook address checks have a resolution race.** The guard resolves the host, then the HTTP
+   client resolves it again to connect; a name whose DNS answer changes between the two (rebinding)
+   could still reach an internal address. Closing it means connecting to the checked address
+   itself, or sending deliveries through an egress proxy that enforces the same rules.
 
 ---
 

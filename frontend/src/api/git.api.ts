@@ -393,3 +393,30 @@ export const pullRequestApi = {
       `${pullRequests(organizationId, projectId, repositoryId)}/${number}/close`,
     ),
 };
+
+export interface Webhook {
+  id: string;
+  url: string;
+  createdAt: string;
+  lastStatus: number | null;
+  lastError: string | null;
+  lastDeliveredAt: string | null;
+}
+
+/** Project admins only; the server answers 403 to anyone else. */
+export const webhookApi = {
+  list: (organizationId: string, projectId: string, repositoryId: string) =>
+    api.get<ApiEnvelope<Webhook[]>>(`${base(organizationId, projectId)}/${repositoryId}/webhooks`),
+
+  /** The response carries the signing secret; it is never returned again. */
+  create: (organizationId: string, projectId: string, repositoryId: string, url: string) =>
+    api.post<ApiEnvelope<{ webhook: Webhook; secret: string }>>(
+      `${base(organizationId, projectId)}/${repositoryId}/webhooks`,
+      { url },
+    ),
+
+  remove: (organizationId: string, projectId: string, repositoryId: string, webhookId: string) =>
+    api.delete<ApiEnvelope<void>>(
+      `${base(organizationId, projectId)}/${repositoryId}/webhooks/${webhookId}`,
+    ),
+};

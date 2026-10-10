@@ -42,6 +42,10 @@ devforge:
     storage-root: ./target/test-git-storage
     # Small on purpose, so the truncation path is cheap to exercise.
     max-blob-bytes: 2048
+  webhooks:
+    # The tests deliver to a receiver on localhost; WebhookUrlGuardTest covers the refusals.
+    allow-private-addresses: true
+    allow-http: true
   kafka:
     enabled: false
   outbox:

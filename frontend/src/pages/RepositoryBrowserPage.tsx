@@ -22,6 +22,7 @@ import { gitApi } from '@/api/git.api';
 import { AiAsk } from '@/components/ai/AiAsk';
 import { AiExplain } from '@/components/ai/AiExplain';
 import { AiSuggest } from '@/components/ai/AiSuggest';
+import { Webhooks } from '@/components/repository/Webhooks';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -471,6 +472,14 @@ export function RepositoryBrowserPage() {
           projectId={projectId}
           repositoryId={repositoryId}
           gitRef={ref}
+        />
+      )}
+
+      {repository.isSuccess && (
+        <Webhooks
+          organizationId={organizationId}
+          projectId={projectId}
+          repositoryId={repositoryId}
         />
       )}
 

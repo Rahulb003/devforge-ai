@@ -20,7 +20,7 @@ import javax.crypto.SecretKey;
  * <p>The username and email claims matter here beyond authentication: git-service writes them into
  * commit authorship, so a test asserting who authored a commit is asserting that these reached JGit.
  */
-final class TestTokens {
+public final class TestTokens {
 
   static final String ISSUER = "devforge-ai-test";
   static final String SIGNING_KEY =
@@ -28,7 +28,7 @@ final class TestTokens {
 
   private TestTokens() {}
 
-  static String accessToken(UUID userId) {
+  public static String accessToken(UUID userId) {
     return build(userId, "access", SIGNING_KEY, Instant.now().plus(15, ChronoUnit.MINUTES));
   }
 

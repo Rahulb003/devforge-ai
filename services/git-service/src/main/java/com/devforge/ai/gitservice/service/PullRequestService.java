@@ -44,6 +44,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class PullRequestService {
 
   private final GitRepositoryRepository repositories;
+  private final org.springframework.context.ApplicationEventPublisher events;
   private final PullRequestRepository pullRequests;
   private final GitAccessService access;
   private final RepositoryStorage storage;
@@ -210,6 +211,8 @@ public class PullRequestService {
     pullRequests.save(entity);
 
     record(EventTypes.PULL_REQUEST_MERGED, organizationId, projectId, repository, entity, user.id());
+    events.publishEvent(new com.devforge.ai.gitservice.webhook.BranchChanged(
+        organizationId, projectId, repository.getId(), entity.getTargetBranch(), commitId, user.username(), "merge"));
     return toResponse(entity, null);
   }
 

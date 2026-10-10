@@ -209,6 +209,16 @@ integration — that needs provider credentials and does not exist yet.
 | GET | `…/repositories/{id}/blob?ref=&path=` | `binary` true means `content` is null rather than mangled; `truncated` true past the size limit |
 | GET | `…/repositories/{id}/diff?from=&to=` | per-file change type and line counts |
 | POST | `…/repositories/{id}/files` | 201. Commits one file: `path`, `content`, `message`, optional `branch` |
+| GET | `…/repositories/{id}/webhooks` | project ADMIN. `url`, `lastStatus`, `lastError`, `lastDeliveredAt`; never the secret |
+| POST | `…/repositories/{id}/webhooks` | 201, project ADMIN. `url` (https, public address). Returns `secret` once; at most 10 per repository |
+| DELETE | `…/repositories/{id}/webhooks/{webhookId}` | project ADMIN. 404 if it belongs to another repository |
+
+A webhook receives `POST` with `{"event":"push","deliveryId","repositoryId","projectId","branch",
+"commitId","actor","via","occurredAt"}` whenever a branch moves - an editor commit (`via: "editor"`),
+a merge (`"merge"`) or a git push (`"git"`). `X-DevForge-Signature: sha256=<hex>` is the HMAC-SHA256
+of the exact body keyed by the secret; compare it in constant time. Delivery happens after the change
+commits, three attempts (immediately, 2 s, 10 s), redirects not followed. It is best-effort: a
+delivery queued when the service stops is lost.
 
 ### Git's smart HTTP protocol
 

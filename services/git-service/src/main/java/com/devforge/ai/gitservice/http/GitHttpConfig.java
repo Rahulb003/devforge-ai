@@ -75,6 +75,7 @@ public class GitHttpConfig {
       ProjectAccessClient projectAccess,
       OutboxEventRecorder outbox,
       TransactionTemplate transactionTemplate,
+      org.springframework.context.ApplicationEventPublisher events,
       @Value("${devforge.git.max-push-bytes:104857600}") long maxPushBytes,
       @Value("${devforge.git.max-object-bytes:52428800}") long maxObjectBytes) {
 
@@ -127,7 +128,7 @@ public class GitHttpConfig {
               .filter(c -> c.getResult() == ReceiveCommand.Result.OK)
               .filter(c -> c.getType() != ReceiveCommand.Type.DELETE)
               .filter(c -> c.getRefName().startsWith("refs/heads/"))
-              .forEach(c -> recordPush(c, db, entity, user, outbox))));
+              .forEach(c -> recordPush(c, db, entity, user, outbox, events))));
       return receive;
     });
 
@@ -208,7 +209,7 @@ public class GitHttpConfig {
 
   private static void recordPush(
       ReceiveCommand command, Repository db, RepositoryEntity entity, AuthenticatedUser user,
-      OutboxEventRecorder outbox) {
+      OutboxEventRecorder outbox, org.springframework.context.ApplicationEventPublisher events) {
     var payload = new HashMap<String, Object>();
     payload.put("repositoryId", entity.getId().toString());
     payload.put("projectId", entity.getProjectId().toString());
@@ -218,6 +219,10 @@ public class GitHttpConfig {
     payload.put("via", "git");
     outbox.record(KafkaTopics.REPOSITORIES, EventTypes.REPOSITORY_PUSHED,
         entity.getOrganizationId(), user.id(), MDC.get("correlationId"), payload);
+    events.publishEvent(new com.devforge.ai.gitservice.webhook.BranchChanged(
+        entity.getOrganizationId(), entity.getProjectId(), entity.getId(),
+        command.getRefName().substring("refs/heads/".length()), command.getNewId().name(),
+        user.username(), "git"));
   }
 
   /** Commits the push added to the branch, capped so a huge import cannot stall the response. */

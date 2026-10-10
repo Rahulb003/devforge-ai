@@ -51,6 +51,7 @@ public class RepositoryService {
   private final RepositoryStorage storage;
   private final GitOperations git;
   private final OutboxEventRecorder outbox;
+  private final org.springframework.context.ApplicationEventPublisher events;
 
   // --------------------------------------------------------------- metadata
 
@@ -290,6 +291,8 @@ public class RepositoryService {
             "branch", branch,
             "commitId", commitId,
             "path", path));
+    events.publishEvent(new com.devforge.ai.gitservice.webhook.BranchChanged(
+        organizationId, projectId, entity.getId(), branch, commitId, user.username(), "editor"));
 
     var commits = wrap(() -> git.commits(directory(entity), commitId, 0, 1));
     if (commits.isEmpty()) {
@@ -357,6 +360,8 @@ public class RepositoryService {
             // "path" stays for consumers of the single-file event; "paths" is the whole change.
             "path", paths.get(0),
             "paths", paths));
+    events.publishEvent(new com.devforge.ai.gitservice.webhook.BranchChanged(
+        organizationId, projectId, entity.getId(), branch, commitId, user.username(), "editor"));
 
     var commits = wrap(() -> git.commits(directory(entity), commitId, 0, 1));
     if (commits.isEmpty()) {
