@@ -14,9 +14,9 @@ and on Kubernetes (kind) against real PostgreSQL, Kafka and Redis.
 
 | Gate | Command | Result |
 |---|---|---|
-| Backend tests | `mvn -B -ntp -f backend/pom.xml test` | **PASS** — 558 tests, 0 failures, locally and in CI |
+| Backend tests | `mvn -B -ntp -f backend/pom.xml test` | **PASS** — 568 tests, 0 failures, locally and in CI |
 | Frontend lint, typecheck, unit tests, build | `npm run lint`, `typecheck`, `test`, `build` | **PASS** — 0 warnings; 90 unit tests |
-| Browser suite, standalone | CI `e2e` job, `npm run test:e2e` locally | **PASS** — 51 Playwright tests, failing on any CSP violation and on serious axe findings |
+| Browser suite, standalone | CI `e2e` job, `npm run test:e2e` locally | **PASS** — 52 Playwright tests, failing on any CSP violation and on serious axe findings |
 | Images | CI `docker` job | **PASS** — eleven images build, run as non-root, start healthy; Trivy blocks on fixable high/critical advisories in every one |
 | Full stack under compose | CI `compose` job | **PASS** — every service in its own container on real PostgreSQL, Kafka (SASL, per-service ACLs, refusals checked) and Redis; the browser suite with real events; outboxes drain; Prometheus scrapes all ten; six alert rules load; a stopped service's ServiceDown alert is emailed |
 | Kubernetes | CI `kubernetes` job on kind | **PASS** — the generated manifests deploy with read-only root filesystems and the default seccomp profile; signup through nginx and the gateway; events reach the audit log and its hash chain verifies on PostgreSQL; git push and clone with the git CLI; Prometheus scrapes all ten and has its Alertmanager |
@@ -137,7 +137,7 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 | Auth: per-device sessions | `IMPLEMENTED` | List/revoke/revoke-others; 7 tests |
 | Auth: rate limiting | `IMPLEMENTED` | Per-account rolling window on password and MFA attempts |
 | RBAC enforcement | `PARTIALLY_IMPLEMENTED` | Enforced in project-service (org + project roles, server-side, membership-derived). Other services remain skeletons. |
-| Multi-tenancy / organizations | `IMPLEMENTED` | Organizations, members, projects, project members; 23 tenant-isolation/IDOR tests |
+| Multi-tenancy / organizations | `IMPLEMENTED` | Organizations, projects and their members; 23 tenant-isolation/IDOR tests. Teams form by email invitation, accepted only by the verified owner of the address; owners and admins manage roles and members, the last owner is protected, and leaving removes project access. Project members are managed from the project. Verified in the browser with two users on both CI stacks |
 | API gateway routing | `IMPLEMENTED` | Single entry point on 8080; routes auth, organizations/projects and the nested task/sprint paths. Verified live: signup 201, `/auth/me` 200, create org, create project, create task — all through the gateway |
 | Correlation ids | `IMPLEMENTED` | Gateway generates one per request, reuses a valid inbound id, replaces an unsafe one; 6 tests |
 | CORS | `IMPLEMENTED` | Explicit origin allow-list; a wildcard now fails startup rather than being silently echoed back. 5 tests |

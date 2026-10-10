@@ -59,7 +59,7 @@ section count would overstate progress.
 
 | § | Requirement | Status | Evidence |
 |---|---|---|---|
-| 28 | Multi-tenancy | `IMPLEMENTED` | membership-derived authorization throughout |
+| 28 | Multi-tenancy | `IMPLEMENTED` | membership-derived authorization throughout; organizations grow by email invitation (verified address only, no account enumeration) with member and role management, and projects add members from the organization |
 | 29 | Projects | `IMPLEMENTED` | CRUD, archive, members |
 | 30 | Tasks, board, sprints | `IMPLEMENTED` | 29 tests |
 | 31 | API gateway as single entry point | `IMPLEMENTED` | verified live for all four services |
