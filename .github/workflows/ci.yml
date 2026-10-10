@@ -537,14 +537,17 @@ jobs:
           # every service with an outbox. A rule over a metric nobody exports never fires.
           # A rule reports "unknown" until its group first evaluates, so wait for that.
           for _ in $(seq 1 30); do
-            rules="$(curl -s http://localhost:9090/api/v1/rules               | jq '[.data.groups[].rules[] | select(.health=="ok")] | length')"
+            rules="$( (curl -s http://localhost:9090/api/v1/rules || true) \
+              | jq '[.data.groups[]?.rules[]? | select(.health=="ok")] | length' 2>/dev/null || echo 0)"
             [ "$rules" = 6 ] && break
             sleep 3
           done
-          curl -s http://localhost:9090/api/v1/rules             | jq -r '.data.groups[].rules[] | "(.name) (.health) (.lastError // "")"'
+          curl -s http://localhost:9090/api/v1/rules \
+            | jq -r '.data.groups[].rules[] | "\(.name) \(.health) \(.lastError // "")"'
           echo "alert rules healthy: $rules"
           [ "$rules" = 6 ] || { echo "::error::$rules of 6 alert rules are loaded and healthy"; exit 1; }
-          outboxes="$(curl -s --get http://localhost:9090/api/v1/query             --data-urlencode 'query=devforge_outbox_pending' | jq '.data.result | length')"
+          outboxes="$(curl -s --get http://localhost:9090/api/v1/query \
+            --data-urlencode 'query=devforge_outbox_pending' | jq '.data.result | length')"
           echo "services reporting their outbox: $outboxes"
           [ "$outboxes" = 9 ] || { echo "::error::outbox metrics from $outboxes services, not 9"; exit 1; }
 
@@ -682,7 +685,8 @@ jobs:
           # tampered with.
           verification="$(curl -sf "$api/organizations/$org/projects/$project/analytics/audit/verification" -H "$auth")"
           echo "audit verification: $(echo "$verification" | jq -c .data)"
-          echo "$verification" | jq -e '.data.intact and .data.entries >= 2' > /dev/null             || { echo "::error::the audit chain did not verify"; exit 1; }
+          echo "$verification" | jq -e '.data.intact and .data.entries >= 2' > /dev/null \
+            || { echo "::error::the audit chain did not verify"; exit 1; }
 
       - name: Prometheus scrapes every service in the cluster
         run: |
