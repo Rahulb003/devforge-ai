@@ -169,6 +169,27 @@ class ExplainApiTest {
   }
 
   @Test
+  @DisplayName("a question is sent after the file, outside the untrusted block, and is length-limited")
+  void questionAboutTheFile() throws Exception {
+    file("src/add.ts", "export const add = (a, b) => a + b;", false);
+    mockMvc.perform(post("/api/v1/organizations/" + organizationId + "/projects/" + projectId
+            + "/repositories/" + repositoryId + "/ai/explain")
+        .header("Authorization", "Bearer " + TestTokens.accessToken(UUID.randomUUID()))
+        .contentType(MediaType.APPLICATION_JSON)
+        .content("{\"path\":\"src/add.ts\",\"question\":\"Does this handle strings?\"}"))
+        .andExpect(status().isOk());
+    var user = objectMapper.readTree(LAST_REQUEST.get()).path("messages").get(0).path("content").asText();
+    assertThat(user).endsWith("</file>\n\nThe developer asks: Does this handle strings?");
+
+    mockMvc.perform(post("/api/v1/organizations/" + organizationId + "/projects/" + projectId
+            + "/repositories/" + repositoryId + "/ai/explain")
+        .header("Authorization", "Bearer " + TestTokens.accessToken(UUID.randomUUID()))
+        .contentType(MediaType.APPLICATION_JSON)
+        .content("{\"path\":\"src/add.ts\",\"question\":\"" + "x".repeat(501) + "\"}"))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
   @DisplayName("each person has an hourly limit")
   void rateLimited() throws Exception {
     file("a.txt", "hello", false);

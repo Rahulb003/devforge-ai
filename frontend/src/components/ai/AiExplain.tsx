@@ -1,10 +1,11 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Sparkles } from 'lucide-react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 import { aiApi } from '@/api/ai.api';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { Input } from '@/components/ui/Input';
 import { describeApiError } from '@/lib/errors';
 
 /**
@@ -32,9 +33,11 @@ export function AiExplain({
     queryFn: async () => (await aiApi.status()).data.data,
     staleTime: 5 * 60_000,
   });
+  const [question, setQuestion] = useState('');
   const explain = useMutation({
     mutationFn: async () =>
-      (await aiApi.explain(organizationId, projectId, repositoryId, path, gitRef)).data.data,
+      (await aiApi.explain(organizationId, projectId, repositoryId, path, gitRef, question)).data
+        .data,
   });
   const { reset } = explain;
 
@@ -45,7 +48,18 @@ export function AiExplain({
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-end gap-3">
+        {configured && (
+          <div className="min-w-64 flex-1">
+            <Input
+              label="Ask about this file (optional)"
+              placeholder="e.g. where is the input validated?"
+              maxLength={500}
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+            />
+          </div>
+        )}
         <Button
           size="sm"
           variant="secondary"

@@ -275,7 +275,7 @@ chat (9008), deployment (9009), analytics (9010).
 | Method | Path | Notes |
 |---|---|---|
 | GET | `/api/v1/ai/status` | `{configured, model}`; signed-in callers only |
-| POST | `/api/v1/organizations/{organizationId}/projects/{projectId}/repositories/{repositoryId}/ai/explain` | `path`, optional `ref` (default branch). Returns `{path, ref, explanation, model, truncated}` |
+| POST | `/api/v1/organizations/{organizationId}/projects/{projectId}/repositories/{repositoryId}/ai/explain` | `path`, optional `ref` (default branch) and `question` (up to 500 characters; without one the file is explained in general). Returns `{path, ref, explanation, model, truncated}` |
 | POST | `/api/v1/organizations/{organizationId}/projects/{projectId}/repositories/{repositoryId}/ai/pull-requests/{number}/review` | advice on the pull request's title, description and diff (up to 40 files). Returns `{number, review, model, filesReviewed, filesChanged, truncated}`. Approves and posts nothing |
 
 **Authorization:** project read access, checked with project-service using the caller's token; the

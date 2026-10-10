@@ -35,10 +35,11 @@ export const aiApi = {
     repositoryId: string,
     path: string,
     ref: string | undefined,
+    question?: string,
   ) =>
     api.post<ApiEnvelope<Explanation>>(
       `/organizations/${organizationId}/projects/${projectId}/repositories/${repositoryId}/ai/explain`,
-      { path, ref },
+      { path, ref, question: question?.trim() || undefined },
     ),
 
   review: (organizationId: string, projectId: string, repositoryId: string, number: number) =>

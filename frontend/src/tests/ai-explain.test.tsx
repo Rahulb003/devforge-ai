@@ -49,9 +49,13 @@ describe('AiExplain', () => {
       }),
     );
     renderIt();
-    await userEvent.click(await screen.findByRole('button', { name: 'Explain with AI' }));
+    await userEvent.type(
+      await screen.findByLabelText('Ask about this file (optional)'),
+      'Is it safe?',
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Explain with AI' }));
 
-    expect(explain).toHaveBeenCalledWith('o', 'p', 'r', 'src/a.ts', 'main');
+    expect(explain).toHaveBeenCalledWith('o', 'p', 'r', 'src/a.ts', 'main', 'Is it safe?');
     const section = await screen.findByRole('region', { name: 'AI explanation' });
     expect(section).toHaveTextContent('It adds. <img src=x onerror=alert(1)>');
     expect(section.querySelector('img')).toBeNull();

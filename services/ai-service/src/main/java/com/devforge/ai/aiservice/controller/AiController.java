@@ -28,7 +28,8 @@ public class AiController {
   private final com.devforge.ai.aiservice.service.PullRequestReviewService reviewService;
   private final ModelClient model;
 
-  public record ExplainRequest(String path, String ref) {}
+  /** {@code question} is optional: without one the file is explained in general. */
+  public record ExplainRequest(String path, String ref, String question) {}
 
   /** Whether AI assistance is available here, so the UI can say so before anyone asks. */
   @GetMapping("/api/v1/ai/status")
@@ -44,7 +45,7 @@ public class AiController {
       @RequestBody ExplainRequest request, @AuthenticationPrincipal AuthenticatedUser user,
       HttpServletRequest http) {
     return ResponseEntity.ok(new ApiResponse<>(true, explainService.explain(
-        organizationId, projectId, repositoryId, request.path(), request.ref(), user,
+        organizationId, projectId, repositoryId, request.path(), request.ref(), request.question(), user,
         http.getHeader(HttpHeaders.AUTHORIZATION)), null));
   }
 
