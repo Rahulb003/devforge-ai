@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, BarChart3, GitBranch, MessageSquare, Plus } from 'lucide-react';
+import { ArrowLeft, BarChart3, GitBranch, MessageSquare, Plus, Users } from 'lucide-react';
 import { useState, type DragEvent, type FormEvent } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 
@@ -171,6 +171,13 @@ export function ProjectBoardPage() {
           >
             <BarChart3 className="h-4 w-4" aria-hidden="true" />
             Activity
+          </Link>
+          <Link
+            to={`/organizations/${organizationId}/projects/${projectId}/members`}
+            className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-700 bg-slate-800 px-5 text-sm font-medium text-slate-100 transition hover:border-slate-600 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-indigo-400"
+          >
+            <Users className="h-4 w-4" aria-hidden="true" />
+            Members
           </Link>
           {!creating && (
             <Button leftIcon={<Plus className="h-4 w-4" />} onClick={() => setCreating(true)}>

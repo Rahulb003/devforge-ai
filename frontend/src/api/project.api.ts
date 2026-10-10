@@ -102,4 +102,16 @@ export const projectApi = {
     api.get<ApiEnvelope<ProjectMember[]>>(
       `/organizations/${organizationId}/projects/${projectId}/members`,
     ),
+
+  /** The person must already belong to the organization. */
+  addMember: (organizationId: string, projectId: string, userId: string, role: ProjectRole) =>
+    api.post<ApiEnvelope<ProjectMember>>(
+      `/organizations/${organizationId}/projects/${projectId}/members`,
+      { userId, role },
+    ),
+
+  removeMember: (organizationId: string, projectId: string, userId: string) =>
+    api.delete<ApiEnvelope<void>>(
+      `/organizations/${organizationId}/projects/${projectId}/members/${userId}`,
+    ),
 };

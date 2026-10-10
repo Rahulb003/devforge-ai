@@ -44,11 +44,41 @@ test.describe('Organization membership', () => {
       theirs.getByRole('main').getByRole('link', { name: new RegExp(orgName, 'i') }),
     ).toBeVisible();
     await expectNoErrorBoundary(theirs);
-    await other.close();
 
     // Back with the owner: a member now, and the invitation is no longer pending.
     await page.reload();
     await expect(page.getByRole('list', { name: 'Members' })).toContainText(invitee.username);
     await expect(page.getByRole('list', { name: 'Pending invitations' })).toHaveCount(0);
+
+    // The owner gives them a project: created, opened, and the new member added from its page.
+    await page.getByRole('button', { name: 'Create project' }).click();
+    await page.getByLabel('Name').fill('Shared Project');
+    await page.getByRole('button', { name: 'Create', exact: true }).click();
+    await page
+      .getByRole('main')
+      .getByRole('link', { name: /Shared Project/i })
+      .click();
+    await page.getByRole('link', { name: 'Members' }).click();
+    const add = page.getByRole('form', { name: 'Add a member' });
+    await add.getByLabel('Organization member').selectOption({ label: invitee.username });
+    await add.getByRole('button', { name: 'Add to project' }).click();
+    await expect(page.getByRole('list', { name: 'Project members' })).toContainText(
+      invitee.username,
+    );
+
+    // And the new member can now open that project.
+    await theirs
+      .getByRole('main')
+      .getByRole('link', { name: new RegExp(orgName, 'i') })
+      .click();
+    await theirs
+      .getByRole('main')
+      .getByRole('link', { name: /Shared Project/i })
+      .click();
+    await expect(
+      theirs.getByRole('heading', { name: 'Shared Project', exact: true }),
+    ).toBeVisible();
+    await expectNoErrorBoundary(theirs);
+    await other.close();
   });
 });
