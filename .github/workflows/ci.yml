@@ -502,10 +502,11 @@ jobs:
 
           api=http://localhost:4173/api/v1
           user="burst$RANDOM$RANDOM"
-          curl -sf -X POST "$api/auth/signup" -H 'Content-Type: application/json' -H 'X-Requested-With: XMLHttpRequest' \
+          curl -sf -X POST "$api/auth/signup" -H 'Content-Type: application/json' \
             -d "{\"firstName\":\"Burst\",\"lastName\":\"Check\",\"username\":\"$user\",\"email\":\"$user@example.com\",\"password\":\"Str0ng!Passw0rd#\",\"organization\":\"Burst\"}" > /dev/null
-          token="$(curl -sf -X POST "$api/auth/login" -H 'Content-Type: application/json' -H 'X-Requested-With: XMLHttpRequest' \
+          token="$(curl -sf -X POST "$api/auth/login" -H 'Content-Type: application/json' \
             -d "{\"usernameOrEmail\":\"$user\",\"password\":\"Str0ng!Passw0rd#\"}" | jq -r .data.accessToken)"
+          [ -n "$token" ] && [ "$token" != null ] || { echo "::error::login returned no access token"; exit 1; }
           auth="Authorization: Bearer $token"
           org="$(curl -sf -X POST "$api/organizations" -H "$auth" -H 'Content-Type: application/json' \
             -d "{\"name\":\"Burst\",\"slug\":\"burst-$user\"}" | jq -r .data.id)"
