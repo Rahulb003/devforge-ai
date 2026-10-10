@@ -47,6 +47,7 @@ class AccountTest {
   @Autowired private RefreshTokenRepository refreshTokens;
   @Autowired private AuditLogRepository auditLogs;
   @Autowired private OutboxEventRepository outbox;
+  @Autowired private com.devforge.ai.authservice.security.JwtTokenProvider jwtTokenProvider;
 
   @MockitoBean private EmailService emailService;
 
@@ -103,6 +104,14 @@ class AccountTest {
         // Not editable here, whatever the body says.
         .andExpect(jsonPath("$.data.username").value("ada"));
     assertThat(auditLogs.findAll()).anyMatch(a -> a.getAction().equals("PROFILE_UPDATED"));
+  }
+
+  @Test
+  @DisplayName("the access token says whether the email is verified, so other services can rely on it")
+  void accessTokenCarriesEmailVerification() throws Exception {
+    var token = bearer(login(PASSWORD)).substring("Bearer ".length());
+    var claims = jwtTokenProvider.parseClaims(token);
+    assertThat(claims.get("email_verified", Boolean.class)).isTrue();
   }
 
   @Test

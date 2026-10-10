@@ -38,9 +38,15 @@ Lockout is **time-windowed, not sticky**: a rolling window of failures locks the
 period rather than permanently. A permanent lock is a denial-of-service primitive — anyone who knows
 an email address can disable the account.
 
-Email verification is **not enforced**. An account can sign in as soon as it is created. This is a
-deliberate product decision; it means an unverified address is an account that works, and any future
-feature that trusts "verified" must check the flag rather than assuming.
+Email verification is **required by default** (`DEVFORGE_REQUIRE_EMAIL_VERIFICATION`, true in the
+production profile): an account cannot sign in until it follows the link sent to its address. Access
+tokens carry `email_verified`, and anything that acts on the address checks it - an organization
+invitation is shown to, and accepted by, only an account whose token carries the invited address as
+verified, so registering under someone else's address does not get you their invitations.
+
+Turning verification off (local development and CI do) marks new accounts verified at signup. That
+deployment then trusts every address as typed, invitations included; do not turn it off where signup
+is open to the public.
 
 ---
 

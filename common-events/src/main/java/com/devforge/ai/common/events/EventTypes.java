@@ -22,6 +22,10 @@ public final class EventTypes {
   // Tenancy and projects
   public static final String ORGANIZATION_CREATED = "OrganizationCreated";
   public static final String ORGANIZATION_DELETED = "OrganizationDeleted";
+  public static final String ORGANIZATION_MEMBER_ADDED = "OrganizationMemberAdded";
+  public static final String ORGANIZATION_MEMBER_REMOVED = "OrganizationMemberRemoved";
+  public static final String ORGANIZATION_MEMBER_ROLE_CHANGED = "OrganizationMemberRoleChanged";
+  public static final String ORGANIZATION_INVITATION_SENT = "OrganizationInvitationSent";
   public static final String PROJECT_CREATED = "ProjectCreated";
   public static final String PROJECT_UPDATED = "ProjectUpdated";
   public static final String PROJECT_ARCHIVED = "ProjectArchived";

@@ -15,8 +15,17 @@ import java.util.UUID;
  * @param username display/login name
  * @param email the user's email address
  * @param roles global platform roles, e.g. {@code ROLE_ADMIN}
+ * @param emailVerified whether the account proved it controls {@code email}. Anything that acts on
+ *     the email address - matching an invitation sent to it - must require this, or an account
+ *     registered under someone else's address would be treated as them.
  */
-public record AuthenticatedUser(UUID id, String username, String email, Set<String> roles) {
+public record AuthenticatedUser(
+    UUID id, String username, String email, Set<String> roles, boolean emailVerified) {
+
+  /** Without the flag, the email is treated as unproven: the safe default. */
+  public AuthenticatedUser(UUID id, String username, String email, Set<String> roles) {
+    this(id, username, email, roles, false);
+  }
 
   public boolean hasRole(String role) {
     return roles != null && roles.contains(role);

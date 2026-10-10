@@ -56,6 +56,12 @@ public class JwtTokenProvider {
   private static final String CLAIM_USERNAME = "username";
   private static final String CLAIM_EMAIL = "email";
   private static final String CLAIM_ROLES = "roles";
+  /**
+   * Whether the email claim is proven. Services that act on the email - an invitation addressed to
+   * it, say - must check this: without it, anyone could register an unverified account under
+   * someone else's address and be treated as them.
+   */
+  private static final String CLAIM_EMAIL_VERIFIED = "email_verified";
 
   @Getter
   private final JwtConfig jwtConfig;
@@ -101,7 +107,8 @@ public class JwtTokenProvider {
         principal.getEmail(),
         roles,
         TOKEN_TYPE_ACCESS,
-        jwtConfig.getAccessTokenTtl());
+        jwtConfig.getAccessTokenTtl(),
+        principal.isEmailVerified());
   }
 
   /** An access token for a user directly, with its own lifetime: for a personal token exchange. */
@@ -113,7 +120,8 @@ public class JwtTokenProvider {
         principal.getEmail(),
         principal.getAuthorities().stream().map(GrantedAuthority::getAuthority).toList(),
         TOKEN_TYPE_ACCESS,
-        ttl);
+        ttl,
+        principal.isEmailVerified());
   }
 
   public String createRefreshToken(UserEntity user) {
@@ -133,6 +141,18 @@ public class JwtTokenProvider {
       List<String> roles,
       String tokenType,
       java.time.Duration ttl) {
+    return buildToken(subject, username, email, roles, tokenType, ttl, null);
+  }
+
+  /** {@code emailVerified} null leaves the claim out: only access tokens carry it. */
+  private String buildToken(
+      UUID subject,
+      String username,
+      String email,
+      List<String> roles,
+      String tokenType,
+      java.time.Duration ttl,
+      Boolean emailVerified) {
     var now = Instant.now();
     var builder = Jwts.builder()
         .subject(subject.toString())
@@ -146,6 +166,9 @@ public class JwtTokenProvider {
 
     if (roles != null) {
       builder.claim(CLAIM_ROLES, roles);
+    }
+    if (emailVerified != null) {
+      builder.claim(CLAIM_EMAIL_VERIFIED, emailVerified);
     }
 
     return builder.signWith(getSigningKey(), Jwts.SIG.HS256).compact();

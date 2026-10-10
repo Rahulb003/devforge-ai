@@ -111,6 +111,9 @@ class RoutePrecedenceTest {
     assertThat(routeFor("/api/v1/dev/mailbox")).contains("auth");
     assertThat(routeFor("/api/v1/notifications")).contains("notifications");
     assertThat(routeFor("/api/v1/notifications/unread-count")).contains("notifications");
+    assertThat(routeFor("/api/v1/invitations")).contains("invitations");
+    assertThat(routeFor("/api/v1/invitations/11111111-1111-1111-1111-111111111111/accept"))
+        .contains("invitations");
     // Git's protocol, with the segments git itself appends to the clone URL.
     var clone = "/api/v1/git/11111111-1111-1111-1111-111111111111/22222222-2222-2222-2222-222222222222"
         + "/44444444-4444-4444-4444-444444444444.git";

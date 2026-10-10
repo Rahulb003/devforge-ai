@@ -20,8 +20,15 @@ public class UserPrincipal implements UserDetails {
   private final boolean enabled;
   private final Collection<? extends GrantedAuthority> authorities;
   private final AccountStatus status;
+  /** Whether the account proved it controls its email address; carried into the access token. */
+  private final boolean emailVerified;
 
   public UserPrincipal(UUID id, String username, String password, String email, boolean enabled, Collection<? extends GrantedAuthority> authorities, AccountStatus status) {
+    this(id, username, password, email, enabled, authorities, status, false);
+  }
+
+  public UserPrincipal(UUID id, String username, String password, String email, boolean enabled,
+      Collection<? extends GrantedAuthority> authorities, AccountStatus status, boolean emailVerified) {
     this.id = id;
     this.username = username;
     this.password = password;
@@ -29,6 +36,7 @@ public class UserPrincipal implements UserDetails {
     this.enabled = enabled;
     this.authorities = authorities;
     this.status = status;
+    this.emailVerified = emailVerified;
   }
 
   public static UserPrincipal fromEntity(UserEntity user) {
@@ -39,7 +47,8 @@ public class UserPrincipal implements UserDetails {
         user.getEmail(),
         user.getStatus() == AccountStatus.ACTIVE,
         user.getRoles().stream().map(role -> new SimpleGrantedAuthority("ROLE_" + role.getName().name())).collect(Collectors.toSet()),
-        user.getStatus());
+        user.getStatus(),
+        user.isEmailVerified());
   }
 
   public UserEntity toEntity() {

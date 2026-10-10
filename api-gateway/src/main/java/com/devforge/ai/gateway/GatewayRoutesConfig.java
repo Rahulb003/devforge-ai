@@ -179,6 +179,18 @@ public class GatewayRoutesConfig {
         .build();
   }
 
+  /** The caller's own organization invitations, which project-service keeps. */
+  @Bean
+  @Order(41)
+  public RouterFunction<ServerResponse> invitationRoutes() {
+    return route("invitations")
+        .route(
+            RequestPredicates.path("/api/v1/invitations")
+                .or(RequestPredicates.path("/api/v1/invitations/**")),
+            http(projectServiceUrl))
+        .build();
+  }
+
   /**
    * The caller's own notifications.
    *

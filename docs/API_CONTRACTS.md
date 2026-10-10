@@ -139,6 +139,15 @@ if absent, and returned on the response either way.
 | GET | `/api/v1/organizations/{organizationId}/projects/{projectId}/members` | |
 | POST | `/api/v1/organizations/{organizationId}/projects/{projectId}/members` | |
 | DELETE | `/api/v1/organizations/{organizationId}/projects/{projectId}/members/{userId}` | |
+| GET | `/api/v1/organizations/{organizationId}/members` | any member; name and address as recorded when each joined |
+| PATCH | `/api/v1/organizations/{organizationId}/members/{userId}` | `role`; owners and admins. Only an owner grants or changes the owner role; the last owner cannot be demoted (409) |
+| DELETE | `/api/v1/organizations/{organizationId}/members/{userId}` | owners and admins remove; anyone may remove themselves (leave). Only an owner removes an owner; the last owner cannot go (409). Their project memberships in the organization go too |
+| POST | `/api/v1/organizations/{organizationId}/invitations` | 201. `email`, `role` (`MEMBER` or `ADMIN`). Same answer whether or not an account exists for the address. 409 for a member's address or a pending duplicate; expires in 14 days |
+| GET | `/api/v1/organizations/{organizationId}/invitations` | pending only; owners and admins |
+| DELETE | `/api/v1/organizations/{organizationId}/invitations/{invitationId}` | revoke |
+| GET | `/api/v1/invitations` | the caller's pending invitations, matched on their **verified** email; empty otherwise |
+| POST | `/api/v1/invitations/{invitationId}/accept` | joins with the invited role. 404 unless addressed to the caller's verified email and still pending |
+| POST | `/api/v1/invitations/{invitationId}/decline` | |
 
 The organization id in the path is **not** trusted as proof of access — membership is checked
 server-side on every call. It is in the path so a lookup is scoped by both ids and an id from another

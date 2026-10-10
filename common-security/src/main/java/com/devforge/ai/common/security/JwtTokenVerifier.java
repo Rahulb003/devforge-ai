@@ -66,7 +66,9 @@ public class JwtTokenVerifier {
           UUID.fromString(claims.getSubject()),
           claims.get(CLAIM_USERNAME, String.class),
           claims.get(CLAIM_EMAIL, String.class),
-          extractRoles(claims)));
+          extractRoles(claims),
+          // Absent on tokens issued before the claim existed: treated as unverified, never as proof.
+          Boolean.TRUE.equals(claims.get("email_verified", Boolean.class))));
     } catch (JwtException | IllegalArgumentException ex) {
       // Logged at debug only: a bad token is an expected condition on a public endpoint,
       // and the value itself must never reach the logs.

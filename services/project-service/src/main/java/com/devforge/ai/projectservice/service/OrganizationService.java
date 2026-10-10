@@ -47,6 +47,8 @@ public class OrganizationService {
         .organization(organization)
         .userId(user.id())
         .role(OrganizationRole.OWNER)
+        .username(user.username())
+        .email(user.email())
         .build());
 
     publish(com.devforge.ai.common.events.EventTypes.ORGANIZATION_CREATED, organization.getId(), user,

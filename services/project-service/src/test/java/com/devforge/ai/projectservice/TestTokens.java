@@ -61,6 +61,23 @@ final class TestTokens {
         Instant.now().minus(1, ChronoUnit.MINUTES));
   }
 
+  /** A token naming a specific email address, verified or not: what invitations are matched on. */
+  static String accessTokenWithEmail(UUID userId, String email, boolean verified) {
+    return Jwts.builder()
+        .subject(userId.toString())
+        .issuer(ISSUER)
+        .issuedAt(Date.from(Instant.now().minus(1, ChronoUnit.MINUTES)))
+        .expiration(Date.from(Instant.now().plus(15, ChronoUnit.MINUTES)))
+        .id(UUID.randomUUID().toString())
+        .claim("typ", "access")
+        .claim("username", "user-" + userId.toString().substring(0, 8))
+        .claim("email", email)
+        .claim("email_verified", verified)
+        .claim("roles", List.of("ROLE_DEVELOPER"))
+        .signWith(key(SIGNING_KEY), Jwts.SIG.HS256)
+        .compact();
+  }
+
   private static String build(
       UUID userId, List<String> roles, String type, String issuer, String secret, Instant expiry) {
     var builder = Jwts.builder()

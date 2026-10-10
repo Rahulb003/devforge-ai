@@ -3,6 +3,7 @@ import { ArrowLeft, FolderGit2, Plus } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
+import { MembersSection } from '@/components/organizations/MembersSection';
 import { projectApi } from '@/api/project.api';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -227,6 +228,10 @@ export function OrganizationDetailPage() {
           </div>
         )}
       </section>
+
+      {organization.data && (
+        <MembersSection organizationId={organizationId} callerRole={organization.data.role} />
+      )}
     </div>
   );
 }

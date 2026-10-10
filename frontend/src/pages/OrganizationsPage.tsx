@@ -3,6 +3,7 @@ import { Building2, Plus } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 
+import { InvitationsInbox } from '@/components/organizations/InvitationsInbox';
 import { projectApi } from '@/api/project.api';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -75,6 +76,8 @@ export function OrganizationsPage() {
           </Button>
         )}
       </header>
+
+      <InvitationsInbox />
 
       {creating && (
         <Card>

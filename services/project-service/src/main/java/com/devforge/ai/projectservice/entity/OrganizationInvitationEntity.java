@@ -10,6 +10,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import java.time.Instant;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -17,37 +18,43 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.experimental.SuperBuilder;
 
-/**
- * Links a user to an organization with a role.
- *
- * <p>This table is the authorization source of truth for tenancy. {@code userId} is a plain UUID
- * rather than a foreign key because users live in the auth service's database; services must not
- * reach into each other's schemas.
- */
+/** An invitation to join an organization, addressed to an email address. */
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @SuperBuilder
 @Entity
-@Table(name = "organization_members")
-public class OrganizationMemberEntity extends BaseEntity {
+@Table(name = "organization_invitations")
+public class OrganizationInvitationEntity extends BaseEntity {
 
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
   @JoinColumn(name = "organization_id", nullable = false)
   private OrganizationEntity organization;
 
-  @Column(name = "user_id", nullable = false)
-  private UUID userId;
+  @Column(name = "email", nullable = false, length = 255)
+  private String email;
 
   @Enumerated(EnumType.STRING)
   @Column(name = "role", nullable = false, length = 50)
   private OrganizationRole role;
 
-  /** As the member was known when they joined; see V3__organization_invitations.sql. */
-  @Column(name = "username", length = 50)
-  private String username;
+  @Column(name = "invited_by", nullable = false)
+  private UUID invitedBy;
 
-  @Column(name = "email", length = 255)
-  private String email;
+  @Column(name = "expires_at", nullable = false)
+  private Instant expiresAt;
+
+  @Column(name = "accepted_at")
+  private Instant acceptedAt;
+
+  @Column(name = "declined_at")
+  private Instant declinedAt;
+
+  @Column(name = "revoked_at")
+  private Instant revokedAt;
+
+  public boolean isPendingAt(Instant now) {
+    return acceptedAt == null && declinedAt == null && revokedAt == null && expiresAt.isAfter(now);
+  }
 }
