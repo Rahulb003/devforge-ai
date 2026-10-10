@@ -43,6 +43,8 @@ public class NotificationFactory {
       case TASK_COMPLETED -> taskCompleted(envelope, payload);
       case EventTypes.PULL_REQUEST_MERGED -> pullRequestDecided(envelope, payload, "merged");
       case EventTypes.PULL_REQUEST_CLOSED -> pullRequestDecided(envelope, payload, "closed");
+      case EventTypes.PROJECT_MEMBER_ADDED -> membership(envelope, payload, true);
+      case EventTypes.PROJECT_MEMBER_REMOVED -> membership(envelope, payload, false);
       case EventTypes.USER_PASSWORD_RESET -> securityAlert(envelope, payload,
           "Your password was changed",
           "If this was not you, reset your password and sign out every device immediately.");
@@ -91,6 +93,40 @@ public class NotificationFactory {
     }
 
     return notifications;
+  }
+
+  /**
+   * Telling someone they were added to a project, or taken off one.
+   *
+   * <p>Until now a new member had no way to learn about it short of looking at their project list.
+   * The admin who made the change already knows, so adding yourself notifies nobody. Removal links
+   * nowhere: the person can no longer open the project.
+   */
+  private List<NotificationEntity> membership(
+      EventEnvelope<Map<String, Object>> envelope, Map<String, Object> payload, boolean added) {
+    var member = uuid(payload.get("userId"));
+    var projectId = text(payload.get("projectId"));
+    if (member == null || member.equals(envelope.actorId())) {
+      return List.of();
+    }
+    var name = text(payload.get("projectName"));
+    var project = name == null ? "a project" : name;
+    if (!added) {
+      return List.of(build(envelope, member, NotificationCategory.PROJECT,
+          "You were removed from " + project, "You no longer have access to it.", null));
+    }
+    var role = text(payload.get("role"));
+    var link = envelope.tenantId() == null || projectId == null ? null
+        : "/organizations/" + envelope.tenantId() + "/projects/" + projectId;
+    return List.of(build(envelope, member, NotificationCategory.PROJECT,
+        "You were added to " + project,
+        role == null ? "You can now open it from your projects." : "Your role: " + roleLabel(role) + ".",
+        link));
+  }
+
+  private static String roleLabel(String role) {
+    var words = role.toLowerCase(java.util.Locale.ROOT).replace('_', ' ');
+    return Character.toUpperCase(words.charAt(0)) + words.substring(1);
   }
 
   private List<NotificationEntity> taskCompleted(

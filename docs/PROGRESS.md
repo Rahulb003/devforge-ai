@@ -14,9 +14,9 @@ and on Kubernetes (kind) against real PostgreSQL, Kafka and Redis.
 
 | Gate | Command | Result |
 |---|---|---|
-| Backend tests | `mvn -B -ntp -f backend/pom.xml test` | **PASS** — 546 tests, 0 failures, locally and in CI |
-| Frontend lint, typecheck, unit tests, build | `npm run lint`, `typecheck`, `test`, `build` | **PASS** — 0 warnings; 85 unit tests |
-| Browser suite, standalone | CI `e2e` job, `npm run test:e2e` locally | **PASS** — 50 Playwright tests, failing on any CSP violation and on serious axe findings |
+| Backend tests | `mvn -B -ntp -f backend/pom.xml test` | **PASS** — 558 tests, 0 failures, locally and in CI |
+| Frontend lint, typecheck, unit tests, build | `npm run lint`, `typecheck`, `test`, `build` | **PASS** — 0 warnings; 90 unit tests |
+| Browser suite, standalone | CI `e2e` job, `npm run test:e2e` locally | **PASS** — 51 Playwright tests, failing on any CSP violation and on serious axe findings |
 | Images | CI `docker` job | **PASS** — eleven images build, run as non-root, start healthy; Trivy blocks on fixable high/critical advisories in every one |
 | Full stack under compose | CI `compose` job | **PASS** — every service in its own container on real PostgreSQL, Kafka (SASL, per-service ACLs, refusals checked) and Redis; the browser suite with real events; outboxes drain; Prometheus scrapes all ten; six alert rules load; a stopped service's ServiceDown alert is emailed |
 | Kubernetes | CI `kubernetes` job on kind | **PASS** — the generated manifests deploy with read-only root filesystems and the default seccomp profile; signup through nginx and the gateway; events reach the audit log and its hash chain verifies on PostgreSQL; git push and clone with the git CLI; Prometheus scrapes all ten and has its Alertmanager |
@@ -24,7 +24,7 @@ and on Kubernetes (kind) against real PostgreSQL, Kafka and Redis.
 
 Not verified anywhere: a production cluster (ingress, NetworkPolicy, autoscaling, failover), SCRAM
 and certificates from a real PKI, OAuth with real providers, contention between several outbox
-publishers of one service.
+publishers of a service other than task-service (they share the same publisher code).
 
 Toolchain: Node 24, Temurin JDK 21, Maven 3.9. No Docker daemon locally: everything container-based
 is verified in CI only.
@@ -141,7 +141,7 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 | API gateway routing | `IMPLEMENTED` | Single entry point on 8080; routes auth, organizations/projects and the nested task/sprint paths. Verified live: signup 201, `/auth/me` 200, create org, create project, create task — all through the gateway |
 | Correlation ids | `IMPLEMENTED` | Gateway generates one per request, reuses a valid inbound id, replaces an unsafe one; 6 tests |
 | CORS | `IMPLEMENTED` | Explicit origin allow-list; a wildcard now fails startup rather than being silently echoed back. 5 tests |
-| Kafka / outbox / event envelope | `IMPLEMENTED` | Envelope, outbox, idempotency, DLQ; 10 staging tests **plus 9 against a real in-process broker** — publication, ordering, dedup on redelivery, dead-lettering, and a poison event not blocking its partition. `SKIP LOCKED` still UNVERIFIED (needs PostgreSQL); see docs/EVENT_CATALOG.md §8 |
+| Kafka / outbox / event envelope | `IMPLEMENTED` | Envelope, outbox, idempotency, DLQ; 10 staging tests **plus 9 against a real in-process broker** — publication, ordering, dedup on redelivery, dead-lettering, and a poison event not blocking its partition. `SKIP LOCKED` verified under contention in CI: two publishers, 200 events, each published once |
 | Kafka consumers in services | `IMPLEMENTED` | Two now: notification-service (identity, security, tasks) and analytics-service (tasks, repositories), each in its own consumer group so neither can starve the other |
 | Notifications (§12) | `IMPLEMENTED` | Consumer, per-recipient storage, read/unread/delete API, bell with unread badge and a feed page. 22 backend tests (8 against a real broker) + 12 frontend. Verified live through the gateway |
 | Kafka SASL / ACLs | `IMPLEMENTED` | One identity per service, deny-by-default ACLs; refusals checked in compose, the setup Job runs on kind. SASL_SSL only, each stack's own CA, a plaintext client refused (checked in compose) |
@@ -182,8 +182,7 @@ above. What remains, in order:
 2. **Blocked on a container runtime:** the §37 sandbox to docs/SANDBOX.md's twelve guarantees, then
    deployment pipelines (deployment-service is a health endpoint).
 3. **Unblocked:** recording the audit chain's head hash somewhere outside
-   the database automatically; auth-service's own audit table into a chain; a second outbox
-   publisher per service under compose to exercise `SKIP LOCKED` contention.
+   the database automatically; auth-service's own audit table into a chain.
 
 ---
 

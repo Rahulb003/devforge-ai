@@ -36,7 +36,8 @@ import org.springframework.test.context.TestPropertySource;
 @SpringBootTest
 @EmbeddedKafka(
     partitions = 1,
-    topics = {KafkaTopics.IDENTITY, KafkaTopics.SECURITY, KafkaTopics.TASKS, KafkaTopics.REPOSITORIES})
+    topics = {KafkaTopics.IDENTITY, KafkaTopics.SECURITY, KafkaTopics.TASKS, KafkaTopics.REPOSITORIES,
+        KafkaTopics.PROJECTS})
 @TestPropertySource(properties = {
     // The listener is off by default in tests so the API tests need no broker; this class
     // supplies one and switches it on.
@@ -129,6 +130,37 @@ class NotificationConsumerIntegrationTest {
     await(() -> notificationRepository.countByRecipientIdAndReadAtIsNull(marker) == 1,
         "the marker to be processed");
     assertThat(notificationRepository.countByRecipientIdAndReadAtIsNull(author)).isEqualTo(1);
+  }
+
+  @Test
+  @DisplayName("being added to a project, or removed, tells the member - not the admin who did it")
+  void membershipNotifiesTheMember() {
+    var admin = UUID.randomUUID();
+    var member = UUID.randomUUID();
+    var projectId = UUID.randomUUID();
+    Map<String, Object> payload = Map.of("projectId", projectId.toString(), "projectName", "Apollo",
+        "userId", member.toString(), "role", "TEAM_LEAD");
+
+    publish(KafkaTopics.PROJECTS, taskEvent("ProjectMemberAdded", admin, payload));
+    await(() -> notificationRepository.countByRecipientIdAndReadAtIsNull(member) == 1,
+        "the new member to be notified");
+    var added = onlyNotificationFor(member);
+    assertThat(added.getTitle()).isEqualTo("You were added to Apollo");
+    assertThat(added.getBody()).isEqualTo("Your role: Team lead.");
+    assertThat(added.getCategory()).isEqualTo(NotificationCategory.PROJECT);
+    assertThat(added.getLink()).isEqualTo("/organizations/" + organizationId + "/projects/" + projectId);
+
+    publish(KafkaTopics.PROJECTS, taskEvent("ProjectMemberRemoved", admin, payload));
+    await(() -> notificationRepository.countByRecipientIdAndReadAtIsNull(member) == 2,
+        "the removal to be notified");
+    assertThat(notificationRepository.countByRecipientIdAndReadAtIsNull(admin)).isZero();
+
+    // An admin adding themselves needs no notice.
+    publish(KafkaTopics.PROJECTS, taskEvent("ProjectMemberAdded", admin, Map.<String, Object>of(
+        "projectId", projectId.toString(), "projectName", "Apollo",
+        "userId", admin.toString(), "role", "ADMIN")));
+    settle();
+    assertThat(notificationRepository.countByRecipientIdAndReadAtIsNull(admin)).isZero();
   }
 
   @Test

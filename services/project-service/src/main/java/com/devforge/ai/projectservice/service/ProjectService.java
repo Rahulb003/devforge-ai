@@ -169,8 +169,8 @@ public class ProjectService {
         .role(request.role())
         .build());
     publish(EventTypes.PROJECT_MEMBER_ADDED, organizationId, user, java.util.Map.of(
-        "projectId", projectId.toString(), "userId", request.userId().toString(),
-        "role", request.role().name()));
+        "projectId", projectId.toString(), "projectName", project.getName(),
+        "userId", request.userId().toString(), "role", request.role().name()));
     return new ProjectMemberResponse(
         member.getId(), member.getUserId(), member.getRole(), member.getCreatedAt());
   }
@@ -183,8 +183,8 @@ public class ProjectService {
         .ifPresent(member -> {
           projectMemberRepository.delete(member);
           publish(EventTypes.PROJECT_MEMBER_REMOVED, organizationId, user, java.util.Map.of(
-              "projectId", projectId.toString(), "userId", memberUserId.toString(),
-              "role", member.getRole().name()));
+              "projectId", projectId.toString(), "projectName", project.getName(),
+              "userId", memberUserId.toString(), "role", member.getRole().name()));
         });
   }
 

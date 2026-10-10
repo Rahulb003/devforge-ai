@@ -162,18 +162,22 @@ An unrecognised event type produces no notifications and does **not** fail. A co
 rejected unknown types would start dead-lettering the moment any producer shipped a new one, and
 "notifications are down" is a worse outcome than "that event notifies nobody yet".
 
+### Projects (`devforge.projects.v1`)
+
+project-service publishes `OrganizationCreated`, `OrganizationDeleted`, `ProjectCreated`,
+`ProjectUpdated`, `ProjectArchived`, `ProjectDeleted`, `ProjectMemberAdded` and
+`ProjectMemberRemoved`. The membership events carry `projectId`, `projectName`, `userId` (the member)
+and `role`.
+
+analytics-service writes every one to the audit log. notification-service tells the member when they
+are added ("You were added to Apollo", linking to the project, with their role) or removed, unless
+they made the change themselves.
+
 ### Declared, not yet produced
 
-`OrganizationCreated`, `OrganizationDeleted`, `ProjectCreated`, `ProjectUpdated`,
-`ProjectArchived`, `ProjectDeleted`, `ProjectMemberAdded`, `ProjectMemberRemoved`,
-`UserLoggedIn`, `SecurityIssueDetected`.
-
-Constants exist in `EventTypes`; project-service does not yet stage them. Listing them here without
-that caveat would be documenting intent as implementation.
-
-For the same reason notification-service has **no listener** for project events: a handler for an
-event nobody emits is dead code that reads like a feature. `ProjectMemberAdded` is the obvious next
-one — "you were added to a project" — and it needs the producer first.
+`UserLoggedIn`, `SecurityIssueDetected`. Constants exist in `EventTypes`; nothing stages them yet,
+and nothing listens for them: a handler for an event nobody emits is dead code that reads like a
+feature.
 
 ---
 
@@ -285,7 +289,7 @@ complexity alone. Revisit when cross-language consumers or payload size make it 
 | Duplicate delivery runs the handler once | **Verified** — against a broker, not just the guard in isolation |
 | Non-retryable failure is dead-lettered | **Verified** — record lands on `<topic>.dlt` after one attempt |
 | A poison event does not block its partition | **Verified** — the healthy event behind it is still processed |
-| `SKIP LOCKED` behaviour with concurrent publishers | **UNVERIFIED** — needs PostgreSQL |
+| `SKIP LOCKED` behaviour with concurrent publishers | **Verified** in CI on PostgreSQL — two task-services, 200 events, each on the topic once. Its first run found 66 duplicates: the claim ran outside the drain's transaction, so its locks ended with the query |
 | Retry/backoff timing under a transient outage | **UNVERIFIED** — only the non-retryable path is exercised |
 | Consumer lag, rebalance and replay | **UNVERIFIED** |
 | Broker TLS, SASL and ACLs | **UNVERIFIED** — not configured; see §7 |
