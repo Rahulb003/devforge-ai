@@ -9,4 +9,6 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface EmailVerificationTokenRepository extends JpaRepository<EmailVerificationTokenEntity, UUID> {
   Optional<EmailVerificationTokenEntity> findByToken(String token);
+
+  void deleteByUser(com.devforge.ai.authservice.entity.UserEntity user);
 }

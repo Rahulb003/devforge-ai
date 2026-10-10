@@ -4,6 +4,7 @@ import { AccessTokensSection } from '@/components/settings/AccessTokensSection';
 import { MfaSection } from '@/components/settings/MfaSection';
 import { PasswordSection } from '@/components/settings/PasswordSection';
 import { ProfileSection } from '@/components/settings/ProfileSection';
+import { DeleteAccountSection } from '@/components/settings/DeleteAccountSection';
 import { SessionsSection } from '@/components/settings/SessionsSection';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader } from '@/components/ui/Card';
@@ -39,6 +40,8 @@ export function SettingsPage() {
           Switch to {theme === 'dark' ? 'light' : 'dark'} theme
         </Button>
       </Card>
+
+      <DeleteAccountSection />
     </div>
   );
 }

@@ -18,6 +18,7 @@ public final class EventTypes {
   public static final String USER_PASSWORD_RESET = "UserPasswordReset";
   public static final String USER_MFA_ENABLED = "UserMfaEnabled";
   public static final String USER_MFA_DISABLED = "UserMfaDisabled";
+  public static final String USER_DELETED = "UserDeleted";
 
   // Tenancy and projects
   public static final String ORGANIZATION_CREATED = "OrganizationCreated";

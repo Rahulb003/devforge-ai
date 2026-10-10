@@ -95,6 +95,7 @@ if absent, and returned on the response either way.
 | PATCH | `/api/v1/auth/me` | first and last name, time zone (IANA id), language (`en`, `en-GB`); only the fields given change. Username and email are not editable here |
 | POST | `/api/v1/auth/password` | `currentPassword`, `newPassword` (signup rules, must differ). A wrong current password counts toward the sign-in lockout. Signs out every other session and notifies the owner |
 | POST | `/api/v1/auth/logout` | revokes the refresh token server-side |
+| DELETE | `/api/v1/auth/me` | deletes the caller's account. Body `username` (typed out), `password`, `mfaCode` where MFA is on; a wrong password counts toward the lockout. 409 naming each organization the caller is the only owner of; 503 if project-service cannot be asked. Nothing is erased on any refusal |
 | GET | `/api/v1/auth/mfa/status` | |
 | POST | `/api/v1/auth/mfa/enrol` | returns a secret and otpauth URI; enrolment is two-step |
 | POST | `/api/v1/auth/mfa/confirm` | confirms with a code; only now is MFA active |
@@ -148,6 +149,7 @@ if absent, and returned on the response either way.
 | GET | `/api/v1/invitations` | the caller's pending invitations, matched on their **verified** email; empty otherwise |
 | POST | `/api/v1/invitations/{invitationId}/accept` | joins with the invited role. 404 unless addressed to the caller's verified email and still pending |
 | POST | `/api/v1/invitations/{invitationId}/decline` | |
+| DELETE | `/api/v1/memberships/mine` | the caller leaves every organization, all or nothing; 409 while they are the only owner of one. Called by auth-service, with the caller's token, when an account is deleted |
 
 The organization id in the path is **not** trusted as proof of access — membership is checked
 server-side on every call. It is in the path so a lookup is scoped by both ids and an id from another

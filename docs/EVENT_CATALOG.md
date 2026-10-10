@@ -96,6 +96,7 @@ consumers can straddle, rather than an in-place change that breaks whoever deplo
 | `UserPasswordReset` | identity | `userId` | Password changed via reset token |
 | `UserMfaEnabled` | identity | `userId` | TOTP enrolment confirmed |
 | `UserMfaDisabled` | identity | `userId` | MFA turned off |
+| `UserDeleted` | identity | `userId` | The owner deleted the account; its personal data is already erased |
 | `RefreshTokenReuseDetected` | security | `userId`, `action` | A rotated refresh token was replayed; all sessions revoked |
 
 ### Produced today (`task-service`)
@@ -148,6 +149,7 @@ identity, security and tasks, and writes one notification row per recipient.
 | `UserPasswordReset` | the account the event concerns | the classic way account takeover is noticed |
 | `UserMfaEnabled` / `UserMfaDisabled` | ditto | disabling a second factor is the one that matters |
 | `RefreshTokenReuseDetected` | ditto | the user's sessions were ended; they should know why |
+| `UserDeleted` | nobody: the account's notifications are **deleted** | they quote what happened in its projects |
 
 Two rules that are easy to get wrong:
 

@@ -10,4 +10,6 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface OAuthAccountRepository extends JpaRepository<OAuthAccountEntity, UUID> {
   Optional<OAuthAccountEntity> findByProviderAndProviderId(OAuthProvider provider, String providerId);
+
+  void deleteByUser(com.devforge.ai.authservice.entity.UserEntity user);
 }

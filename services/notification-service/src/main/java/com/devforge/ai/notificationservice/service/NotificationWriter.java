@@ -28,6 +28,13 @@ public class NotificationWriter {
   private final NotificationRepository notificationRepository;
 
   public void write(EventEnvelope<Map<String, Object>> envelope) {
+    // A deleted account's notifications go with it: they quote what happened in its projects.
+    if (com.devforge.ai.common.events.EventTypes.USER_DELETED.equals(envelope.eventType())
+        && envelope.payload().get("userId") instanceof String userId) {
+      int removed = notificationRepository.deleteAllForRecipient(java.util.UUID.fromString(userId));
+      log.info("Removed {} notification(s) of deleted user {}", removed, userId);
+      return;
+    }
     var notifications = factory.from(envelope);
     if (notifications.isEmpty()) {
       return;

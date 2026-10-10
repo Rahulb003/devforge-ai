@@ -9,4 +9,6 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface PasswordResetTokenRepository extends JpaRepository<PasswordResetTokenEntity, UUID> {
   Optional<PasswordResetTokenEntity> findByToken(String token);
+
+  void deleteByUser(com.devforge.ai.authservice.entity.UserEntity user);
 }

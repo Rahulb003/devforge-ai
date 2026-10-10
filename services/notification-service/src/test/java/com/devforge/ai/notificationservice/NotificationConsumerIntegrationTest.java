@@ -258,6 +258,28 @@ class NotificationConsumerIntegrationTest {
   }
 
   @Test
+  @DisplayName("a deleted account's notifications are removed, and only that account's")
+  void deletedAccountLosesItsNotifications() {
+    var deleted = UUID.randomUUID();
+    var other = UUID.randomUUID();
+    for (var user : java.util.List.of(deleted, other)) {
+      publish(KafkaTopics.IDENTITY, new EventEnvelope<Map<String, Object>>(UUID.randomUUID(),
+          EventTypes.USER_PASSWORD_RESET, EventEnvelope.CURRENT_VERSION, Instant.now(), "auth-service",
+          null, null, null, Map.of("userId", user.toString())));
+    }
+    await(() -> notificationRepository.countByRecipientIdAndReadAtIsNull(deleted) == 1
+        && notificationRepository.countByRecipientIdAndReadAtIsNull(other) == 1, "both alerts");
+
+    publish(KafkaTopics.IDENTITY, new EventEnvelope<Map<String, Object>>(UUID.randomUUID(),
+        EventTypes.USER_DELETED, EventEnvelope.CURRENT_VERSION, Instant.now(), "auth-service",
+        null, deleted, null, Map.of("userId", deleted.toString())));
+
+    await(() -> notificationRepository.countByRecipientIdAndReadAtIsNull(deleted) == 0,
+        "the deleted account's notifications to go");
+    assertThat(notificationRepository.countByRecipientIdAndReadAtIsNull(other)).isEqualTo(1);
+  }
+
+  @Test
   @DisplayName("detected token reuse alerts the user that sessions were ended")
   void tokenReuseRaisesSecurityAlert() {
     var user = UUID.randomUUID();

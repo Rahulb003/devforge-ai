@@ -72,6 +72,8 @@ security:
     issuer: DevForge AI (standalone)
 
 devforge:
+  services:
+    project-service-url: ${PROJECT_SERVICE_URL:http://localhost:9002}
   auth:
     # Off here so a new account can sign in straight away. Nothing then proves
     # the registrant owns the address, which is why the base profile keeps it on.

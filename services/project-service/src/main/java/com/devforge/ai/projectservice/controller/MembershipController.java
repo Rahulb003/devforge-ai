@@ -57,6 +57,15 @@ public class MembershipController {
     return ok(null);
   }
 
+  /**
+   * Leaves every organization at once. auth-service calls this, with the caller's own token, before
+   * it deletes their account; 409 while they are the only owner of any organization.
+   */
+  @DeleteMapping("/api/v1/memberships/mine")
+  public ResponseEntity<ApiResponse<java.util.Map<String, Integer>>> leaveAll() {
+    return ok(java.util.Map.of("organizationsLeft", membership.leaveAll(accessControl.requireCurrentUser())));
+  }
+
   @PostMapping("/api/v1/organizations/{organizationId}/invitations")
   public ResponseEntity<ApiResponse<Invitation>> invite(
       @PathVariable UUID organizationId, @RequestBody InviteRequest request) {

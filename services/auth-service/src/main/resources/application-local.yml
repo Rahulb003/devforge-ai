@@ -43,6 +43,8 @@ security:
     cookie-same-site: Lax
 
 devforge:
+  services:
+    project-service-url: ${PROJECT_SERVICE_URL:http://localhost:9002}
   app:
     base-url: ${DEVFORGE_APP_BASE_URL:http://localhost:4173}
 

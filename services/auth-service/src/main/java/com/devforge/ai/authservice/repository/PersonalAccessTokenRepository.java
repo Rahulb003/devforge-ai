@@ -16,4 +16,6 @@ public interface PersonalAccessTokenRepository extends JpaRepository<PersonalAcc
   Optional<PersonalAccessTokenEntity> findByTokenHash(String tokenHash);
 
   long countByUserIdAndRevokedAtIsNull(UUID userId);
+
+  void deleteByUserId(UUID userId);
 }

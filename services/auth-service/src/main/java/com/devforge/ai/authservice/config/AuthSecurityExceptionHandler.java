@@ -39,4 +39,18 @@ public class AuthSecurityExceptionHandler {
         .details(Collections.emptyList())
         .build());
   }
+
+  /** Here rather than in the catch-all, which would report a dependency's outage as our 500. */
+  @ExceptionHandler(com.devforge.ai.authservice.client.OrganizationMembershipClient.DependencyUnavailableException.class)
+  public ResponseEntity<ApiError> handleDependencyUnavailable(RuntimeException ex, HttpServletRequest request) {
+    return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(ApiError.builder()
+        .timestamp(Instant.now())
+        .status(HttpStatus.SERVICE_UNAVAILABLE.value())
+        .error(HttpStatus.SERVICE_UNAVAILABLE.getReasonPhrase())
+        .message(ex.getMessage())
+        .path(request.getRequestURI())
+        .traceId(UUID.randomUUID().toString())
+        .details(Collections.emptyList())
+        .build());
+  }
 }

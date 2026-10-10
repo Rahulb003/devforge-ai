@@ -13,4 +13,6 @@ import org.springframework.stereotype.Repository;
 public interface LoginHistoryRepository extends JpaRepository<LoginHistoryEntity, UUID> {
   Page<LoginHistoryEntity> findByUserIdOrderByCreatedAtDesc(UUID userId, Pageable pageable);
   long countByUserIdAndStatusAndCreatedAtAfter(UUID userId, String status, Instant after);
+
+  void deleteByUser(com.devforge.ai.authservice.entity.UserEntity user);
 }

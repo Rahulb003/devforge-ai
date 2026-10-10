@@ -30,6 +30,7 @@ export function LoginPage() {
 
   // Where the user was heading before being bounced to login.
   const from = (location.state as { from?: string } | null)?.from ?? '/';
+  const accountDeleted = (location.state as { accountDeleted?: boolean } | null)?.accountDeleted;
 
   async function completeLogin() {
     // The session is an HttpOnly cookie the page cannot see, so the profile is fetched to render a
@@ -83,6 +84,15 @@ export function LoginPage() {
             : 'Build. Review. Test. Deploy. Collaborate.'}
         </p>
       </div>
+
+      {accountDeleted && !error && (
+        <div
+          role="status"
+          className="rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-slate-200"
+        >
+          Your account has been deleted.
+        </div>
+      )}
 
       {error && (
         <div

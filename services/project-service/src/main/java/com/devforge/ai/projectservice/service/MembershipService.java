@@ -114,6 +114,40 @@ public class MembershipService {
         "organizationName", member.getOrganization().getName()));
   }
 
+  /**
+   * The caller leaves every organization: the step of deleting an account that belongs here.
+   *
+   * <p>All or nothing. While the caller is the only owner of any organization nothing changes,
+   * and the conflict names each one - deleting the account anyway would leave an organization
+   * nobody can ever manage or delete. Membership rows hold a copy of the username and email, so
+   * removing them is also what erases those copies.
+   *
+   * @return how many organizations were left
+   */
+  @Transactional
+  public int leaveAll(AuthenticatedUser user) {
+    var memberships = members.findByUserId(user.id());
+    var soleOwned = memberships.stream()
+        .filter(m -> m.getRole() == OrganizationRole.OWNER)
+        .filter(m -> members.countByOrganizationIdAndRole(m.getOrganization().getId(), OrganizationRole.OWNER) < 2)
+        .map(m -> m.getOrganization().getName())
+        .sorted()
+        .toList();
+    if (!soleOwned.isEmpty()) {
+      throw new ResourceConflictException("You are the only owner of " + String.join(", ", soleOwned)
+          + ". Make someone else an owner, or delete the organization, first.");
+    }
+    for (var member : memberships) {
+      var organizationId = member.getOrganization().getId();
+      projectMembers.deleteAll(projectMembers.findByProjectOrganizationIdAndUserId(organizationId, user.id()));
+      members.delete(member);
+      publish(EventTypes.ORGANIZATION_MEMBER_REMOVED, organizationId, user, Map.of(
+          "userId", user.id().toString(), "role", member.getRole().name(),
+          "organizationName", member.getOrganization().getName(), "reason", "account-deleted"));
+    }
+    return memberships.size();
+  }
+
   // -------------------------------------------------------------- invitations
 
   @Transactional

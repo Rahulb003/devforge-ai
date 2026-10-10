@@ -85,6 +85,10 @@ security:
     cookie-same-site: ${DEVFORGE_COOKIE_SAME_SITE:Strict}
 
 devforge:
+  services:
+    # Asked to remove a user's organization memberships before their account is deleted. Unset,
+    # account deletion refuses with 503 rather than leave memberships behind.
+    project-service-url: ${PROJECT_SERVICE_URL:}
   metrics:
     # Scrape credential for /actuator/prometheus; unset means the endpoint refuses everyone.
     token: ${DEVFORGE_METRICS_TOKEN:}

@@ -44,4 +44,9 @@ public interface NotificationRepository extends JpaRepository<NotificationEntity
 
   /** Used by the consumer to avoid writing a second copy of a notification it already created. */
   boolean existsBySourceEventIdAndRecipientId(UUID sourceEventId, UUID recipientId);
+
+  /** One statement, not a load-and-delete per row: an account can have years of notifications. */
+  @Modifying(clearAutomatically = true, flushAutomatically = true)
+  @Query("DELETE FROM NotificationEntity n WHERE n.recipientId = :recipientId")
+  int deleteAllForRecipient(@Param("recipientId") UUID recipientId);
 }

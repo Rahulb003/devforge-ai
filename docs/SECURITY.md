@@ -218,6 +218,18 @@ headers filter runs first, and these header names replace rather than append.
 - **Correlation ids from clients are validated, not trusted.** The value reaches log files, so an
   unconstrained one is a log-injection and unbounded-growth risk; anything not matching
   `^[A-Za-z0-9_-]{1,64}$` is replaced.
+- **Deleting an account erases it, rather than hiding it.** The owner confirms with their
+  username, password and second factor. It is refused while they are the only owner of an
+  organization, which would otherwise be left with nobody able to manage or delete it. The
+  account row stays, emptied - name, email, username, password hash, MFA secret replaced or
+  cleared - because other services' records point at its id, and a reused id would hand a
+  stranger that history. Sessions, refresh and personal access tokens, recovery codes, linked
+  providers and sign-in history (with its IP addresses) are deleted; organization memberships,
+  which hold copies of the name and address, are removed at project-service; notifications are
+  deleted on `UserDeleted`. **Kept:** the audit trail, unedited, because its hash chain is what
+  makes it trustworthy; it can hold IP addresses and the old username. A retention period that
+  prunes it is not built. An access token issued before deletion stays valid elsewhere until it
+  expires (15 minutes), because other services check tokens without asking auth-service.
 - **No secrets in the repository.** `.env.example` is tracked; real env files, `*.pem`, `*.key`,
   `*.p12` and `*.jks` are ignored. The `standalone` profile's signing key is a known development
   value and is labelled as such everywhere it appears.

@@ -1,6 +1,7 @@
 package com.devforge.ai.projectservice;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -230,6 +231,62 @@ class MembershipTest {
       send(delete(ORGS + "/" + org + "/members/" + owner), graceToken, null).andExpect(status().isForbidden());
       send(delete(ORGS + "/" + org + "/members/" + grace), graceToken, null).andExpect(status().isOk());
       send(get(ORGS), graceToken, null).andExpect(jsonPath("$.data.length()").value(0));
+    }
+  }
+
+  @Nested
+  @DisplayName("leaving everything, before an account is deleted")
+  class LeavingEverything {
+
+    private static final String MINE = "/api/v1/memberships/mine";
+
+    @Test
+    @DisplayName("removes every organization and project membership the caller holds")
+    void leavesEverything() throws Exception {
+      graceJoins("MEMBER");
+      var project = UUID.fromString(data(send(post(ORGS + "/" + org + "/projects"), ownerToken,
+          Map.of("name", "Apollo", "projectKey", "APL"))).path("id").asText());
+      send(post(ORGS + "/" + org + "/projects/" + project + "/members"), ownerToken,
+          Map.of("userId", grace.toString(), "role", "DEVELOPER")).andExpect(status().isCreated());
+
+      send(delete(MINE), graceToken, null)
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.data.organizationsLeft").value(1));
+
+      assertThat(members.existsByOrganizationIdAndUserId(org, grace)).isFalse();
+      assertThat(projectMembers.existsByProjectIdAndUserId(project, grace)).isFalse();
+      assertThat(members.existsByOrganizationIdAndUserId(org, owner)).isTrue();
+      assertThat(outbox.findAll()).anyMatch(e -> e.getEventType().equals("OrganizationMemberRemoved")
+          && e.getPayload().contains("account-deleted"));
+    }
+
+    @Test
+    @DisplayName("refuses, changing nothing, while the caller is the only owner of an organization")
+    void soleOwnerIsRefused() throws Exception {
+      graceJoins("MEMBER");
+      var second = UUID.fromString(data(send(post(ORGS), graceToken,
+          Map.of("name", "Grace Labs", "slug", "labs-" + UUID.randomUUID().toString().substring(0, 8))))
+          .path("id").asText());
+
+      send(delete(MINE), ownerToken, null)
+          .andExpect(status().isConflict())
+          .andExpect(jsonPath("$.message").value(containsString("Acme")));
+      send(delete(MINE), graceToken, null)
+          .andExpect(status().isConflict())
+          .andExpect(jsonPath("$.message").value(containsString("Grace Labs")));
+      // All or nothing: Grace is still in Acme, where she is not an owner.
+      assertThat(members.existsByOrganizationIdAndUserId(org, grace)).isTrue();
+      assertThat(members.existsByOrganizationIdAndUserId(second, grace)).isTrue();
+    }
+
+    @Test
+    @DisplayName("is allowed once another owner exists")
+    void anotherOwnerUnblocks() throws Exception {
+      graceJoins("ADMIN");
+      send(patch(ORGS + "/" + org + "/members/" + grace), ownerToken, Map.of("role", "OWNER"))
+          .andExpect(status().isOk());
+      send(delete(MINE), ownerToken, null).andExpect(status().isOk());
+      assertThat(members.existsByOrganizationIdAndUserId(org, owner)).isFalse();
     }
   }
 }

@@ -152,6 +152,13 @@ export const authApi = {
       newPassword,
     }),
 
+  /**
+   * Deletes the caller's account. The username must be typed out, and the password and (where
+   * enrolled) a second factor given; 409 while the caller is the only owner of an organization.
+   */
+  deleteAccount: (confirmation: { username: string; password: string; mfaCode?: string }) =>
+    api.delete<ApiEnvelope<void>>('/auth/me', { data: confirmation }),
+
   forgotPassword: (email: string) =>
     api.post<ApiEnvelope<void>>('/auth/forgot-password', { email }),
 

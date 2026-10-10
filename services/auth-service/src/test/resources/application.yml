@@ -71,6 +71,9 @@ logging:
     org.flywaydb: INFO
 
 devforge:
+  services:
+    # Never reached: the tests replace the client that calls it.
+    project-service-url: http://project-service.test
   auth:
     # Kept on: the integration tests assert that login is refused before
     # verification, which is the behaviour a production deployment has.

@@ -85,6 +85,14 @@ public class IdentityEventPublisher {
         Map.of("userId", user.getId().toString()));
   }
 
+  /** Only the id: the account it names has just had its personal data erased. */
+  @Transactional(propagation = Propagation.MANDATORY)
+  public void userDeleted(UserEntity user) {
+    outbox.record(
+        KafkaTopics.IDENTITY, EventTypes.USER_DELETED, null, user.getId(), correlationId(),
+        Map.of("userId", user.getId().toString()));
+  }
+
   /**
    * A security signal other services act on, so it goes to the security topic rather than
    * identity: consumers interested in incidents should not have to subscribe to all of identity.

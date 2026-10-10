@@ -2,15 +2,18 @@ package com.devforge.ai.authservice.controller;
 
 import com.devforge.ai.authservice.dto.ApiResponseDto;
 import com.devforge.ai.authservice.security.UserPrincipal;
+import com.devforge.ai.authservice.service.AccountDeletionService;
 import com.devforge.ai.authservice.service.AccountService;
 import com.devforge.ai.authservice.service.AccountService.ProfileChanges;
 import com.devforge.ai.authservice.service.AuthService;
 import com.devforge.ai.authservice.service.SessionService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -26,6 +29,7 @@ public class AccountController {
   private final AccountService accounts;
   private final AuthService authService;
   private final SessionService sessions;
+  private final AccountDeletionService deletion;
 
   public record PasswordChange(String currentPassword, String newPassword) {}
 
@@ -60,5 +64,20 @@ public class AccountController {
         .data(Map.of("otherSessionsSignedOut", signedOut))
         .message("Password changed")
         .build());
+  }
+
+  /**
+   * Deletes the caller's account. 409 while they are the only owner of an organization, 503 if
+   * project-service cannot be asked; nothing is erased in either case.
+   */
+  @DeleteMapping("/me")
+  public ResponseEntity<ApiResponseDto<Void>> deleteAccount(
+      @AuthenticationPrincipal UserPrincipal principal,
+      @RequestBody AccountDeletionService.Confirmation confirmation,
+      HttpServletRequest request, HttpServletResponse response) {
+    deletion.delete(principal.getId(), confirmation, request.getHeader("Authorization"), request);
+    authService.clearRefreshCookie(response);
+    authService.clearAccessCookie(response);
+    return ResponseEntity.ok(ApiResponseDto.<Void>builder().success(true).message("Account deleted").build());
   }
 }
