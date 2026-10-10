@@ -535,7 +535,13 @@ jobs:
 
           # The alert rules loaded and evaluate, and the event-pipeline meters they watch exist in
           # every service with an outbox. A rule over a metric nobody exports never fires.
-          rules="$(curl -s http://localhost:9090/api/v1/rules             | jq '[.data.groups[].rules[] | select(.health=="ok")] | length')"
+          # A rule reports "unknown" until its group first evaluates, so wait for that.
+          for _ in $(seq 1 30); do
+            rules="$(curl -s http://localhost:9090/api/v1/rules               | jq '[.data.groups[].rules[] | select(.health=="ok")] | length')"
+            [ "$rules" = 6 ] && break
+            sleep 3
+          done
+          curl -s http://localhost:9090/api/v1/rules             | jq -r '.data.groups[].rules[] | "(.name) (.health) (.lastError // "")"'
           echo "alert rules healthy: $rules"
           [ "$rules" = 6 ] || { echo "::error::$rules of 6 alert rules are loaded and healthy"; exit 1; }
           outboxes="$(curl -s --get http://localhost:9090/api/v1/query             --data-urlencode 'query=devforge_outbox_pending' | jq '.data.result | length')"

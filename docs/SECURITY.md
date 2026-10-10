@@ -130,8 +130,8 @@ embedded broker silently replaced the SASL listener with PLAINTEXT, and the "ref
 failed for an unrelated reason. The test now sets the listener per node and asserts *why* the
 unauthenticated client fails.
 
-**UNVERIFIED:** TLS and SCRAM against a production broker, and the Kubernetes wiring, since no
-cluster has run here.
+**UNVERIFIED:** TLS and SCRAM against a production broker. The Kubernetes wiring runs in CI on kind,
+which proves the identities and ACLs but not a production cluster's network policy.
 
 ### Gateway rate limiting
 
@@ -239,9 +239,10 @@ Ordered by how much they matter.
    application host. Now specified in `docs/SANDBOX.md`: twelve guarantees, each with the escape
    attempt that must fail. Not implemented, because no container runtime or hypervisor exists in
    this environment and a sandbox that cannot isolate is worse than none.
-2. **Kafka ACLs exist only in the compose stack.** There, each service has its own identity and the
-   broker denies anything not granted in `infrastructure/docker/kafka/setup.sh`. The Kubernetes
-   manifests still give every service one shared identity, and the standalone profile has no broker.
+2. **Kafka ACLs cover compose and Kubernetes, not the standalone profile.** Each service has its own
+   identity and the broker denies anything not granted in `infrastructure/docker/kafka/setup.sh`,
+   which the Kubernetes setup Job runs too; both are exercised in CI. The standalone profile has no
+   broker. There is no TLS on the broker listeners in either.
 3. **No secret-management integration.** Secrets come from environment variables; there is no vault,
    and no rotation story.
 4. **Container runtime hardening is mostly UNVERIFIED.** CI builds every image and confirms it runs
@@ -258,10 +259,14 @@ Ordered by how much they matter.
    react-router 7 and Tailwind 4; Tailwind 4 was checked by pixel-comparing key pages before and
    after. Only the auth-service image is scanned; the other images share its base and most of its
    libraries, but are not scanned themselves.
-6. **The audit trail has no tamper evidence.** Project,
-   membership, task, repository and pull request changes are recorded append-only by analytics-service
-   from the events, readable by project admins. Auth events stay in auth-service's own audit table.
-   Nothing stops someone with database access editing rows; there is no hash chain or external sink.
+6. **The audit trail is tamper-evident, not tamper-proof.** Project, membership, task, repository
+   and pull request changes are recorded by analytics-service from the events, readable by project
+   admins, in a SHA-256 hash chain per project. Re-hashing it (the "Verify integrity" button, or
+   `GET .../analytics/audit/verification`) finds an edited, reordered, deleted or truncated entry.
+   Someone with write access to the database can still recompute a whole chain: that is caught only
+   by comparing the head hash with a copy recorded outside DevForge, and nothing records one
+   automatically - there is no external sink or signing key. Auth events stay in auth-service's own
+   audit table, which is not chained. Entries from before the chain are reported as unchained.
 
 ---
 

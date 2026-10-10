@@ -16,6 +16,7 @@ data:
     # development default; change both together anywhere that is not a throwaway local stack.
     global:
       scrape_interval: 15s
+      evaluation_interval: 15s
 
     rule_files:
       - /etc/prometheus/alerts.yml
