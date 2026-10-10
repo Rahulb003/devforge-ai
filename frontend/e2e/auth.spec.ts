@@ -6,7 +6,7 @@ test.describe('Authentication', () => {
     await page.goto('/');
 
     await expect(page).toHaveURL(/\/login$/);
-    await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible();
     await expectNoErrorBoundary(page);
 
     // The font came from Google Fonts, which the CSP blocks, so production silently fell back to
@@ -153,7 +153,9 @@ test.describe('Authentication', () => {
 
     // Same wording regardless, matching the server's deliberately identical
     // response for known and unknown addresses.
-    await expect(page.getByRole('heading', { name: 'Check your email' })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'Check your email', exact: true }),
+    ).toBeVisible();
     await expect(page.getByText(/if an account exists/i)).toBeVisible();
   });
 });

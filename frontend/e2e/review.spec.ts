@@ -51,7 +51,7 @@ test.describe('Code review', () => {
     await addFile(page, 'src/App.java', 'class App {\n  void run() {}\n}\n', 'Add App');
 
     await page.getByRole('link', { name: 'Review' }).click();
-    await expect(page.getByRole('heading', { name: 'Code review' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Code review', exact: true })).toBeVisible();
     await expect(page.getByText('This repository has not been reviewed')).toBeVisible();
 
     await page.getByRole('button', { name: /run a review/i }).click();

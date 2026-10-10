@@ -14,15 +14,21 @@ async function openBoard(page: Page) {
   await page.getByRole('button', { name: 'Create organization' }).click();
   await page.getByLabel('Name').fill(orgName);
   await page.getByRole('button', { name: 'Create', exact: true }).click();
-  await page.getByRole('main').getByRole('link', { name: new RegExp(orgName, 'i') }).click();
+  await page
+    .getByRole('main')
+    .getByRole('link', { name: new RegExp(orgName, 'i') })
+    .click();
 
   await page.getByRole('button', { name: 'Create project' }).click();
   await page.getByLabel('Name').fill('Board Project');
   await page.getByRole('button', { name: 'Create', exact: true }).click();
 
   // Project cards link through to the board.
-  await page.getByRole('main').getByRole('link', { name: /Board Project/i }).click();
-  await expect(page.getByRole('heading', { name: 'Board Project' })).toBeVisible();
+  await page
+    .getByRole('main')
+    .getByRole('link', { name: /Board Project/i })
+    .click();
+  await expect(page.getByRole('heading', { name: 'Board Project', exact: true })).toBeVisible();
 }
 
 async function createTask(page: Page, title: string) {
@@ -79,7 +85,9 @@ test.describe('Kanban board', () => {
 
     const drawer = page.getByRole('dialog');
     await expect(drawer).toBeVisible();
-    await expect(drawer.getByRole('heading', { name: 'Discussed task' })).toBeVisible();
+    await expect(
+      drawer.getByRole('heading', { name: 'Discussed task', exact: true }),
+    ).toBeVisible();
 
     await drawer.getByLabel('Add a comment').fill('This needs review.');
     await drawer.getByRole('button', { name: 'Post' }).click();
@@ -161,8 +169,7 @@ test.describe('Kanban board', () => {
     // Addressed by name rather than by position. `.first()` depended on the list's order, which
     // was not stable when two sprints were created in the same millisecond — so this intermittently
     // started the same sprint twice, which the server allows, and then found no error to assert.
-    const sprintRow = (name: string) =>
-      sprints.locator('li').filter({ hasText: name });
+    const sprintRow = (name: string) => sprints.locator('li').filter({ hasText: name });
 
     await sprintRow('Sprint 1').getByRole('button', { name: 'Start' }).click();
     await expect(sprintRow('Sprint 1').getByText('ACTIVE')).toBeVisible();

@@ -55,6 +55,7 @@ class EventConsumptionIntegrationTest {
   @Autowired private ObjectMapper objectMapper;
   @Autowired private RecordingListener listener;
   @Autowired private EmbeddedKafkaBroker broker;
+  @Autowired private org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory<?, ?> listenerFactory;
 
   @BeforeEach
   void setUp() {
@@ -262,5 +263,15 @@ class EventConsumptionIntegrationTest {
       }
       throw new AssertionError("Timed out waiting for " + description);
     }
+  }
+
+  @org.junit.jupiter.api.Test
+  @DisplayName("the real listener factory retries authorization failures")
+  void listenerFactoryRetriesAuthFailures() {
+    // Checked on the factory the services actually get, not only on the environment: a property
+    // name typo would set nothing and leave listeners dying on the first refusal.
+    org.assertj.core.api.Assertions.assertThat(
+            listenerFactory.getContainerProperties().getAuthExceptionRetryInterval())
+        .isEqualTo(java.time.Duration.ofSeconds(10));
   }
 }

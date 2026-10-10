@@ -34,6 +34,14 @@ public class KafkaSecurityEnvironmentPostProcessor implements EnvironmentPostPro
     // Only meaningful where Kafka is used at all; the standalone profile runs without a broker.
     var kafkaEnabled = env.getProperty("devforge.kafka.enabled", Boolean.class, true);
 
+    // Without a retry interval, an authorization failure is fatal to a listener: Spring Kafka stops
+    // the container for good. The first Kubernetes deployment showed it - the consumers started
+    // before the setup Job had granted their topics, were refused once, and never consumed again
+    // while every health check stayed green. A permission change or broker restart in production
+    // would do the same. Retried instead, the listener resumes once the grant exists.
+    env.getPropertySources().addLast(new MapPropertySource(SOURCE_NAME + "-listener",
+        Map.of("spring.kafka.listener.auth-exception-retry-interval", "10s")));
+
     if (username.isBlank()) {
       if (required && kafkaEnabled) {
         // Fail at startup, not by silently talking to the broker unauthenticated.

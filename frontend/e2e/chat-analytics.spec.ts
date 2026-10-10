@@ -25,7 +25,7 @@ async function openBoard(page: Page) {
     .getByRole('main')
     .getByRole('link', { name: /Chat Project/i })
     .click();
-  await expect(page.getByRole('heading', { name: 'Chat Project' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Chat Project', exact: true })).toBeVisible();
 }
 
 test.describe('Chat and activity', () => {
@@ -48,13 +48,15 @@ test.describe('Chat and activity', () => {
     await openBoard(page);
     await page.getByRole('link', { name: 'Activity' }).click();
 
-    await expect(page.getByRole('heading', { name: 'Project activity' })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'Project activity', exact: true }),
+    ).toBeVisible();
     // The standalone stack has no broker, so these are zero — and the page must say why.
     await expect(page.getByText(/Counted from domain events/)).toBeVisible();
     await expectNoErrorBoundary(page);
 
     // The project's creator is its admin, so sees the audit log rather than the refusal.
-    await expect(page.getByRole('heading', { name: 'Audit log' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Audit log', exact: true })).toBeVisible();
     await expect(page.getByText(/Only project admins/)).toHaveCount(0);
     if (process.env.E2E_FULL_STACK) {
       // With a real broker the whole path runs: project-service's outbox, Kafka, analytics-service

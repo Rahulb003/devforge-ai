@@ -29,7 +29,7 @@ async function openRepository(page: Page) {
   await page.getByLabel('Name').fill('pr-repo');
   await page.getByRole('button', { name: 'Create', exact: true }).click();
   await page.getByRole('link', { name: /pr-repo/ }).click();
-  await expect(page.getByRole('heading', { name: 'pr-repo' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'pr-repo', exact: true })).toBeVisible();
 }
 
 /** Commits a file to whichever branch the page is showing. */

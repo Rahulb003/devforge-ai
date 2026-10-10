@@ -50,18 +50,18 @@ test.describe('Documentation', () => {
     await addFile(
       page,
       'src/UserController.java',
-      '@RestController\n'
-        + '@RequestMapping("/api/v1/users")\n'
-        + 'public class UserController {\n'
-        + '  /** Lists users. */\n'
-        + '  @GetMapping\n'
-        + '  public List<User> list() { return List.of(); }\n'
-        + '}\n',
+      '@RestController\n' +
+        '@RequestMapping("/api/v1/users")\n' +
+        'public class UserController {\n' +
+        '  /** Lists users. */\n' +
+        '  @GetMapping\n' +
+        '  public List<User> list() { return List.of(); }\n' +
+        '}\n',
       'Add UserController',
     );
 
     await page.getByRole('link', { name: 'Docs' }).click();
-    await expect(page.getByRole('heading', { name: 'Documentation' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Documentation', exact: true })).toBeVisible();
     await expect(page.getByText('No documentation yet')).toBeVisible();
 
     await page.getByRole('button', { name: 'Generate' }).click();

@@ -36,7 +36,7 @@ test.describe('Workspace', () => {
     await page.getByLabel('Name').fill('Core Platform');
     await page.getByRole('button', { name: 'Create', exact: true }).click();
 
-    await expect(page.getByRole('heading', { name: 'Core Platform' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Core Platform', exact: true })).toBeVisible();
     await expect(page.getByText('ACTIVE')).toBeVisible();
     await expectNoErrorBoundary(page);
   });
@@ -68,7 +68,7 @@ test.describe('Workspace', () => {
     }
 
     await createProject('First', 'SAME');
-    await expect(page.getByRole('heading', { name: 'First' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'First', exact: true })).toBeVisible();
 
     await createProject('Second', 'SAME');
     // A 409 from the server must surface as something the user can act on,
@@ -129,7 +129,7 @@ test.describe('Workspace', () => {
 
     await navTo(page, 'Settings');
 
-    await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Settings', exact: true })).toBeVisible();
     await expect(page.getByText(account.email)).toBeVisible();
 
     await expect(page.getByRole('heading', { name: /two-factor authentication/i })).toBeVisible();

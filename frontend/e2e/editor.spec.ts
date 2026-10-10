@@ -30,7 +30,7 @@ async function openRepository(page: Page): Promise<string> {
   await page.getByLabel('Name').fill('edited-repo');
   await page.getByRole('button', { name: 'Create', exact: true }).click();
   await page.getByRole('link', { name: /edited-repo/ }).click();
-  await expect(page.getByRole('heading', { name: 'edited-repo' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'edited-repo', exact: true })).toBeVisible();
   return page.url();
 }
 

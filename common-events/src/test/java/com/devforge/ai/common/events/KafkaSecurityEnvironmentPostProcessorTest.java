@@ -22,9 +22,20 @@ class KafkaSecurityEnvironmentPostProcessorTest {
   }
 
   @Test
-  @DisplayName("adds nothing when no credentials are configured")
+  @DisplayName("adds no credentials when none are configured")
   void noCredentialsNoChange() {
     assertThat(process(Map.of()).getProperty("spring.kafka.properties[security.protocol]")).isNull();
+  }
+
+  @Test
+  @DisplayName("listeners retry an authorization failure instead of stopping for good")
+  void authFailuresAreRetried() {
+    // Set whether or not credentials are: a refused topic can happen either way.
+    assertThat(process(Map.of()).getProperty("spring.kafka.listener.auth-exception-retry-interval"))
+        .isEqualTo("10s");
+    // Lowest precedence, so a service can still choose its own.
+    assertThat(process(Map.of("spring.kafka.listener.auth-exception-retry-interval", "3s"))
+        .getProperty("spring.kafka.listener.auth-exception-retry-interval")).isEqualTo("3s");
   }
 
   @Test

@@ -32,11 +32,11 @@ async function openRepositories(page: Page) {
     .getByRole('main')
     .getByRole('link', { name: /Git Project/i })
     .click();
-  await expect(page.getByRole('heading', { name: 'Git Project' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Git Project', exact: true })).toBeVisible();
 
   // The board is the way in, which is the link being tested.
   await page.getByRole('link', { name: 'Repositories' }).click();
-  await expect(page.getByRole('heading', { name: 'Repositories' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Repositories', exact: true })).toBeVisible();
   await expectNoErrorBoundary(page);
 }
 
@@ -72,7 +72,7 @@ test.describe('Repositories', () => {
 
     await page.getByRole('link', { name: /fresh-repo/ }).click();
 
-    await expect(page.getByRole('heading', { name: 'fresh-repo' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'fresh-repo', exact: true })).toBeVisible();
     await expect(page.getByText('This repository is empty')).toBeVisible();
     // Nothing to browse yet, so there must be no tabs promising otherwise.
     await expect(page.getByRole('tab', { name: 'Files' })).toHaveCount(0);
@@ -110,7 +110,7 @@ test.describe('Repositories', () => {
     await openRepositories(page);
     await createRepository(page, 'reload-me');
     await page.getByRole('link', { name: /reload-me/ }).click();
-    await expect(page.getByRole('heading', { name: 'reload-me' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'reload-me', exact: true })).toBeVisible();
 
     const url = page.url();
     await page.reload();
@@ -118,7 +118,7 @@ test.describe('Repositories', () => {
     // State lives in the URL, so a reload — or someone else opening the link — lands in the same
     // place rather than back at the root.
     expect(page.url()).toBe(url);
-    await expect(page.getByRole('heading', { name: 'reload-me' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'reload-me', exact: true })).toBeVisible();
     await expectNoErrorBoundary(page);
   });
 });

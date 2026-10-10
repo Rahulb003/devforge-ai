@@ -33,7 +33,7 @@ export async function signUp(page: Page, account: ReturnType<typeof uniqueAccoun
 
   // Verification is disabled in the standalone profile, so the account is
   // usable immediately and the confirmation says so.
-  await expect(page.getByRole('heading', { name: 'Account created' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Account created', exact: true })).toBeVisible();
 }
 
 /** Signs in and waits for the authenticated shell. */
