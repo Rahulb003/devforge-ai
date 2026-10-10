@@ -634,6 +634,60 @@ jobs:
             || { echo "::error::a wrong password was not refused"; exit 1; }
           echo "refused as expected"
 
+      # Disaster recovery rehearsed rather than written down: back the stack up, lose data after the
+      # backup, restore, and check the backup's state came back - rows in PostgreSQL, and a file read
+      # through JGit from the restored repository storage - while what came after it is gone.
+      - name: A backup restores the stack
+        run: |
+          set -euo pipefail
+          api=http://localhost:4173/api/v1
+          user="restore$RANDOM$RANDOM"
+          signin() {
+            curl -sf -X POST "$api/auth/login" -H 'Content-Type: application/json' \
+              -d "{\"usernameOrEmail\":\"$user\",\"password\":\"Str0ng!Passw0rd#\"}" | jq -r .data.accessToken
+          }
+          curl -sf -X POST "$api/auth/signup" -H 'Content-Type: application/json' \
+            -d "{\"firstName\":\"Restore\",\"lastName\":\"Drill\",\"username\":\"$user\",\"email\":\"$user@example.com\",\"password\":\"Str0ng!Passw0rd#\",\"organization\":\"Restore\"}" > /dev/null
+          auth="Authorization: Bearer $(signin)"
+          json='Content-Type: application/json'
+          org="$(curl -sf -X POST "$api/organizations" -H "$auth" -H "$json" \
+            -d "{\"name\":\"Restore\",\"slug\":\"restore-$user\"}" | jq -r .data.id)"
+          project="$(curl -sf -X POST "$api/organizations/$org/projects" -H "$auth" -H "$json" \
+            -d '{"name":"Restore","projectKey":"RSTR"}' | jq -r .data.id)"
+          repos="$api/organizations/$org/projects/$project/repositories"
+          tasks="$api/organizations/$org/projects/$project/tasks"
+          repo="$(curl -sf -X POST "$repos" -H "$auth" -H "$json" \
+            -d '{"name":"restored","description":"backup drill"}' | jq -r .data.id)"
+          curl -sf -o /dev/null -X POST "$repos/$repo/files" -H "$auth" -H "$json" \
+            -d '{"path":"README.md","content":"kept by the backup","message":"before the backup"}'
+          curl -sf -o /dev/null -X POST "$tasks" -H "$auth" -H "$json" -d '{"title":"before the backup"}'
+
+          infrastructure/backup/backup.sh /tmp/devforge-backup
+          cat /tmp/devforge-backup/SHA256SUMS
+
+          # Lost after the backup: the repository deleted, row and objects, and a task added.
+          curl -sf -o /dev/null -X DELETE "$repos/$repo" -H "$auth"
+          curl -sf -o /dev/null -X POST "$tasks" -H "$auth" -H "$json" -d '{"title":"after the backup"}'
+          [ "$(curl -s -o /dev/null -w '%{http_code}' "$repos/$repo" -H "$auth")" = 404 ] \
+            || { echo "::error::the repository was not deleted"; exit 1; }
+
+          # An altered backup is refused before anything is dropped.
+          cp -r /tmp/devforge-backup /tmp/devforge-tampered
+          echo tampered >> /tmp/devforge-tampered/devforge_task.dump
+          if infrastructure/backup/restore.sh /tmp/devforge-tampered --replace-existing-data; then
+            echo "::error::an altered backup was restored"; exit 1
+          fi
+
+          infrastructure/backup/restore.sh /tmp/devforge-backup --replace-existing-data
+
+          auth="Authorization: Bearer $(signin)"
+          content="$(curl -sf --get "$repos/$repo/blob" --data-urlencode ref=main --data-urlencode path=README.md \
+            -H "$auth" | jq -r .data.content)"
+          titles="$(curl -sf "$tasks?size=100" -H "$auth" | jq -r '.data.content[].title' | sort | tr '\n' ',')"
+          echo "restored file: $content; tasks: $titles"
+          [ "$content" = "kept by the backup" ] || { echo "::error::the repository did not come back"; exit 1; }
+          [ "$titles" = "before the backup," ] || { echo "::error::tasks after restore: $titles"; exit 1; }
+
       # The monitoring stack, checked rather than assumed: every service scraped and up, a real
       # query answered, and Grafana provisioned with the data source and the dashboard.
       - name: Verify Prometheus scrapes every service and Grafana is provisioned

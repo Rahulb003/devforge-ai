@@ -15,9 +15,9 @@ Status vocabulary: `IMPLEMENTED`, `PARTIALLY_IMPLEMENTED`, `SCAFFOLDED`, `BROKEN
 | Status | Sections |
 |---|---|
 | `IMPLEMENTED` | 32 |
-| `PARTIALLY_IMPLEMENTED` | 11 |
+| `PARTIALLY_IMPLEMENTED` | 12 |
 | `SCAFFOLDED` | 3 |
-| `MISSING` | 92 |
+| `MISSING` | 91 |
 
 **~25% complete, weighted by effort rather than section count.** The weighting matters: §6, §15 and
 §16 (the AI platform) are a larger body of work than everything built so far combined, so a flat
@@ -105,6 +105,7 @@ section count would overstate progress.
 | 48 | CI pipeline | `IMPLEMENTED` | GitHub Actions on every push: lint, typecheck, unit and backend tests, the browser suite, every image built, started and scanned, and the whole stack under docker compose with the event pipeline and Kafka ACLs checked |
 | 49 | Config server / service discovery | `IMPLEMENTED` (by the platform) | The empty Boot apps were deleted. Services resolve each other by DNS name under compose and Kubernetes, and take configuration from environment, ConfigMap and Secret; no Eureka or Spring Cloud Config |
 | 50 | Monitoring stack | `IMPLEMENTED` | Every service exports Prometheus metrics behind a scrape credential (fails closed); Prometheus scrapes all ten and Grafana is provisioned with the data source and a services dashboard - all checked in the compose CI job, which also requires all six alert rules to load healthy and the outbox gauge from all six publishing services. Alertmanager delivery checked end to end in compose and wired on kind. Alerts go to Mailpit until a deployment configures a real receiver |
+| — (ops) | Backup and disaster recovery | `PARTIALLY_IMPLEMENTED` | `infrastructure/backup/backup.sh` and `restore.sh` for compose: every service database (`pg_dump`) and the git repositories, with a checksum manifest verified before a restore touches anything. Rehearsed in the compose CI job - back up, lose a repository and add a task, restore, the file readable and the task gone; an altered backup refused. No Kubernetes backup, no scheduling, no off-host copy: `docs/BACKUP.md` |
 
 ---
 
