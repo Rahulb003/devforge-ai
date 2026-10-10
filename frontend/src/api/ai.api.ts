@@ -36,6 +36,15 @@ export interface RepositoryAnswer {
   truncated: boolean;
 }
 
+export interface Suggestion {
+  path: string;
+  ref: string;
+  request: string;
+  /** The whole proposed file; nothing has been written. */
+  proposed: string;
+  model: string;
+}
+
 export const aiApi = {
   status: () => api.get<ApiEnvelope<AiStatus>>('/ai/status'),
 
@@ -67,5 +76,18 @@ export const aiApi = {
     api.post<ApiEnvelope<RepositoryAnswer>>(
       `/organizations/${organizationId}/projects/${projectId}/repositories/${repositoryId}/ai/ask`,
       { question: question.trim(), ref },
+    ),
+
+  suggest: (
+    organizationId: string,
+    projectId: string,
+    repositoryId: string,
+    path: string,
+    ref: string | undefined,
+    request: string,
+  ) =>
+    api.post<ApiEnvelope<Suggestion>>(
+      `/organizations/${organizationId}/projects/${projectId}/repositories/${repositoryId}/ai/suggest`,
+      { path, ref, request: request.trim() },
     ),
 };

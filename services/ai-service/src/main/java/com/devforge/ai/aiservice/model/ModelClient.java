@@ -59,6 +59,11 @@ public class ModelClient {
 
   /** One system prompt and one user turn; the reply's text. */
   public String complete(String system, String user) {
+    return complete(system, user, maxOutputTokens);
+  }
+
+  /** As above, with its own output budget: a whole proposed file needs more than an explanation. */
+  public String complete(String system, String user, int outputTokens) {
     if (!isConfigured()) {
       throw new ModelUnavailableException("AI assistance is not configured on this deployment");
     }
@@ -68,7 +73,7 @@ public class ModelClient {
     headers.set("anthropic-version", "2023-06-01");
     var body = Map.of(
         "model", model,
-        "max_tokens", maxOutputTokens,
+        "max_tokens", outputTokens,
         "system", system,
         "messages", List.of(Map.of("role", "user", "content", user)));
     try {

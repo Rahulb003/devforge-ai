@@ -276,6 +276,7 @@ chat (9008), deployment (9009), analytics (9010).
 |---|---|---|
 | GET | `/api/v1/ai/status` | `{configured, model}`; signed-in callers only |
 | POST | `/api/v1/organizations/{organizationId}/projects/{projectId}/repositories/{repositoryId}/ai/explain` | `path`, optional `ref` (default branch) and `question` (up to 500 characters; without one the file is explained in general). Returns `{path, ref, explanation, model, truncated}` |
+| POST | `/api/v1/organizations/{organizationId}/projects/{projectId}/repositories/{repositoryId}/ai/suggest` | `path`, `request` (up to 1000 characters), optional `ref`. Needs write access. Returns the whole proposed file as `{path, ref, request, proposed, model}`; writes nothing. Refuses binary files and files too large to send whole |
 | POST | `/api/v1/organizations/{organizationId}/projects/{projectId}/repositories/{repositoryId}/ai/ask` | `question` (up to 500 characters), optional `ref`. Up to 200 files are searched by the question's words; excerpts of the best 8 are sent. Returns `{question, answer, model, sources, filesSearched, truncated}`. When nothing matches, says so without calling the model |
 | POST | `/api/v1/organizations/{organizationId}/projects/{projectId}/repositories/{repositoryId}/ai/pull-requests/{number}/review` | advice on the pull request's title, description and diff (up to 40 files). Returns `{number, review, model, filesReviewed, filesChanged, truncated}`. Approves and posts nothing |
 

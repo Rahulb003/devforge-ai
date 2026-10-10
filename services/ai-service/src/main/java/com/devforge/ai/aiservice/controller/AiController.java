@@ -31,6 +31,10 @@ public class AiController {
 
   public record AskRequest(String question, String ref) {}
 
+  public record SuggestRequest(String path, String ref, String request) {}
+
+  private final com.devforge.ai.aiservice.service.SuggestService suggestService;
+
   /** {@code question} is optional: without one the file is explained in general. */
   public record ExplainRequest(String path, String ref, String question) {}
 
@@ -68,5 +72,14 @@ public class AiController {
       @RequestBody AskRequest request, @AuthenticationPrincipal AuthenticatedUser user, HttpServletRequest http) {
     return ResponseEntity.ok(new ApiResponse<>(true, askService.ask(organizationId, projectId, repositoryId,
         request.question(), request.ref(), user, http.getHeader(HttpHeaders.AUTHORIZATION)), null));
+  }
+
+  /** A proposed new version of a file; nothing is written - the developer commits it, or not. */
+  @PostMapping("/api/v1/organizations/{organizationId}/projects/{projectId}/repositories/{repositoryId}/ai/suggest")
+  public ResponseEntity<ApiResponse<com.devforge.ai.aiservice.service.SuggestService.Suggestion>> suggest(
+      @PathVariable UUID organizationId, @PathVariable UUID projectId, @PathVariable UUID repositoryId,
+      @RequestBody SuggestRequest request, @AuthenticationPrincipal AuthenticatedUser user, HttpServletRequest http) {
+    return ResponseEntity.ok(new ApiResponse<>(true, suggestService.suggest(organizationId, projectId, repositoryId,
+        request.path(), request.ref(), request.request(), user, http.getHeader(HttpHeaders.AUTHORIZATION)), null));
   }
 }

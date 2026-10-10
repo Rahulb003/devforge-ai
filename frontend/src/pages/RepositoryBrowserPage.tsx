@@ -21,6 +21,7 @@ import type { FileChange, TreeEntry } from '@/api/git.api';
 import { gitApi } from '@/api/git.api';
 import { AiAsk } from '@/components/ai/AiAsk';
 import { AiExplain } from '@/components/ai/AiExplain';
+import { AiSuggest } from '@/components/ai/AiSuggest';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -221,6 +222,29 @@ export function RepositoryBrowserPage() {
         const content = file.content ?? '';
         setStaged((all) => ({ ...all, [target]: { original: content, current: content } }));
       }
+      setEditing(true);
+    } catch (err) {
+      setEditError(describeApiError(err));
+    }
+  }
+
+  /**
+   * Opens the editor on a proposed new version of a file, as though the user had typed it. The
+   * original is kept, so the change can be reviewed, reverted or discarded like any edit.
+   */
+  async function stageProposal(target: string, proposed: string) {
+    setEditError(null);
+    try {
+      const base = await pinBase();
+      if (!base) return;
+      let original = staged[target]?.original;
+      if (original === undefined) {
+        const file = (await gitApi.blob(organizationId, projectId, repositoryId, target, base)).data
+          .data;
+        original = file.content ?? '';
+      }
+      const kept = original;
+      setStaged((all) => ({ ...all, [target]: { original: kept, current: proposed } }));
       setEditing(true);
     } catch (err) {
       setEditError(describeApiError(err));
@@ -720,13 +744,25 @@ export function RepositoryBrowserPage() {
                 onDelete={() => void stageDeletion(filePath)}
               />
               {blob.data && !blob.data.binary && (
-                <AiExplain
-                  organizationId={organizationId}
-                  projectId={projectId}
-                  repositoryId={repositoryId}
-                  path={filePath}
-                  gitRef={ref}
-                />
+                <>
+                  <AiExplain
+                    organizationId={organizationId}
+                    projectId={projectId}
+                    repositoryId={repositoryId}
+                    path={filePath}
+                    gitRef={ref}
+                  />
+                  {!blob.data.truncated && (
+                    <AiSuggest
+                      organizationId={organizationId}
+                      projectId={projectId}
+                      repositoryId={repositoryId}
+                      path={filePath}
+                      gitRef={ref}
+                      onUse={(proposed) => void stageProposal(filePath, proposed)}
+                    />
+                  )}
+                </>
               )}
             </>
           )}
