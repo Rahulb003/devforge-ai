@@ -534,7 +534,8 @@ jobs:
           [ "$series" = 10 ] || { echo "::error::heap metrics from $series services, not 10"; exit 1; }
 
           # The alert rules loaded and evaluate, and the event-pipeline meters they watch exist in
-          # every service with an outbox. A rule over a metric nobody exports never fires.
+          # every service that publishes - auth, project, task, git, review, documentation; the three that
+          # only consume switch their outbox off. A rule over a metric nobody exports never fires.
           # A rule reports "unknown" until its group first evaluates, so wait for that.
           for _ in $(seq 1 30); do
             rules="$( (curl -s http://localhost:9090/api/v1/rules || true) \
@@ -549,7 +550,7 @@ jobs:
           outboxes="$(curl -s --get http://localhost:9090/api/v1/query \
             --data-urlencode 'query=devforge_outbox_pending' | jq '.data.result | length')"
           echo "services reporting their outbox: $outboxes"
-          [ "$outboxes" = 9 ] || { echo "::error::outbox metrics from $outboxes services, not 9"; exit 1; }
+          [ "$outboxes" = 6 ] || { echo "::error::outbox metrics from $outboxes services, not 6"; exit 1; }
 
           for _ in $(seq 1 30); do
             curl -sf -u admin:admin http://localhost:3000/api/health > /dev/null && break
