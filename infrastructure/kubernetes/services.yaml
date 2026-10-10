@@ -173,6 +173,8 @@ spec:
               value: "http://git-service:9005"
             - name: AUTH_SERVICE_URL
               value: "http://auth-service:9001"
+            - name: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE
+              value: "5"
             - name: DEVFORGE_DB_URL
               value: "jdbc:postgresql://postgres:5432/devforge_auth"
             - name: POSTGRES_USER
@@ -367,6 +369,8 @@ spec:
               value: "http://git-service:9005"
             - name: AUTH_SERVICE_URL
               value: "http://auth-service:9001"
+            - name: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE
+              value: "5"
             - name: DEVFORGE_DB_URL
               value: "jdbc:postgresql://postgres:5432/devforge_project"
             - name: POSTGRES_USER
@@ -507,6 +511,8 @@ spec:
               value: "http://git-service:9005"
             - name: AUTH_SERVICE_URL
               value: "http://auth-service:9001"
+            - name: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE
+              value: "5"
             - name: DEVFORGE_DB_URL
               value: "jdbc:postgresql://postgres:5432/devforge_task"
             - name: POSTGRES_USER
@@ -658,6 +664,8 @@ spec:
               value: "http://git-service:9005"
             - name: AUTH_SERVICE_URL
               value: "http://auth-service:9001"
+            - name: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE
+              value: "5"
             - name: DEVFORGE_DB_URL
               value: "jdbc:postgresql://postgres:5432/devforge_git"
             - name: POSTGRES_USER
@@ -805,6 +813,8 @@ spec:
               value: "http://git-service:9005"
             - name: AUTH_SERVICE_URL
               value: "http://auth-service:9001"
+            - name: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE
+              value: "5"
             - name: DEVFORGE_DB_URL
               value: "jdbc:postgresql://postgres:5432/devforge_review"
             - name: POSTGRES_USER
@@ -945,6 +955,8 @@ spec:
               value: "http://git-service:9005"
             - name: AUTH_SERVICE_URL
               value: "http://auth-service:9001"
+            - name: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE
+              value: "5"
             - name: DEVFORGE_DB_URL
               value: "jdbc:postgresql://postgres:5432/devforge_documentation"
             - name: POSTGRES_USER
@@ -1085,6 +1097,8 @@ spec:
               value: "http://git-service:9005"
             - name: AUTH_SERVICE_URL
               value: "http://auth-service:9001"
+            - name: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE
+              value: "5"
             - name: DEVFORGE_DB_URL
               value: "jdbc:postgresql://postgres:5432/devforge_chat"
             - name: POSTGRES_USER
@@ -1225,6 +1239,8 @@ spec:
               value: "http://git-service:9005"
             - name: AUTH_SERVICE_URL
               value: "http://auth-service:9001"
+            - name: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE
+              value: "5"
             - name: DEVFORGE_DB_URL
               value: "jdbc:postgresql://postgres:5432/devforge_analytics"
             - name: POSTGRES_USER
@@ -1365,6 +1381,8 @@ spec:
               value: "http://git-service:9005"
             - name: AUTH_SERVICE_URL
               value: "http://auth-service:9001"
+            - name: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE
+              value: "5"
             - name: DEVFORGE_DB_URL
               value: "jdbc:postgresql://postgres:5432/devforge_notification"
             - name: POSTGRES_USER

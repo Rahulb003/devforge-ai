@@ -22,6 +22,11 @@ x-service-env: &service-env
   DEVFORGE_KAFKA_SECURITY_PROTOCOL: SASL_SSL
   DEVFORGE_KAFKA_SASL_MECHANISM: PLAIN
   DEVFORGE_KAFKA_SSL_TRUSTSTORE_LOCATION: /certs/ca.pem
+  # Database connections. Nine services share one PostgreSQL server; at Hikari's default of 10 each, a
+  # second instance of any one service exhausted PostgreSQL's default limit of 100 ("too many clients
+  # already" - found by CI running two task-services). Five per instance against a limit of 200
+  # leaves room for three instances of every service and for administration.
+  SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: "5"
   # Falls back to the local development key. Override in .env for anything that is not a
   # throwaway local stack.
   DEVFORGE_JWT_SIGNING_KEY: ${DEVFORGE_JWT_SIGNING_KEY:-local-development-only-signing-key-change-me-0123456789abcdef}
@@ -321,6 +326,8 @@ services:
 
   postgres:
     image: postgres:15
+    # See SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE for the connection budget this allows.
+    command: ["postgres", "-c", "max_connections=200"]
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-devforge}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-devforge}

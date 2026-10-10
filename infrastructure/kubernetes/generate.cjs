@@ -81,6 +81,11 @@ function deployment(svc) {
     ["AUTH_SERVICE_URL", "http://auth-service:9001"],
   ];
   if (svc.db) {
+    // Database connections. Nine services share one PostgreSQL server; at Hikari's default of 10 each, a
+    // second instance of any one service exhausted PostgreSQL's default limit of 100 ("too many clients
+    // already" - found by CI running two task-services). Five per instance against a limit of 200
+    // leaves room for three instances of every service and for administration.
+    env.push(["SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE", "5"]);
     env.push(
       ["DEVFORGE_DB_URL", `jdbc:postgresql://postgres:5432/${svc.db}`],
       ["POSTGRES_USER", { secret: "postgres-username" }],
@@ -316,6 +321,8 @@ spec:
       containers:
         - name: postgres
           image: postgres:15
+          # The connection budget: see SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE on the services.
+          args: ["-c", "max_connections=200"]
           ports:
             - containerPort: 5432
           env:

@@ -53,6 +53,8 @@ spec:
       containers:
         - name: postgres
           image: postgres:15
+          # The connection budget: see SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE on the services.
+          args: ["-c", "max_connections=200"]
           ports:
             - containerPort: 5432
           env:
