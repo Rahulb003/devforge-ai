@@ -45,6 +45,8 @@ public class NotificationFactory {
       case EventTypes.PULL_REQUEST_CLOSED -> pullRequestDecided(envelope, payload, "closed");
       case EventTypes.PROJECT_MEMBER_ADDED -> membership(envelope, payload, true);
       case EventTypes.PROJECT_MEMBER_REMOVED -> membership(envelope, payload, false);
+      case EventTypes.ORGANIZATION_MEMBER_ROLE_CHANGED -> organizationRole(envelope, payload);
+      case EventTypes.ORGANIZATION_MEMBER_REMOVED -> organizationRemoval(envelope, payload);
       case EventTypes.USER_PASSWORD_RESET -> securityAlert(envelope, payload,
           "Your password was changed",
           "If this was not you, reset your password and sign out every device immediately.");
@@ -122,6 +124,35 @@ public class NotificationFactory {
         "You were added to " + project,
         role == null ? "You can now open it from your projects." : "Your role: " + roleLabel(role) + ".",
         link));
+  }
+
+  /** A changed organization role, told to the person whose role it is. */
+  private List<NotificationEntity> organizationRole(
+      EventEnvelope<Map<String, Object>> envelope, Map<String, Object> payload) {
+    var member = uuid(payload.get("userId"));
+    var role = text(payload.get("role"));
+    if (member == null || role == null || member.equals(envelope.actorId())) {
+      return List.of();
+    }
+    var name = text(payload.get("organizationName"));
+    return List.of(build(envelope, member, NotificationCategory.PROJECT,
+        "You are now " + roleLabel(role).toLowerCase(java.util.Locale.ROOT) + " of "
+            + (name == null ? "an organization" : name),
+        null,
+        envelope.tenantId() == null ? null : "/organizations/" + envelope.tenantId()));
+  }
+
+  /** Removed by someone else; leaving on your own needs no notice. */
+  private List<NotificationEntity> organizationRemoval(
+      EventEnvelope<Map<String, Object>> envelope, Map<String, Object> payload) {
+    var member = uuid(payload.get("userId"));
+    if (member == null || member.equals(envelope.actorId())) {
+      return List.of();
+    }
+    var name = text(payload.get("organizationName"));
+    return List.of(build(envelope, member, NotificationCategory.PROJECT,
+        "You were removed from " + (name == null ? "an organization" : name),
+        "You no longer have access to its projects.", null));
   }
 
   private static String roleLabel(String role) {

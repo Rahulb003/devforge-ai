@@ -164,6 +164,34 @@ class NotificationConsumerIntegrationTest {
   }
 
   @Test
+  @DisplayName("a changed organization role, or removal by someone else, tells the member")
+  void organizationMembershipNotifies() {
+    var admin = UUID.randomUUID();
+    var member = UUID.randomUUID();
+
+    publish(KafkaTopics.PROJECTS, taskEvent("OrganizationMemberRoleChanged", admin, Map.of(
+        "userId", member.toString(), "role", "ADMIN", "previousRole", "MEMBER",
+        "organizationName", "Acme")));
+    await(() -> notificationRepository.countByRecipientIdAndReadAtIsNull(member) == 1,
+        "the role change to be notified");
+    var changed = onlyNotificationFor(member);
+    assertThat(changed.getTitle()).isEqualTo("You are now admin of Acme");
+    assertThat(changed.getLink()).isEqualTo("/organizations/" + organizationId);
+
+    publish(KafkaTopics.PROJECTS, taskEvent("OrganizationMemberRemoved", admin, Map.of(
+        "userId", member.toString(), "role", "ADMIN", "organizationName", "Acme")));
+    await(() -> notificationRepository.countByRecipientIdAndReadAtIsNull(member) == 2,
+        "the removal to be notified");
+
+    // Leaving on your own: the actor is the member, so nothing is sent.
+    var leaver = UUID.randomUUID();
+    publish(KafkaTopics.PROJECTS, taskEvent("OrganizationMemberRemoved", leaver, Map.of(
+        "userId", leaver.toString(), "role", "MEMBER", "organizationName", "Acme")));
+    settle();
+    assertThat(notificationRepository.countByRecipientIdAndReadAtIsNull(leaver)).isZero();
+  }
+
+  @Test
   @DisplayName("assigning a task to yourself notifies nobody")
   void selfAssignmentNotifiesNobody() {
     var user = UUID.randomUUID();
