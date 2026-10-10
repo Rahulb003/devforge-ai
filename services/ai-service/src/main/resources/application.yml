@@ -19,9 +19,10 @@ devforge:
     project-service-url: ${PROJECT_SERVICE_URL}
     git-service-url: ${GIT_SERVICE_URL}
   git-content:
-    max-files: 1
-    max-directories: 1
-    # One file is explained at a time; anything larger is cut, and the answer says so.
+    # Asking about a repository reads up to this much of it; explaining reads one file.
+    max-files: ${DEVFORGE_AI_MAX_FILES:200}
+    max-directories: ${DEVFORGE_AI_MAX_DIRECTORIES:100}
+    # Larger files are cut, and the answer says so.
     max-file-bytes: ${DEVFORGE_AI_MAX_FILE_BYTES:262144}
   ai:
     # Unset means AI assistance is off: requests answer 503 and the UI says it is not configured.

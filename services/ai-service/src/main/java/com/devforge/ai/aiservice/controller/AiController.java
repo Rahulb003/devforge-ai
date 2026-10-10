@@ -27,6 +27,9 @@ public class AiController {
   private final ExplainService explainService;
   private final com.devforge.ai.aiservice.service.PullRequestReviewService reviewService;
   private final ModelClient model;
+  private final com.devforge.ai.aiservice.service.AskService askService;
+
+  public record AskRequest(String question, String ref) {}
 
   /** {@code question} is optional: without one the file is explained in general. */
   public record ExplainRequest(String path, String ref, String question) {}
@@ -56,5 +59,14 @@ public class AiController {
       @PathVariable int number, @AuthenticationPrincipal AuthenticatedUser user, HttpServletRequest http) {
     return ResponseEntity.ok(new ApiResponse<>(true, reviewService.review(
         organizationId, projectId, repositoryId, number, user, http.getHeader(HttpHeaders.AUTHORIZATION)), null));
+  }
+
+  /** A question about the whole repository, answered from excerpts of its best-matching files. */
+  @PostMapping("/api/v1/organizations/{organizationId}/projects/{projectId}/repositories/{repositoryId}/ai/ask")
+  public ResponseEntity<ApiResponse<com.devforge.ai.aiservice.service.AskService.Answer>> ask(
+      @PathVariable UUID organizationId, @PathVariable UUID projectId, @PathVariable UUID repositoryId,
+      @RequestBody AskRequest request, @AuthenticationPrincipal AuthenticatedUser user, HttpServletRequest http) {
+    return ResponseEntity.ok(new ApiResponse<>(true, askService.ask(organizationId, projectId, repositoryId,
+        request.question(), request.ref(), user, http.getHeader(HttpHeaders.AUTHORIZATION)), null));
   }
 }

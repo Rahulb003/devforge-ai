@@ -26,6 +26,16 @@ export interface PullRequestReview {
   truncated: boolean;
 }
 
+export interface RepositoryAnswer {
+  question: string;
+  answer: string;
+  model: string;
+  /** The files whose excerpts the answer was drawn from. */
+  sources: string[];
+  filesSearched: number;
+  truncated: boolean;
+}
+
 export const aiApi = {
   status: () => api.get<ApiEnvelope<AiStatus>>('/ai/status'),
 
@@ -45,5 +55,17 @@ export const aiApi = {
   review: (organizationId: string, projectId: string, repositoryId: string, number: number) =>
     api.post<ApiEnvelope<PullRequestReview>>(
       `/organizations/${organizationId}/projects/${projectId}/repositories/${repositoryId}/ai/pull-requests/${number}/review`,
+    ),
+
+  ask: (
+    organizationId: string,
+    projectId: string,
+    repositoryId: string,
+    question: string,
+    ref: string | undefined,
+  ) =>
+    api.post<ApiEnvelope<RepositoryAnswer>>(
+      `/organizations/${organizationId}/projects/${projectId}/repositories/${repositoryId}/ai/ask`,
+      { question: question.trim(), ref },
     ),
 };

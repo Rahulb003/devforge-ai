@@ -19,6 +19,7 @@ import { Link, useParams, useSearchParams } from 'react-router-dom';
 
 import type { FileChange, TreeEntry } from '@/api/git.api';
 import { gitApi } from '@/api/git.api';
+import { AiAsk } from '@/components/ai/AiAsk';
 import { AiExplain } from '@/components/ai/AiExplain';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -439,6 +440,15 @@ export function RepositoryBrowserPage() {
           )}
         </div>
       </header>
+
+      {!isEmpty && repository.isSuccess && (
+        <AiAsk
+          organizationId={organizationId}
+          projectId={projectId}
+          repositoryId={repositoryId}
+          gitRef={ref}
+        />
+      )}
 
       {branching && (
         <Card>
