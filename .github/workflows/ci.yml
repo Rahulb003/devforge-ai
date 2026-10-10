@@ -702,7 +702,7 @@ jobs:
               git-service:services/git-service:9005 review-service:services/review-service:9006 \
               documentation-service:services/documentation-service:9007 \
               chat-service:services/chat-service:9008 analytics-service:services/analytics-service:9010 \
-              notification-service:services/notification-service:9011; do
+              notification-service:services/notification-service:9011 ai-service:services/ai-service:9004; do
             name="${entry%%:*}"; rest="${entry#*:}"; path="${rest%%:*}"; port="${rest##*:}"
             docker build -q --target service --build-arg "MODULE_PATH=$path" \
               --build-arg "ARTIFACT_ID=$name" --build-arg "SERVICE_PORT=$port" -t "devforge-ai/$name:latest" .
