@@ -487,9 +487,10 @@ jobs:
       # The hardening in docker-compose.yml, checked on the running containers rather than read off
       # the file: a read-only root, no capabilities, and a write outside /tmp actually refused.
       # The browser suite's requests, as traces: every main service reported to Jaeger, and a request
-      # that crossed services is one trace - task-service asking project-service, at least. Jaeger 2
-      # serves the legacy query API and the v3 (OTLP JSON) one; both are read, and the raw answers
-      # are printed, so a change in either shows as data rather than a bare jq exit code.
+      # that crossed services is one trace - task-service asking project-service, at least. Jaeger 2.22
+      # answers the legacy /api/services with 404 (the first version of this check died on that); the
+      # v3 OTLP-JSON API is what works. Both are read and the raw answers printed, so a change in
+      # either shows as data rather than a bare jq exit code.
       - name: Requests are traced across services
         run: |
           set -uo pipefail
