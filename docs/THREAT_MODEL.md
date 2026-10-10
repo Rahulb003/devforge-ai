@@ -91,7 +91,7 @@ accident.
 | A duplicate event causing a duplicate side effect | consumers deduplicate on `(eventId, consumerGroup)`; notification-service additionally checks `(sourceEventId, recipientId)` so a deliberate topic replay is harmless |
 | A poison event blocking its partition | bounded retry, then the dead-letter topic |
 | Secrets leaking through an event payload | payloads carry ids and the minimum a consumer needs; reviewed per event in `docs/EVENT_CATALOG.md` |
-| An attacker reading or writing events directly | SASL authentication (SCRAM over TLS by default), tested against a real SASL broker. **No ACLs** |
+| An attacker reading or writing events directly | SASL over TLS, each service its own identity, deny-by-default ACLs; verified in CI against compose and kind. A plaintext client and an untrusted certificate are both refused |
 
 **Residual risk:** in the compose stack each service has its own identity and only the grants it
 needs, so a compromised chat-service cannot forge identity events. The Kubernetes manifests still

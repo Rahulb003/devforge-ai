@@ -22,8 +22,9 @@ and on Kubernetes (kind) against real PostgreSQL, Kafka and Redis.
 | Kubernetes | CI `kubernetes` job on kind | **PASS** — the generated manifests deploy with read-only root filesystems and the default seccomp profile; signup through nginx and the gateway; events reach the audit log and its hash chain verifies on PostgreSQL; git push and clone with the git CLI; Prometheus scrapes all ten and has its Alertmanager |
 | Dependency and secret scanning | CI `security` job | **PASS** — npm audit (high), Trivy over the Maven and npm trees and for committed secrets, blocking |
 
-Not verified anywhere: a production cluster (ingress, NetworkPolicy, autoscaling, failover), Kafka
-over TLS, OAuth with real providers, contention between several outbox publishers of one service.
+Not verified anywhere: a production cluster (ingress, NetworkPolicy, autoscaling, failover), SCRAM
+and certificates from a real PKI, OAuth with real providers, contention between several outbox
+publishers of one service.
 
 Toolchain: Node 24, Temurin JDK 21, Maven 3.9. No Docker daemon locally: everything container-based
 is verified in CI only.
@@ -115,7 +116,7 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 |---|---|---|---|
 | 1 | AI features (§5, RAG, agents, AI review) are not built | — | Blocked: needs a model API key. Nothing is stubbed in their place. |
 | 2 | The §37 sandbox and deployment pipelines are not built | — | Blocked: needs a container runtime or hypervisor. Designed in `docs/SANDBOX.md`. |
-| 3 | Kafka listeners have no TLS | MEDIUM | SASL and per-service ACLs are in place and verified; credentials cross the network in clear text inside the cluster. |
+| 3 | Kafka uses PLAIN over TLS, and each stack's own CA | LOW | SCRAM is supported but not exercised; a deployment should issue the broker certificate from its PKI (cert-manager). |
 | 4 | Secrets come from environment variables and a Kubernetes Secret | MEDIUM | No vault or rotation. `create-secrets.sh` generates random values for a fresh cluster. |
 | 5 | The audit chain is tamper-evident, not tamper-proof | LOW | A database writer can recompute a whole chain; only an externally recorded head hash catches that, and nothing records one automatically. |
 | 6 | Alerts go to Mailpit | — | Correct for compose and kind; a deployment must point Alertmanager at a real receiver. |
@@ -143,7 +144,7 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 | Kafka / outbox / event envelope | `IMPLEMENTED` | Envelope, outbox, idempotency, DLQ; 10 staging tests **plus 9 against a real in-process broker** — publication, ordering, dedup on redelivery, dead-lettering, and a poison event not blocking its partition. `SKIP LOCKED` still UNVERIFIED (needs PostgreSQL); see docs/EVENT_CATALOG.md §8 |
 | Kafka consumers in services | `IMPLEMENTED` | Two now: notification-service (identity, security, tasks) and analytics-service (tasks, repositories), each in its own consumer group so neither can starve the other |
 | Notifications (§12) | `IMPLEMENTED` | Consumer, per-recipient storage, read/unread/delete API, bell with unread badge and a feed page. 22 backend tests (8 against a real broker) + 12 frontend. Verified live through the gateway |
-| Kafka SASL / ACLs | `IMPLEMENTED` | One identity per service, deny-by-default ACLs; refusals checked in compose, the setup Job runs on kind. **No TLS** |
+| Kafka SASL / ACLs | `IMPLEMENTED` | One identity per service, deny-by-default ACLs; refusals checked in compose, the setup Job runs on kind. SASL_SSL only, each stack's own CA, a plaintext client refused (checked in compose) |
 | Tasks, Kanban, sprints, comments, labels | `IMPLEMENTED` | task-service, 29 tests. Authorization delegated to project-service |
 | Git hosting (§7) | `IMPLEMENTED` | git-service hosts real repositories via JGit: create, browse, commit, branch, diff, pull requests with merge rules, and clone/push over HTTP with personal access tokens (default branch protected, merge rule enforced on push). 149 tests; push and clone with the git CLI verified on kind |
 | GitHub/GitLab integration | `MISSING` | Deliberately separate from the above — it needs provider credentials, and faking it was not an option |
@@ -180,7 +181,7 @@ above. What remains, in order:
    written first (docs/API_CONTRACTS.md §8).
 2. **Blocked on a container runtime:** the §37 sandbox to docs/SANDBOX.md's twelve guarantees, then
    deployment pipelines (deployment-service is a health endpoint).
-3. **Unblocked:** TLS on the Kafka listeners; recording the audit chain's head hash somewhere outside
+3. **Unblocked:** recording the audit chain's head hash somewhere outside
    the database automatically; auth-service's own audit table into a chain; a second outbox
    publisher per service under compose to exercise `SKIP LOCKED` contention.
 

@@ -136,8 +136,15 @@ embedded broker silently replaced the SASL listener with PLAINTEXT, and the "ref
 failed for an unrelated reason. The test now sets the listener per node and asserts *why* the
 unauthenticated client fails.
 
-**UNVERIFIED:** TLS and SCRAM against a production broker. The Kubernetes wiring runs in CI on kind,
-which proves the identities and ACLs but not a production cluster's network policy.
+The compose and Kubernetes brokers accept only SASL over TLS. Each stack generates its own CA and
+broker certificate (`infrastructure/docker/kafka/certs.sh`, `create-secrets.sh`) and discards the
+CA's private key after signing, so nothing can mint another certificate it would accept; no private
+key is shared or committed. Services trust that CA through `devforge.kafka.ssl.truststore-location`
+with hostname verification on. `KafkaTlsIntegrationTest` shows a client trusting the CA connects, one
+that does not fails the handshake, and a plaintext client gets nowhere; CI checks the plaintext
+refusal against the compose broker.
+
+**UNVERIFIED:** SCRAM, and certificates issued by a real PKI rather than the stack's own CA.
 
 ### Gateway rate limiting
 
@@ -247,8 +254,8 @@ Ordered by how much they matter.
    this environment and a sandbox that cannot isolate is worse than none.
 2. **Kafka ACLs cover compose and Kubernetes, not the standalone profile.** Each service has its own
    identity and the broker denies anything not granted in `infrastructure/docker/kafka/setup.sh`,
-   which the Kubernetes setup Job runs too; both are exercised in CI. The standalone profile has no
-   broker. There is no TLS on the broker listeners in either.
+   which the Kubernetes setup Job runs too; both are exercised in CI, over TLS. The standalone
+   profile has no broker.
 3. **No secret-management integration.** Secrets come from environment variables; there is no vault,
    and no rotation story.
 4. **Container hardening is verified in CI, not against an attacker.** Every image runs as a

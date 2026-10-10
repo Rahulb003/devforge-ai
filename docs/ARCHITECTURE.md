@@ -225,4 +225,5 @@ Two gaps worth naming because they are prerequisites rather than features:
 - **No code-execution sandbox** (§37). Nothing currently executes developer code anywhere, which is
   the correct state, but the IDE and AI phases cannot do anything real until there is a sandbox that
   is not the application host.
-- **No broker authentication.** Kafka TLS, SASL and ACLs are unconfigured.
+- **Broker security is per-stack.** SASL over TLS with per-service ACLs, but each stack signs its own
+  broker certificate; a deployment should bring its own PKI.

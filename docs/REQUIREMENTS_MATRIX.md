@@ -68,7 +68,7 @@ section count would overstate progress.
 | 35 | Observability | `PARTIALLY_IMPLEMENTED` | Prometheus metrics from every service with a Grafana dashboard, structured logs with correlation ids across services and events. Alert rules for availability, 5xx rate, heap, stuck or growing outboxes and dead-lettered events, over outbox and dead-letter meters added for them. Alertmanager emails each alert, through Mailpit in compose and on kind; CI stops a service and waits for its ServiceDown email. No distributed tracing backend |
 | 36 | Error handling and problem responses | `IMPLEMENTED` | `ApiError` with a traceId, never an exception message |
 | 37 | Code-execution sandbox | `MISSING` | **nothing executes developer code today.** Designed in `docs/SANDBOX.md` with twelve required guarantees and an escape-attempt suite; not built, because no container runtime or hypervisor is available here. Hard prerequisite for §6 and the IDE phases |
-| 38 | Kafka security (TLS/SASL/ACL) | `PARTIALLY_IMPLEMENTED` | SASL for every client, fail-closed when required. One identity per service and deny-by-default ACLs in both compose and Kubernetes, verified in CI (compose in both directions, kind end to end). No TLS on the listeners; production TLS and SCRAM **UNVERIFIED** |
+| 38 | Kafka security (TLS/SASL/ACL) | `IMPLEMENTED` | SASL over TLS for every client, fail-closed when required; the client listeners speak only SASL_SSL, with a CA each stack generates for itself and hostname verification on. One identity per service and deny-by-default ACLs. Verified against a real TLS broker in tests (untrusted CA and plaintext both refused) and in CI on compose and kind. SCRAM and a real PKI **UNVERIFIED** |
 
 ## Product surface
 
