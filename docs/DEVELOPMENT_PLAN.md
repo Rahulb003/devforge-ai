@@ -128,9 +128,8 @@ Three rules that must hold from the first commit, not be added later:
   "you were added to a project" does not exist.
 - Observability: tracing, dashboards, alerting.
 - The `TEST_PLAN.md` gap list, in its stated priority order.
-- Either implement `config-server` and `discovery-server` or **delete them**. They are empty Boot
-  apps that Compose wires every service to through env vars nothing reads, which is actively
-  misleading.
+- ~~Either implement `config-server` and `discovery-server` or delete them.~~ Deleted: platform DNS
+  and ConfigMaps already do both jobs.
 
 ---
 

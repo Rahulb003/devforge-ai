@@ -4,7 +4,7 @@
 //
 // The hand-written manifests had drifted from the stack that actually runs: one shared database,
 // no JWT key or service URLs wired in, one shared Kafka identity, config-server and Eureka
-// addresses nothing reads. The same mistakes the compose file had before CI started running it.
+// addresses nothing read (both servers have since been deleted). The same mistakes the compose file had before CI started running it.
 // Generating every Deployment from one table keeps ten services from drifting apart again, and
 // the shared pieces - the database init script, the Kafka ACL script, the Prometheus and Grafana
 // configuration - are read from the files compose uses, so there is one copy of each.

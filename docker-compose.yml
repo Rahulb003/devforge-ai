@@ -262,8 +262,7 @@ services:
 
   # --- Not built yet: scaffolds only, opt-in -------------------------------
   # ai-service needs model credentials and deployment-service a sandbox (docs/SANDBOX.md).
-  # config-server and discovery-server are empty Boot apps; nothing reads them (see CLAUDE.md).
-
+  
   ai-service:
     profiles: [scaffold]
     build:
@@ -293,32 +292,6 @@ services:
       - 9009:9009
     environment:
       <<: *service-env
-
-  config-server:
-    profiles: [scaffold]
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: service
-      args:
-        MODULE_PATH: config-server
-        ARTIFACT_ID: config-server
-        SERVICE_PORT: "8888"
-    ports:
-      - 8888:8888
-
-  discovery-server:
-    profiles: [scaffold]
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: service
-      args:
-        MODULE_PATH: discovery-server
-        ARTIFACT_ID: discovery-server
-        SERVICE_PORT: "8761"
-    ports:
-      - 8761:8761
 
   # --- Infrastructure --------------------------------------------------------
 

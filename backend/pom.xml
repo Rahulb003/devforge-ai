@@ -9,8 +9,6 @@
     <module>../common-library</module>
     <module>../common-security</module>
     <module>../common-events</module>
-    <module>../config-server</module>
-    <module>../discovery-server</module>
     <module>../api-gateway</module>
     <module>../services/auth-service</module>
     <module>../services/project-service</module>

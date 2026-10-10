@@ -232,8 +232,6 @@ jobs:
           # name : module path : port
           modules=(
             "api-gateway:api-gateway:8080"
-            "config-server:config-server:8888"
-            "discovery-server:discovery-server:8761"
             "auth-service:services/auth-service:9001"
             "project-service:services/project-service:9002"
             "task-service:services/task-service:9003"

@@ -65,8 +65,6 @@ devforge-ai/
 ├── api-gateway/
 ├── backend/
 ├── common-library/
-├── config-server/
-├── discovery-server/
 ├── docs/
 ├── frontend/
 ├── infrastructure/

@@ -12,10 +12,10 @@
 
   <!--
     Deliberately a separate module rather than part of common-library.
-    common-library is on the classpath of every module, including
-    discovery-server and config-server, which have no API to protect. Putting
-    Spring Security there would apply a filter chain to those too, and making
-    it optional does not help: their component scan covers com.devforge.ai, so
+    common-library is on the classpath of every module, including any that has
+    no API of its own to protect. Putting Spring Security there would apply a
+    filter chain to those too, and making it optional does not help: their
+    component scan covers com.devforge.ai, so
     the configuration classes would be picked up and fail to load without the
     dependency present. Services that expose a protected API opt in instead.
   -->

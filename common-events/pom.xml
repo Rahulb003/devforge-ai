@@ -14,8 +14,8 @@
     Event contracts, the transactional outbox and Kafka wiring, shared by every
     service that publishes or consumes domain events.
 
-    Separate from common-library for the same reason as common-security:
-    discovery-server and config-server publish nothing, and should not acquire
+    Separate from common-library for the same reason as common-security: a
+    module that publishes nothing, such as api-gateway, should not acquire
     Kafka and JPA auto-configuration just by being on the reactor.
   -->
   <dependencies>

@@ -42,12 +42,11 @@ depends on it.
 
 ### Things in the tree that do not do what their name says
 
-- **`config-server` and `discovery-server`** are empty Spring Boot web apps. No
-  `@EnableConfigServer`, no `@EnableEurekaServer`, no Spring Cloud dependency in either pom.
-  `docker-compose.yml` sets `SPRING_CLOUD_CONFIG_URI` and `EUREKA_CLIENT_SERVICEURL_DEFAULTZONE` on
-  every service, and **nothing reads either variable.** There is no service discovery and no central
-  config; the gateway resolves services from static URLs. Treat them as `SCAFFOLDED` and do not
-  write code that assumes otherwise.
+- **There is no service discovery and no config server.** `config-server` and `discovery-server`
+  were empty Boot apps - no `@EnableConfigServer`, no `@EnableEurekaServer`, no Spring Cloud
+  dependency - and have been deleted. The gateway and the services resolve each other by DNS name
+  (compose network, Kubernetes Service), and configuration comes from environment variables, a
+  ConfigMap and a Secret. Eureka would add a moving part that both platforms already provide.
 - **Redis** appears in `docker-compose.yml` and `.env.example` but no code uses it.
 
 ---

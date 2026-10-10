@@ -35,7 +35,8 @@ Toolchain used: Node 24.18.0, npm 11.16.0, Temurin JDK 21.0.11, Maven 3.9.9. Doc
 
 The single largest finding: a previous mechanical rewrite script (`scripts/fix-dockerfiles.py`,
 `scripts/rewrite-dockerfiles.ps1`) had corrupted config files across the repo by writing literal
-two-character escape sequences instead of real characters.
+two-character escape sequences instead of real characters. (Both scripts have since been deleted:
+running either would overwrite the compose file, the Dockerfiles and the ingress again.)
 
 | Symptom | Files | Fix |
 |---|---|---|
@@ -276,6 +277,6 @@ All 11 files required by §7 are written:
 
 Two things these documents record that are easy to lose and were previously only in code comments or
 commit messages: the numbered architectural decisions (`AD-1`…`AD-18`, above), and the fact that
-`config-server` and `discovery-server` are empty Boot apps with no Spring Cloud dependency, wired up
-by `docker-compose.yml` through environment variables nothing reads. (Since moved behind the opt-in
-`scaffold` compose profile; nothing depends on them.)
+`config-server` and `discovery-server` were empty Boot apps with no Spring Cloud dependency, wired up
+by `docker-compose.yml` through environment variables nothing read. They have since been deleted:
+services find each other by DNS name and are configured by environment, ConfigMap and Secret.

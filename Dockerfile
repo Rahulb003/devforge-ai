@@ -32,8 +32,6 @@ COPY common-library/pom.xml common-library/pom.xml
 COPY common-security/pom.xml common-security/pom.xml
 COPY common-events/pom.xml common-events/pom.xml
 COPY api-gateway/pom.xml api-gateway/pom.xml
-COPY config-server/pom.xml config-server/pom.xml
-COPY discovery-server/pom.xml discovery-server/pom.xml
 COPY services/auth-service/pom.xml services/auth-service/pom.xml
 COPY services/project-service/pom.xml services/project-service/pom.xml
 COPY services/task-service/pom.xml services/task-service/pom.xml
@@ -58,8 +56,6 @@ COPY common-library/src common-library/src
 COPY common-security/src common-security/src
 COPY common-events/src common-events/src
 COPY api-gateway/src api-gateway/src
-COPY config-server/src config-server/src
-COPY discovery-server/src discovery-server/src
 COPY services services
 
 # Tests run in CI against real infrastructure, not here: a container build has
