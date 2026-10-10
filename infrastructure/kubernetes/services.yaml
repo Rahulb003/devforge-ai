@@ -97,7 +97,15 @@ spec:
           securityContext:
             runAsNonRoot: true
             allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            seccompProfile: { type: RuntimeDefault }
             capabilities: { drop: [ALL] }
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 256Mi }
 ---
 apiVersion: v1
 kind: Service
@@ -196,6 +204,8 @@ spec:
                 secretKeyRef:
                   name: devforge-ai-secrets
                   key: kafka-password-auth-service
+            - name: XDG_CONFIG_HOME
+              value: "/tmp"
             - name: REDIS_HOST
               value: "redis"
             - name: REDIS_PORT
@@ -268,7 +278,15 @@ spec:
           securityContext:
             runAsNonRoot: true
             allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            seccompProfile: { type: RuntimeDefault }
             capabilities: { drop: [ALL] }
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 256Mi }
 ---
 apiVersion: v1
 kind: Service
@@ -367,6 +385,8 @@ spec:
                 secretKeyRef:
                   name: devforge-ai-secrets
                   key: kafka-password-project-service
+            - name: XDG_CONFIG_HOME
+              value: "/tmp"
           # Startup is slow (JVM, Flyway); readiness gates traffic, liveness restarts a stuck pod.
           startupProbe:
             httpGet: { path: /actuator/health, port: 9002 }
@@ -385,7 +405,15 @@ spec:
           securityContext:
             runAsNonRoot: true
             allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            seccompProfile: { type: RuntimeDefault }
             capabilities: { drop: [ALL] }
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 256Mi }
 ---
 apiVersion: v1
 kind: Service
@@ -484,6 +512,8 @@ spec:
                 secretKeyRef:
                   name: devforge-ai-secrets
                   key: kafka-password-task-service
+            - name: XDG_CONFIG_HOME
+              value: "/tmp"
           # Startup is slow (JVM, Flyway); readiness gates traffic, liveness restarts a stuck pod.
           startupProbe:
             httpGet: { path: /actuator/health, port: 9003 }
@@ -502,7 +532,15 @@ spec:
           securityContext:
             runAsNonRoot: true
             allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            seccompProfile: { type: RuntimeDefault }
             capabilities: { drop: [ALL] }
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 256Mi }
 ---
 apiVersion: v1
 kind: Service
@@ -612,6 +650,8 @@ spec:
                 secretKeyRef:
                   name: devforge-ai-secrets
                   key: kafka-password-git-service
+            - name: XDG_CONFIG_HOME
+              value: "/tmp"
             - name: DEVFORGE_GIT_STORAGE_ROOT
               value: "/app/data/git-repositories"
           # Startup is slow (JVM, Flyway); readiness gates traffic, liveness restarts a stuck pod.
@@ -632,11 +672,17 @@ spec:
           securityContext:
             runAsNonRoot: true
             allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            seccompProfile: { type: RuntimeDefault }
             capabilities: { drop: [ALL] }
           volumeMounts:
+            - name: tmp
+              mountPath: /tmp
             - name: data
               mountPath: /app/data/git-repositories
       volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 256Mi }
         - name: data
           persistentVolumeClaim:
             claimName: git-service-data
@@ -738,6 +784,8 @@ spec:
                 secretKeyRef:
                   name: devforge-ai-secrets
                   key: kafka-password-review-service
+            - name: XDG_CONFIG_HOME
+              value: "/tmp"
           # Startup is slow (JVM, Flyway); readiness gates traffic, liveness restarts a stuck pod.
           startupProbe:
             httpGet: { path: /actuator/health, port: 9006 }
@@ -756,7 +804,15 @@ spec:
           securityContext:
             runAsNonRoot: true
             allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            seccompProfile: { type: RuntimeDefault }
             capabilities: { drop: [ALL] }
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 256Mi }
 ---
 apiVersion: v1
 kind: Service
@@ -855,6 +911,8 @@ spec:
                 secretKeyRef:
                   name: devforge-ai-secrets
                   key: kafka-password-documentation-service
+            - name: XDG_CONFIG_HOME
+              value: "/tmp"
           # Startup is slow (JVM, Flyway); readiness gates traffic, liveness restarts a stuck pod.
           startupProbe:
             httpGet: { path: /actuator/health, port: 9007 }
@@ -873,7 +931,15 @@ spec:
           securityContext:
             runAsNonRoot: true
             allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            seccompProfile: { type: RuntimeDefault }
             capabilities: { drop: [ALL] }
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 256Mi }
 ---
 apiVersion: v1
 kind: Service
@@ -972,6 +1038,8 @@ spec:
                 secretKeyRef:
                   name: devforge-ai-secrets
                   key: kafka-password-chat-service
+            - name: XDG_CONFIG_HOME
+              value: "/tmp"
           # Startup is slow (JVM, Flyway); readiness gates traffic, liveness restarts a stuck pod.
           startupProbe:
             httpGet: { path: /actuator/health, port: 9008 }
@@ -990,7 +1058,15 @@ spec:
           securityContext:
             runAsNonRoot: true
             allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            seccompProfile: { type: RuntimeDefault }
             capabilities: { drop: [ALL] }
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 256Mi }
 ---
 apiVersion: v1
 kind: Service
@@ -1089,6 +1165,8 @@ spec:
                 secretKeyRef:
                   name: devforge-ai-secrets
                   key: kafka-password-analytics-service
+            - name: XDG_CONFIG_HOME
+              value: "/tmp"
           # Startup is slow (JVM, Flyway); readiness gates traffic, liveness restarts a stuck pod.
           startupProbe:
             httpGet: { path: /actuator/health, port: 9010 }
@@ -1107,7 +1185,15 @@ spec:
           securityContext:
             runAsNonRoot: true
             allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            seccompProfile: { type: RuntimeDefault }
             capabilities: { drop: [ALL] }
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 256Mi }
 ---
 apiVersion: v1
 kind: Service
@@ -1206,6 +1292,8 @@ spec:
                 secretKeyRef:
                   name: devforge-ai-secrets
                   key: kafka-password-notification-service
+            - name: XDG_CONFIG_HOME
+              value: "/tmp"
           # Startup is slow (JVM, Flyway); readiness gates traffic, liveness restarts a stuck pod.
           startupProbe:
             httpGet: { path: /actuator/health, port: 9011 }
@@ -1224,7 +1312,15 @@ spec:
           securityContext:
             runAsNonRoot: true
             allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            seccompProfile: { type: RuntimeDefault }
             capabilities: { drop: [ALL] }
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 256Mi }
 ---
 apiVersion: v1
 kind: Service
@@ -1272,4 +1368,18 @@ spec:
           securityContext:
             runAsNonRoot: true
             allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            seccompProfile: { type: RuntimeDefault }
             capabilities: { drop: [ALL] }
+          # nginx keeps its pid and temp files in /tmp, and the entrypoint renders the config
+          # template into conf.d at start; the rest of the filesystem is read-only.
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: conf
+              mountPath: /etc/nginx/conf.d
+      volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 64Mi }
+        - name: conf
+          emptyDir: { sizeLimit: 1Mi }

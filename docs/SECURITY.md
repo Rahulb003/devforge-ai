@@ -245,20 +245,23 @@ Ordered by how much they matter.
    broker. There is no TLS on the broker listeners in either.
 3. **No secret-management integration.** Secrets come from environment variables; there is no vault,
    and no rotation story.
-4. **Container runtime hardening is mostly UNVERIFIED.** CI builds every image and confirms it runs
-   as non-root; The auth-service image scan is now **blocking**: high/critical advisories went 64 (Boot
-   3.4.0) -> 48 (3.4.13) -> 14 (3.5.16) -> 0, the last step by overriding Jackson, Netty, Tomcat,
-   the PostgreSQL driver and lz4 ahead of the Boot BOM (`backend/pom.xml`). Two Spring Framework
-   advisories with no 6.2 fix are accepted in `.trivyignore`, each with the reason it does not
-   apply here. CI starts every image (services under the standalone profile) and requires each to
-   report healthy; the containers have never run together against real infrastructure.
-5. **Dependency scanning blocks; it covers one image.** CI fails on any high or critical npm
-   advisory (build tooling included), on any Trivy finding in the Maven and npm trees or a
-   committed secret, and on the auth-service image. Dependabot proposes weekly updates. npm audit
-   went from 23 advisories (4 critical) to 0 by upgrading to Vite 8, Vitest 5, typescript-eslint 8,
-   react-router 7 and Tailwind 4; Tailwind 4 was checked by pixel-comparing key pages before and
-   after. Only the auth-service image is scanned; the other images share its base and most of its
-   libraries, but are not scanned themselves.
+4. **Container hardening is verified in CI, not against an attacker.** Every image runs as a
+   non-root numeric user, and the Kubernetes pods enforce `runAsNonRoot`. Image scans are
+   **blocking**: auth-service's high/critical advisories went 64 (Boot 3.4.0) -> 48 (3.4.13) -> 14
+   (3.5.16) -> 0, the last step by overriding Jackson, Netty, Tomcat, the PostgreSQL driver and lz4
+   ahead of the Boot BOM (`backend/pom.xml`). Two Spring Framework advisories with no 6.2 fix are
+   accepted in `.trivyignore`, each with the reason it does not apply here. The containers run
+   together against real PostgreSQL, Kafka and Redis under compose and on kind. On Kubernetes every
+   DevForge container also has a read-only root filesystem (writable `/tmp` and data volumes only),
+   the runtime's default seccomp profile, no capabilities and no privilege escalation, and the kind
+   job runs them that way. The compose file does not apply these, and the third-party images
+   (PostgreSQL, Kafka, Redis, Prometheus, Grafana) keep their defaults.
+5. **Dependency and image scanning blocks.** CI fails on any high or critical npm advisory (build
+   tooling included), on any Trivy finding in the Maven and npm trees or a committed secret, and on
+   any fixable high or critical advisory in any of the eleven images. Dependabot proposes weekly
+   updates. npm audit went from 23 advisories (4 critical) to 0 by upgrading to Vite 8, Vitest 5,
+   typescript-eslint 8, react-router 7 and Tailwind 4; Tailwind 4 was checked by pixel-comparing key
+   pages before and after.
 6. **The audit trail is tamper-evident, not tamper-proof.** Project, membership, task, repository
    and pull request changes are recorded by analytics-service from the events, readable by project
    admins, in a SHA-256 hash chain per project. Re-hashing it (the "Verify integrity" button, or

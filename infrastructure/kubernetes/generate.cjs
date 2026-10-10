@@ -93,14 +93,19 @@ function deployment(svc) {
       ["DEVFORGE_KAFKA_SASL_USERNAME", svc.name],
       ["DEVFORGE_KAFKA_SASL_PASSWORD", { secret: `kafka-password-${svc.name}` }]);
   }
+  // JGit caches a filesystem probe under XDG_CONFIG_HOME, by default in the read-only home directory.
+  env.push(["XDG_CONFIG_HOME", "/tmp"]);
   for (const e of svc.env ?? []) env.push(e);
 
-  const volumeMounts = svc.volume
-    ? `\n          volumeMounts:\n            - name: data\n              mountPath: ${svc.volume}`
-    : "";
-  const volumes = svc.volume
-    ? `\n      volumes:\n        - name: data\n          persistentVolumeClaim:\n            claimName: ${svc.name}-data`
-    : "";
+  // The root filesystem is read-only, so anything a service writes needs a volume: /tmp for
+  // Tomcat's work directories, the JVM's perf data and JGit's cached filesystem probe, and the
+  // service's own data directory where it has one.
+  const volumeMounts = `\n          volumeMounts:\n            - name: tmp\n              mountPath: /tmp`
+    + (svc.volume ? `\n            - name: data\n              mountPath: ${svc.volume}` : "");
+  const volumes = `\n      volumes:\n        - name: tmp\n          emptyDir: { sizeLimit: 256Mi }`
+    + (svc.volume
+      ? `\n        - name: data\n          persistentVolumeClaim:\n            claimName: ${svc.name}-data`
+      : "");
   const pvc = svc.volume
     ? `---\napiVersion: v1\nkind: PersistentVolumeClaim\nmetadata:\n  name: ${svc.name}-data\n  namespace: ${NS}\nspec:\n  accessModes: [ReadWriteOnce]\n  resources:\n    requests:\n      storage: 2Gi\n`
     : "";
@@ -165,6 +170,8 @@ ${indent(env.map(envVar).join("\n"), 12)}
           securityContext:
             runAsNonRoot: true
             allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            seccompProfile: { type: RuntimeDefault }
             capabilities: { drop: [ALL] }${volumeMounts}${volumes}
 `;
 }
@@ -229,7 +236,21 @@ spec:
           securityContext:
             runAsNonRoot: true
             allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            seccompProfile: { type: RuntimeDefault }
             capabilities: { drop: [ALL] }
+          # nginx keeps its pid and temp files in /tmp, and the entrypoint renders the config
+          # template into conf.d at start; the rest of the filesystem is read-only.
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: conf
+              mountPath: /etc/nginx/conf.d
+      volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 64Mi }
+        - name: conf
+          emptyDir: { sizeLimit: 1Mi }
 `;
 }
 
