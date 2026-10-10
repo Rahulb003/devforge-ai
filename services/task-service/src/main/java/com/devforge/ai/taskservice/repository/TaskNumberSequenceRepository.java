@@ -20,4 +20,19 @@ public interface TaskNumberSequenceRepository extends JpaRepository<TaskNumberSe
    */
   @Lock(LockModeType.PESSIMISTIC_WRITE)
   Optional<TaskNumberSequence> findByProjectId(UUID projectId);
+
+  /**
+   * Creates the project's counter row unless it exists.
+   *
+   * <p>The lock above only works once the row is there. For a new project it is not, so concurrent
+   * first creates each inserted one and all but one failed on the primary key. Inserting with
+   * ON CONFLICT DO NOTHING first means they all converge on the same row, and the lock then
+   * serialises them; a later insert waits for the first one's transaction rather than failing.
+   */
+  @org.springframework.data.jpa.repository.Modifying(flushAutomatically = true)
+  @org.springframework.data.jpa.repository.Query(nativeQuery = true, value = """
+      INSERT INTO task_number_sequences (project_id, next_number) VALUES (:projectId, 1)
+      ON CONFLICT DO NOTHING
+      """)
+  void createIfAbsent(@org.springframework.data.repository.query.Param("projectId") UUID projectId);
 }

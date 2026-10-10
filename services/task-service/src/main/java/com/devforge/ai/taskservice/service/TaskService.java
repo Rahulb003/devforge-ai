@@ -10,7 +10,6 @@ import com.devforge.ai.taskservice.dto.MoveTaskRequest;
 import com.devforge.ai.taskservice.dto.TaskResponse;
 import com.devforge.ai.taskservice.dto.UpdateTaskRequest;
 import com.devforge.ai.taskservice.entity.TaskEntity;
-import com.devforge.ai.taskservice.entity.TaskNumberSequence;
 import com.devforge.ai.taskservice.events.TaskEventPublisher;
 import com.devforge.ai.taskservice.model.TaskPriority;
 import com.devforge.ai.taskservice.model.TaskStatus;
@@ -111,8 +110,9 @@ public class TaskService {
    * of them — a failure caused purely by timing, which a user cannot understand or act on.
    */
   private int nextTaskNumber(UUID projectId) {
+    sequenceRepository.createIfAbsent(projectId);
     var sequence = sequenceRepository.findByProjectId(projectId)
-        .orElseGet(() -> TaskNumberSequence.builder().projectId(projectId).nextNumber(1).build());
+        .orElseThrow(() -> new IllegalStateException("The task counter for a project was not created"));
 
     int number = sequence.getNextNumber();
     sequence.setNextNumber(number + 1);

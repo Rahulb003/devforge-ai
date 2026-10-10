@@ -143,6 +143,39 @@ class TaskApiTest {
     }
 
     @Test
+    @DisplayName("concurrent creates in a brand-new project all succeed, numbered without gaps")
+    void concurrentFirstCreates() throws Exception {
+      // Found by CI creating tasks in parallel: the counter row is locked once it exists, but a new
+      // project has none, so concurrent first creates each tried to insert it and all but one
+      // failed on its primary key.
+      var threads = 8;
+      var start = new java.util.concurrent.CountDownLatch(1);
+      var pool = java.util.concurrent.Executors.newFixedThreadPool(threads);
+      try {
+        var results = new java.util.ArrayList<java.util.concurrent.Future<Integer>>();
+        for (int i = 0; i < threads; i++) {
+          var title = "Parallel " + i;
+          results.add(pool.submit(() -> {
+            start.await();
+            return mockMvc.perform(authed(post(tasksUrl()))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(Map.of("title", title))))
+                .andReturn().getResponse().getStatus();
+          }));
+        }
+        start.countDown();
+        for (var result : results) {
+          assertThat(result.get(30, java.util.concurrent.TimeUnit.SECONDS)).isEqualTo(201);
+        }
+      } finally {
+        pool.shutdownNow();
+      }
+
+      assertThat(taskRepository.findAll()).extracting(t -> t.getTaskNumber())
+          .containsExactlyInAnyOrder(1, 2, 3, 4, 5, 6, 7, 8);
+    }
+
+    @Test
     @DisplayName("a blank title is rejected")
     void blankTitleRejected() throws Exception {
       var body = objectMapper.writeValueAsString(Map.of("title", "   "));
