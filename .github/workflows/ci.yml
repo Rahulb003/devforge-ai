@@ -486,27 +486,46 @@ jobs:
 
       # The hardening in docker-compose.yml, checked on the running containers rather than read off
       # the file: a read-only root, no capabilities, and a write outside /tmp actually refused.
-      # The browser suite's requests, as traces: every service reported to Jaeger, and a request that
-      # crossed services is one trace - task-service asking project-service, at least.
+      # The browser suite's requests, as traces: every main service reported to Jaeger, and a request
+      # that crossed services is one trace - task-service asking project-service, at least. Jaeger 2
+      # serves the legacy query API and the v3 (OTLP JSON) one; both are read, and the raw answers
+      # are printed, so a change in either shows as data rather than a bare jq exit code.
       - name: Requests are traced across services
         run: |
-          set -euo pipefail
+          set -uo pipefail
           services=""
           for _ in $(seq 1 30); do
-            services="$( (curl -s http://localhost:16686/api/services || true) | jq -r '.data[]?' 2>/dev/null | sort | tr '\n' ' ')"
-            echo "$services" | grep -q "task-service" && echo "$services" | grep -q "project-service" && break
+            curl -s http://localhost:16686/api/services > /tmp/legacy-services.json || true
+            curl -s http://localhost:16686/api/v3/services > /tmp/v3-services.json || true
+            services="$( { jq -r '.data[]?' /tmp/legacy-services.json 2>/dev/null; \
+              jq -r '.services[]?' /tmp/v3-services.json 2>/dev/null; } | sort -u | tr '\n' ' ')"
+            echo "$services" | grep -qw task-service && echo "$services" | grep -qw project-service && break
             sleep 4
           done
+          echo "legacy /api/services: $(head -c 300 /tmp/legacy-services.json)"
+          echo "v3 /api/v3/services: $(head -c 300 /tmp/v3-services.json)"
           echo "services reporting traces: $services"
           for s in api-gateway auth-service project-service task-service git-service; do
             echo "$services" | grep -qw "$s" || { echo "::error::no traces from $s"; exit 1; }
           done
-          widest="$(curl -s "http://localhost:16686/api/traces?service=task-service&limit=100&lookback=2h" \
-            | jq '[.data[] | [.processes[].serviceName] | unique | length] | max // 0')"
-          echo "most services in one task-service trace: $widest"
-          [ "$widest" -ge 2 ] || { echo "::error::no trace spans more than one service"; exit 1; }
-          curl -s "http://localhost:16686/api/traces?service=task-service&limit=100&lookback=2h" \
-            | jq -r '[.data[] | [.processes[].serviceName] | unique | join(" -> ")] | unique | .[:5][]'
+
+          curl -s "http://localhost:16686/api/traces?service=task-service&limit=100&lookback=2h" > /tmp/legacy-traces.json || true
+          since="$(date -u -d '2 hours ago' +%Y-%m-%dT%H:%M:%SZ)"; until_now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          curl -s --get http://localhost:16686/api/v3/traces --data-urlencode "query.service_name=task-service" \
+            --data-urlencode "query.start_time_min=$since" --data-urlencode "query.start_time_max=$until_now" \
+            --data-urlencode "query.num_traces=100" > /tmp/v3-traces.json || true
+          legacy="$(jq '[.data[]? | [.processes[]?.serviceName] | unique | length] | max // 0' /tmp/legacy-traces.json 2>/dev/null || echo 0)"
+          v3="$(jq -s '[.[] | .result.resourceSpans[]? as $rs
+                | ($rs.resource.attributes[]? | select(.key == "service.name") | .value.stringValue) as $svc
+                | $rs.scopeSpans[]?.spans[]? | {t: .traceId, s: $svc}]
+                | group_by(.t) | map([.[].s] | unique | length) | max // 0' /tmp/v3-traces.json 2>/dev/null || echo 0)"
+          echo "most services in one task-service trace: legacy API $legacy, v3 API $v3"
+          widest=$(( legacy > v3 ? legacy : v3 ))
+          if [ "$widest" -lt 2 ]; then
+            echo "legacy traces: $(head -c 500 /tmp/legacy-traces.json)"
+            echo "v3 traces: $(head -c 500 /tmp/v3-traces.json)"
+            echo "::error::no trace spans more than one service"; exit 1
+          fi
 
       - name: Containers run read-only and unprivileged
         run: |
