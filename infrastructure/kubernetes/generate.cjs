@@ -79,6 +79,10 @@ function deployment(svc) {
     ["DEVFORGE_METRICS_TOKEN", { secret: "metrics-token" }],
     ["PROJECT_SERVICE_URL", "http://project-service:9002"],
     ["GIT_SERVICE_URL", "http://git-service:9005"],
+    // Traces to the in-cluster Jaeger. Every request is sampled on a test cluster; a production
+    // cluster would lower this.
+    ["MANAGEMENT_OTLP_TRACING_ENDPOINT", "http://jaeger:4318/v1/traces"],
+    ["MANAGEMENT_TRACING_SAMPLING_PROBABILITY", { configMapKeyRef: "MANAGEMENT_TRACING_SAMPLING_PROBABILITY" }],
     // git-service exchanges a git client's personal access token here.
     ["AUTH_SERVICE_URL", "http://auth-service:9001"],
   ];
@@ -197,6 +201,8 @@ function gateway() {
     ["DEVFORGE_METRICS_TOKEN", { secret: "metrics-token" }],
     ["DEVFORGE_CORS_ORIGINS", { configMapKeyRef: "DEVFORGE_APP_BASE_URL" }],
     ["DEVFORGE_RATE_LIMIT_AUTH_PER_MINUTE", { configMapKeyRef: "DEVFORGE_RATE_LIMIT_AUTH_PER_MINUTE" }],
+    ["MANAGEMENT_OTLP_TRACING_ENDPOINT", "http://jaeger:4318/v1/traces"],
+    ["MANAGEMENT_TRACING_SAMPLING_PROBABILITY", { configMapKeyRef: "MANAGEMENT_TRACING_SAMPLING_PROBABILITY" }],
     ...Object.entries(GATEWAY_ROUTES).map(([k, v]) => [k, `http://${v}`]),
   ];
   return deployment({ name: "api-gateway", port: 8080 })
@@ -639,6 +645,46 @@ spec:
             items:
               - key: metrics-token
                 path: metrics-token
+---
+# Collects traces in memory: for looking at a request now, not for keeping history.
+apiVersion: v1
+kind: Service
+metadata:
+  name: jaeger
+  namespace: ${NS}
+spec:
+  selector:
+    app: jaeger
+  ports:
+    - name: query
+      port: 16686
+    - name: otlp-http
+      port: 4318
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jaeger
+  namespace: ${NS}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jaeger
+  template:
+    metadata:
+      labels:
+        app: jaeger
+    spec:
+      containers:
+        - name: jaeger
+          image: quay.io/jaegertracing/jaeger:2.22.0
+          ports:
+            - containerPort: 16686
+            - containerPort: 4318
+          readinessProbe:
+            tcpSocket: { port: 16686 }
+            periodSeconds: 10
 ---
 apiVersion: v1
 kind: ConfigMap

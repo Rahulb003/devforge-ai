@@ -61,6 +61,13 @@ spec:
                 configMapKeyRef:
                   name: devforge-ai-config
                   key: DEVFORGE_RATE_LIMIT_AUTH_PER_MINUTE
+            - name: MANAGEMENT_OTLP_TRACING_ENDPOINT
+              value: "http://jaeger:4318/v1/traces"
+            - name: MANAGEMENT_TRACING_SAMPLING_PROBABILITY
+              valueFrom:
+                configMapKeyRef:
+                  name: devforge-ai-config
+                  key: MANAGEMENT_TRACING_SAMPLING_PROBABILITY
             - name: AUTH_SERVICE_URL
               value: "http://auth-service:9001"
             - name: PROJECT_SERVICE_URL
@@ -173,6 +180,13 @@ spec:
               value: "http://project-service:9002"
             - name: GIT_SERVICE_URL
               value: "http://git-service:9005"
+            - name: MANAGEMENT_OTLP_TRACING_ENDPOINT
+              value: "http://jaeger:4318/v1/traces"
+            - name: MANAGEMENT_TRACING_SAMPLING_PROBABILITY
+              valueFrom:
+                configMapKeyRef:
+                  name: devforge-ai-config
+                  key: MANAGEMENT_TRACING_SAMPLING_PROBABILITY
             - name: AUTH_SERVICE_URL
               value: "http://auth-service:9001"
             - name: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE
@@ -369,6 +383,13 @@ spec:
               value: "http://project-service:9002"
             - name: GIT_SERVICE_URL
               value: "http://git-service:9005"
+            - name: MANAGEMENT_OTLP_TRACING_ENDPOINT
+              value: "http://jaeger:4318/v1/traces"
+            - name: MANAGEMENT_TRACING_SAMPLING_PROBABILITY
+              valueFrom:
+                configMapKeyRef:
+                  name: devforge-ai-config
+                  key: MANAGEMENT_TRACING_SAMPLING_PROBABILITY
             - name: AUTH_SERVICE_URL
               value: "http://auth-service:9001"
             - name: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE
@@ -511,6 +532,13 @@ spec:
               value: "http://project-service:9002"
             - name: GIT_SERVICE_URL
               value: "http://git-service:9005"
+            - name: MANAGEMENT_OTLP_TRACING_ENDPOINT
+              value: "http://jaeger:4318/v1/traces"
+            - name: MANAGEMENT_TRACING_SAMPLING_PROBABILITY
+              valueFrom:
+                configMapKeyRef:
+                  name: devforge-ai-config
+                  key: MANAGEMENT_TRACING_SAMPLING_PROBABILITY
             - name: AUTH_SERVICE_URL
               value: "http://auth-service:9001"
             - name: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE
@@ -664,6 +692,13 @@ spec:
               value: "http://project-service:9002"
             - name: GIT_SERVICE_URL
               value: "http://git-service:9005"
+            - name: MANAGEMENT_OTLP_TRACING_ENDPOINT
+              value: "http://jaeger:4318/v1/traces"
+            - name: MANAGEMENT_TRACING_SAMPLING_PROBABILITY
+              valueFrom:
+                configMapKeyRef:
+                  name: devforge-ai-config
+                  key: MANAGEMENT_TRACING_SAMPLING_PROBABILITY
             - name: AUTH_SERVICE_URL
               value: "http://auth-service:9001"
             - name: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE
@@ -813,6 +848,13 @@ spec:
               value: "http://project-service:9002"
             - name: GIT_SERVICE_URL
               value: "http://git-service:9005"
+            - name: MANAGEMENT_OTLP_TRACING_ENDPOINT
+              value: "http://jaeger:4318/v1/traces"
+            - name: MANAGEMENT_TRACING_SAMPLING_PROBABILITY
+              valueFrom:
+                configMapKeyRef:
+                  name: devforge-ai-config
+                  key: MANAGEMENT_TRACING_SAMPLING_PROBABILITY
             - name: AUTH_SERVICE_URL
               value: "http://auth-service:9001"
             - name: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE
@@ -955,6 +997,13 @@ spec:
               value: "http://project-service:9002"
             - name: GIT_SERVICE_URL
               value: "http://git-service:9005"
+            - name: MANAGEMENT_OTLP_TRACING_ENDPOINT
+              value: "http://jaeger:4318/v1/traces"
+            - name: MANAGEMENT_TRACING_SAMPLING_PROBABILITY
+              valueFrom:
+                configMapKeyRef:
+                  name: devforge-ai-config
+                  key: MANAGEMENT_TRACING_SAMPLING_PROBABILITY
             - name: AUTH_SERVICE_URL
               value: "http://auth-service:9001"
             - name: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE
@@ -1097,6 +1146,13 @@ spec:
               value: "http://project-service:9002"
             - name: GIT_SERVICE_URL
               value: "http://git-service:9005"
+            - name: MANAGEMENT_OTLP_TRACING_ENDPOINT
+              value: "http://jaeger:4318/v1/traces"
+            - name: MANAGEMENT_TRACING_SAMPLING_PROBABILITY
+              valueFrom:
+                configMapKeyRef:
+                  name: devforge-ai-config
+                  key: MANAGEMENT_TRACING_SAMPLING_PROBABILITY
             - name: AUTH_SERVICE_URL
               value: "http://auth-service:9001"
             - name: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE
@@ -1239,6 +1295,13 @@ spec:
               value: "http://project-service:9002"
             - name: GIT_SERVICE_URL
               value: "http://git-service:9005"
+            - name: MANAGEMENT_OTLP_TRACING_ENDPOINT
+              value: "http://jaeger:4318/v1/traces"
+            - name: MANAGEMENT_TRACING_SAMPLING_PROBABILITY
+              valueFrom:
+                configMapKeyRef:
+                  name: devforge-ai-config
+                  key: MANAGEMENT_TRACING_SAMPLING_PROBABILITY
             - name: AUTH_SERVICE_URL
               value: "http://auth-service:9001"
             - name: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE
@@ -1381,6 +1444,13 @@ spec:
               value: "http://project-service:9002"
             - name: GIT_SERVICE_URL
               value: "http://git-service:9005"
+            - name: MANAGEMENT_OTLP_TRACING_ENDPOINT
+              value: "http://jaeger:4318/v1/traces"
+            - name: MANAGEMENT_TRACING_SAMPLING_PROBABILITY
+              valueFrom:
+                configMapKeyRef:
+                  name: devforge-ai-config
+                  key: MANAGEMENT_TRACING_SAMPLING_PROBABILITY
             - name: AUTH_SERVICE_URL
               value: "http://auth-service:9001"
             - name: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE
@@ -1523,6 +1593,13 @@ spec:
               value: "http://project-service:9002"
             - name: GIT_SERVICE_URL
               value: "http://git-service:9005"
+            - name: MANAGEMENT_OTLP_TRACING_ENDPOINT
+              value: "http://jaeger:4318/v1/traces"
+            - name: MANAGEMENT_TRACING_SAMPLING_PROBABILITY
+              valueFrom:
+                configMapKeyRef:
+                  name: devforge-ai-config
+                  key: MANAGEMENT_TRACING_SAMPLING_PROBABILITY
             - name: AUTH_SERVICE_URL
               value: "http://auth-service:9001"
             - name: XDG_CONFIG_HOME

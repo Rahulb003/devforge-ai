@@ -761,7 +761,8 @@ jobs:
         run: |
           set -euo pipefail
           third_party="postgres:15 redis:7 confluentinc/cp-kafka:7.7.1 ghcr.io/axllent/mailpit:v1.31.4 \
-            quay.io/prometheus/prometheus:v3.15.0 quay.io/prometheus/alertmanager:v0.34.1 grafana/grafana:13.2.3"
+            quay.io/prometheus/prometheus:v3.15.0 quay.io/prometheus/alertmanager:v0.34.1 grafana/grafana:13.2.3 \
+            quay.io/jaegertracing/jaeger:2.22.0"
           # Retried: one registry timeout (ghcr.io, once) failed the whole job before anything deployed.
           for image in $third_party; do
             for attempt in 1 2 3; do
@@ -893,6 +894,21 @@ jobs:
             | jq -e '.data.activeAlertmanagers | length == 1' > /dev/null \
             || { echo "::error::Prometheus in the cluster has no Alertmanager"; exit 1; }
           echo "Prometheus is sending alerts to Alertmanager"
+
+      - name: Requests are traced in the cluster
+        run: |
+          set -uo pipefail
+          kubectl -n devforge-ai port-forward svc/jaeger 16686:16686 > /dev/null 2>&1 &
+          services=""
+          for _ in $(seq 1 30); do
+            services="$( (curl -s http://localhost:16686/api/v3/services || true) | jq -r '.services[]?' 2>/dev/null | sort | tr '\n' ' ')"
+            echo "$services" | grep -qw task-service && echo "$services" | grep -qw project-service && break
+            sleep 4
+          done
+          echo "services reporting traces in the cluster: $services"
+          for s in api-gateway auth-service project-service task-service; do
+            echo "$services" | grep -qw "$s" || { echo "::error::no traces from $s in the cluster"; exit 1; }
+          done
 
       - name: Cluster state on failure
         if: failure()

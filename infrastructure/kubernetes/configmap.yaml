@@ -20,6 +20,8 @@ data:
   # network, matching the broker these manifests deploy; with a TLS-enabled broker, use
   # SASL_SSL and SCRAM-SHA-512 (the client default) instead. TLS is UNVERIFIED.
   DEVFORGE_KAFKA_SECURITY_PROTOCOL: SASL_SSL
+  # Share of requests traced. 1.0 suits a test cluster; production would sample far less.
+  MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
   DEVFORGE_KAFKA_SASL_MECHANISM: PLAIN
 
   # Mailpit captures mail on a test cluster; point these at a real relay elsewhere.
