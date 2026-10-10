@@ -484,6 +484,63 @@ jobs:
             [ "$n" -gt 0 ] || { echo "::error::$db consumed nothing"; exit 1; }
           done
 
+      # Two publishers on one outbox. Production scales a service by running more of it, and only the
+      # FOR UPDATE SKIP LOCKED claim keeps two instances from publishing the same row twice - which
+      # consumers would mostly hide by deduplicating, so the topic itself is read to check.
+      - name: Two instances of a service publish each event once
+        run: |
+          set -euo pipefail
+          q() { docker compose exec -T postgres psql -U devforge -d "$1" -tAc "$2"; }
+          docker compose run -d --no-deps --name task-service-2 \
+            -e LOGGING_LEVEL_COM_DEVFORGE_AI_COMMON_EVENTS_OUTBOX=DEBUG task-service > /dev/null
+          for _ in $(seq 1 60); do
+            [ "$(docker inspect -f '{{.State.Health.Status}}' task-service-2)" = healthy ] && break
+            sleep 3
+          done
+          [ "$(docker inspect -f '{{.State.Health.Status}}' task-service-2)" = healthy ] \
+            || { docker logs --tail 80 task-service-2; echo "::error::the second instance did not start"; exit 1; }
+
+          api=http://localhost:4173/api/v1
+          user="burst$RANDOM$RANDOM"
+          curl -sf -X POST "$api/auth/signup" -H 'Content-Type: application/json' -H 'X-Requested-With: XMLHttpRequest' \
+            -d "{\"firstName\":\"Burst\",\"lastName\":\"Check\",\"username\":\"$user\",\"email\":\"$user@example.com\",\"password\":\"Str0ng!Passw0rd#\",\"organization\":\"Burst\"}" > /dev/null
+          token="$(curl -sf -X POST "$api/auth/login" -H 'Content-Type: application/json' -H 'X-Requested-With: XMLHttpRequest' \
+            -d "{\"usernameOrEmail\":\"$user\",\"password\":\"Str0ng!Passw0rd#\"}" | jq -r .data.accessToken)"
+          auth="Authorization: Bearer $token"
+          org="$(curl -sf -X POST "$api/organizations" -H "$auth" -H 'Content-Type: application/json' \
+            -d "{\"name\":\"Burst\",\"slug\":\"burst-$user\"}" | jq -r .data.id)"
+          project="$(curl -sf -X POST "$api/organizations/$org/projects" -H "$auth" -H 'Content-Type: application/json' \
+            -d '{"name":"Burst","projectKey":"BRST"}' | jq -r .data.id)"
+          seq 1 200 | xargs -P 8 -I{} curl -sf -o /dev/null -X POST "$api/organizations/$org/projects/$project/tasks" \
+            -H "$auth" -H 'Content-Type: application/json' -d '{"title":"contention {}"}'
+
+          for _ in $(seq 1 60); do
+            [ "$(q devforge_task "select count(*) from outbox_events where published_at is null")" = 0 ] && break
+            sleep 2
+          done
+          written="$(q devforge_task "select count(*) from outbox_events where payload like '%$project%'")"
+
+          docker compose exec -T kafka sh -c "
+            printf '%s\n' security.protocol=SASL_SSL sasl.mechanism=PLAIN \
+              ssl.truststore.type=PEM ssl.truststore.location=/certs/ca.pem \
+              'sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required username=\"admin\" password=\"admin-dev-only\";' \
+              > /tmp/read.properties
+            kafka-console-consumer --bootstrap-server kafka:29092 --topic devforge.tasks.v1 --from-beginning \
+              --timeout-ms 20000 --consumer.config /tmp/read.properties" 2> /dev/null \
+            | grep "$project" | grep -o '"eventId":"[^"]*"' | sort > /tmp/event-ids || true
+          published="$(wc -l < /tmp/event-ids)"
+          duplicates="$(uniq -d /tmp/event-ids | wc -l)"
+          by_second="$(docker logs task-service-2 2>&1 | grep -o 'Published [0-9]* outbox' | awk '{n += $2} END {print n + 0}')"
+          echo "events written: $written, on the topic: $published, duplicated: $duplicates, published by the second instance: $by_second"
+          docker rm -f task-service-2 > /dev/null
+
+          [ "$written" -ge 200 ] || { echo "::error::only $written task events were written"; exit 1; }
+          [ "$published" = "$written" ] || { echo "::error::$written events written, $published on the topic"; exit 1; }
+          [ "$duplicates" = 0 ] || { echo "::error::$duplicates events were published more than once"; exit 1; }
+          # Both instances must have taken part, or there was no contention to survive.
+          [ "$by_second" -gt 0 ] && [ "$by_second" -lt "$written" ] \
+            || { echo "::error::the second instance published $by_second of $written: no contention happened"; exit 1; }
+
       # The ACLs must refuse, not only allow: the event check above proves the grants are enough,
       # this proves they are not too much. chat-service has an identity and no grants, so writing
       # auth-service's identity topic must be refused; and a wrong password must not authenticate.
