@@ -39,6 +39,13 @@ class KafkaSecurityEnvironmentPostProcessorTest {
   }
 
   @Test
+  @DisplayName("consumers look for newly created topics within thirty seconds")
+  void metadataIsRefreshedOften() {
+    assertThat(process(Map.of()).getProperty("spring.kafka.consumer.properties.metadata.max.age.ms"))
+        .isEqualTo("30000");
+  }
+
+  @Test
   @DisplayName("refuses to start when authentication is required but missing")
   void requiredButMissing() {
     // Otherwise a missing secret quietly means talking to the broker unauthenticated.

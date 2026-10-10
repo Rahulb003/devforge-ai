@@ -279,5 +279,9 @@ class EventConsumptionIntegrationTest {
     org.assertj.core.api.Assertions.assertThat(
             listenerFactory.getContainerProperties().getAuthExceptionRetryInterval())
         .isEqualTo(java.time.Duration.ofSeconds(10));
+    // And reaches the consumers the factory builds, merged with the services' own properties.
+    assertThat(listenerFactory.getConsumerFactory().getConfigurationProperties())
+        .containsEntry("metadata.max.age.ms", "30000")
+        .containsKey("auto.offset.reset");
   }
 }

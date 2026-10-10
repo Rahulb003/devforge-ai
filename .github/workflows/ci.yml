@@ -663,7 +663,9 @@ jobs:
 
           # The events left their services and reached the audit log, over the in-cluster Kafka.
           psql() { kubectl -n devforge-ai exec statefulset/postgres -- psql -U devforge -d "$1" -tAc "$2"; }
-          for _ in $(seq 1 30); do
+          # Up to three minutes: a consumer that joined before the topics existed picks them up on
+          # its next metadata refresh (30s), and the events wait in the topic until it does.
+          for _ in $(seq 1 90); do
             entries="$(psql devforge_analytics "select count(*) from audit_log where project_id = '$project'")"
             [ "$entries" -ge 2 ] && break
             sleep 2

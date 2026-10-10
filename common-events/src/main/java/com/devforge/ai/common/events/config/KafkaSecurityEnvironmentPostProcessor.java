@@ -39,8 +39,14 @@ public class KafkaSecurityEnvironmentPostProcessor implements EnvironmentPostPro
     // before the setup Job had granted their topics, were refused once, and never consumed again
     // while every health check stayed green. A permission change or broker restart in production
     // would do the same. Retried instead, the listener resumes once the grant exists.
-    env.getPropertySources().addLast(new MapPropertySource(SOURCE_NAME + "-listener",
-        Map.of("spring.kafka.listener.auth-exception-retry-interval", "10s")));
+    //
+    // That alone was not enough: the retried consumer then joined its group before the Job had
+    // created the topics, was assigned no partitions, and would not have looked again for the
+    // default five minutes of metadata age. Thirty seconds bounds how long a consumer sits idle
+    // beside a topic that has just appeared, at the cost of one small metadata request.
+    env.getPropertySources().addLast(new MapPropertySource(SOURCE_NAME + "-listener", Map.of(
+        "spring.kafka.listener.auth-exception-retry-interval", "10s",
+        "spring.kafka.consumer.properties.metadata.max.age.ms", "30000")));
 
     if (username.isBlank()) {
       if (required && kafkaEnabled) {
