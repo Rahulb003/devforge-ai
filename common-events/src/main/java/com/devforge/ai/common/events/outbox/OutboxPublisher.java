@@ -11,7 +11,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * Drains the outbox to Kafka.
@@ -55,10 +56,24 @@ public class OutboxPublisher {
   @Value("${devforge.outbox.use-skip-locked:true}")
   private boolean useSkipLocked;
 
+  /**
+   * Opens the drain's transaction explicitly rather than through {@code @Transactional}.
+   *
+   * <p>The scheduled {@link #publishPending} calls {@link #drainOnce} on {@code this}, which never
+   * passes through Spring's proxy, so an annotation there was silently ignored. The claim's
+   * FOR UPDATE SKIP LOCKED then ran in the repository's own transaction, its row locks were
+   * released as soon as the query returned, and publishing and marking happened unprotected: with
+   * two instances of a service, 66 of 200 events were published twice. Found by CI running two
+   * task-services against one outbox; every test had called drainOnce through the proxy.
+   */
+  private final TransactionTemplate transactionTemplate;
+
   public OutboxPublisher(
-      OutboxEventRepository outboxEventRepository, KafkaTemplate<String, String> kafkaTemplate) {
+      OutboxEventRepository outboxEventRepository, KafkaTemplate<String, String> kafkaTemplate,
+      PlatformTransactionManager transactionManager) {
     this.outboxEventRepository = outboxEventRepository;
     this.kafkaTemplate = kafkaTemplate;
+    this.transactionTemplate = new TransactionTemplate(transactionManager);
   }
 
   @Scheduled(fixedDelayString = "${devforge.outbox.poll-interval-ms:1000}")
@@ -78,10 +93,17 @@ public class OutboxPublisher {
   /**
    * Publishes one batch.
    *
+   * <p>The claim, the sends and the marking all happen in one transaction, so the rows stay locked
+   * against every other publisher until they are marked published.
+   *
    * @return how many events were acknowledged by the broker.
    */
-  @Transactional
   public int drainOnce() {
+    Integer published = transactionTemplate.execute(status -> drainInTransaction());
+    return published == null ? 0 : published;
+  }
+
+  private int drainInTransaction() {
     List<OutboxEvent> batch = useSkipLocked
         ? outboxEventRepository.claimUnpublished(batchSize)
         : outboxEventRepository.findByPublishedAtIsNullOrderByCreatedAtAsc(
@@ -136,11 +158,13 @@ public class OutboxPublisher {
 
   /** Removes rows already published, keeping the table small. */
   @Scheduled(fixedDelayString = "${devforge.outbox.cleanup-interval-ms:3600000}")
-  @Transactional
   public void cleanupPublished() {
     var retention = Duration.ofDays(7);
-    var removed = outboxEventRepository.deletePublishedBefore(Instant.now().minus(retention));
-    if (removed > 0) {
+    // Explicit, like the drain: whether the scheduler calls through the proxy is not something to
+    // rely on for a bulk delete.
+    Integer removed = transactionTemplate.execute(
+        status -> outboxEventRepository.deletePublishedBefore(Instant.now().minus(retention)));
+    if (removed != null && removed > 0) {
       log.info("Pruned {} published outbox row(s) older than {}", removed, retention);
     }
   }
