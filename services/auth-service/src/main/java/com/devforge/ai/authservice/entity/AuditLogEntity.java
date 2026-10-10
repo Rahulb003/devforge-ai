@@ -51,6 +51,16 @@ public class AuditLogEntity {
   @Column(name = "created_at", nullable = false, updatable = false)
   private Instant createdAt;
 
+  /** Position in the account audit chain; null on rows from before the chain existed. */
+  @Column(name = "chain_sequence", updatable = false)
+  private Long chainSequence;
+
+  @Column(name = "previous_hash", updatable = false, length = 64)
+  private String previousHash;
+
+  @Column(name = "entry_hash", updatable = false, length = 64)
+  private String entryHash;
+
   @PrePersist
   protected void onCreate() {
     if (id == null) id = UUID.randomUUID();

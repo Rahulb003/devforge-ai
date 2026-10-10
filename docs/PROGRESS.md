@@ -14,7 +14,7 @@ and on Kubernetes (kind) against real PostgreSQL, Kafka and Redis.
 
 | Gate | Command | Result |
 |---|---|---|
-| Backend tests | `mvn -B -ntp -f backend/pom.xml test` | **PASS** — 570 tests, 0 failures, locally and in CI |
+| Backend tests | `mvn -B -ntp -f backend/pom.xml test` | **PASS** — 574 tests, 0 failures, locally and in CI |
 | Frontend lint, typecheck, unit tests, build | `npm run lint`, `typecheck`, `test`, `build` | **PASS** — 0 warnings; 90 unit tests |
 | Browser suite, standalone | CI `e2e` job, `npm run test:e2e` locally | **PASS** — 52 Playwright tests, failing on any CSP violation and on serious axe findings |
 | Images | CI `docker` job | **PASS** — eleven images build, run as non-root, start healthy; Trivy blocks on fixable high/critical advisories in every one |
@@ -181,7 +181,7 @@ above. What remains, in order:
    written first (docs/API_CONTRACTS.md §8).
 2. **Blocked on a container runtime:** the §37 sandbox to docs/SANDBOX.md's twelve guarantees, then
    deployment pipelines (deployment-service is a health endpoint).
-3. **Unblocked:** auth-service's own audit table into a chain.
+3. **Unblocked:** nothing outstanding from this list; see Known Issues for what is accepted.
 
 ---
 

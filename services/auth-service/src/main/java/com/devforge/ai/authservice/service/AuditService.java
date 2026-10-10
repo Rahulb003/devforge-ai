@@ -52,6 +52,7 @@ public class AuditService {
 
   private final AuditLogRepository auditLogRepository;
   private final LoginHistoryRepository loginHistoryRepository;
+  private final com.devforge.ai.authservice.repository.AuditChainHeadRepository chainHeads;
 
   /**
    * Records an auditable action.
@@ -62,14 +63,26 @@ public class AuditService {
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   public void record(UserEntity user, String action, String ipAddress, String details) {
     try {
-      auditLogRepository.save(AuditLogEntity.builder()
+      var entry = AuditLogEntity.builder()
           .user(user)
           .action(action)
           .entityType(user != null ? "User" : null)
           .entityId(user != null ? user.getId().toString() : null)
           .ipAddress(truncate(ipAddress, 45))
           .details(truncate(details, MAX_DETAILS_LENGTH))
-          .build());
+          .createdAt(AuditChain.storable(java.time.Instant.now()))
+          .build();
+      // The head is locked for this transaction, so concurrent writers take turns at the end of
+      // the chain rather than both claiming the next position.
+      chainHeads.createIfAbsent(AuditChain.KEY, AuditChain.GENESIS);
+      var head = chainHeads.lock(AuditChain.KEY).orElseThrow();
+      var sequence = head.getLastSequence() + 1;
+      entry.setChainSequence(sequence);
+      entry.setPreviousHash(head.getLastHash());
+      entry.setEntryHash(AuditChain.hash(head.getLastHash(), sequence, entry));
+      auditLogRepository.save(entry);
+      head.setLastSequence(sequence);
+      head.setLastHash(entry.getEntryHash());
     } catch (RuntimeException ex) {
       // Auditing must never take down the request path it observes.
       log.error("Failed to write audit log for action {}", action, ex);

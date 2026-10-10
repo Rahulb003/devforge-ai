@@ -28,6 +28,7 @@ final class AuthTestData {
       OAuthAccountRepository.class,
       LoginHistoryRepository.class,
       AuditLogRepository.class,
+      com.devforge.ai.authservice.repository.AuditChainHeadRepository.class,
       RefreshTokenRepository.class,
       com.devforge.ai.authservice.repository.PersonalAccessTokenRepository.class,
       EmailVerificationTokenRepository.class,

@@ -291,8 +291,10 @@ Ordered by how much they matter.
    by comparing the head hash with a copy held elsewhere. analytics-service writes every chain head
    that moved to the log stream each hour (`audit-chain-anchor chain=... sequence=... head=...`);
    that is an external copy only once the logs are shipped somewhere the database's operators cannot
-   rewrite, which is a deployment decision. There is no signing key. Auth events stay in auth-service's own
-   audit table, which is not chained. Entries from before the chain are reported as unchained.
+   rewrite, which is a deployment decision. There is no signing key. Account events stay in auth-service's own
+   audit table, chained the same way in one chain for all accounts; platform administrators verify
+   it at `GET /api/v1/auth/audit/verification`, and its head is logged hourly too. Entries from
+   before either chain existed are reported as unchained.
 
 ---
 

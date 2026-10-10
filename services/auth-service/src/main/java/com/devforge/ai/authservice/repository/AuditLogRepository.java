@@ -11,4 +11,9 @@ import org.springframework.stereotype.Repository;
 public interface AuditLogRepository extends JpaRepository<AuditLogEntity, UUID> {
   Page<AuditLogEntity> findByUserIdOrderByCreatedAtDesc(UUID userId, Pageable pageable);
   Page<AuditLogEntity> findByActionOrderByCreatedAtDesc(String action, Pageable pageable);
+
+  org.springframework.data.domain.Slice<AuditLogEntity> findByChainSequenceGreaterThanOrderByChainSequenceAsc(
+      long after, Pageable pageable);
+
+  long countByChainSequenceIsNull();
 }
