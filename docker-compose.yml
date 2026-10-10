@@ -64,7 +64,9 @@ services:
     <<: *hardened
     tmpfs:
       - /tmp
-      - /etc/nginx/conf.d
+      # Owned by nginx (uid 101), or the entrypoint cannot render its config into it and nginx
+      # starts serving nothing. A tmpfs is root-owned unless told otherwise.
+      - /etc/nginx/conf.d:uid=101,gid=101,mode=0755
     build:
       context: ./frontend
       args:
