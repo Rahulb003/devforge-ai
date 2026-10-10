@@ -484,6 +484,22 @@ jobs:
             [ "$n" -gt 0 ] || { echo "::error::$db consumed nothing"; exit 1; }
           done
 
+      # The hardening in docker-compose.yml, checked on the running containers rather than read off
+      # the file: a read-only root, no capabilities, and a write outside /tmp actually refused.
+      - name: Containers run read-only and unprivileged
+        run: |
+          set -euo pipefail
+          for service in frontend api-gateway auth-service project-service task-service git-service \
+              review-service documentation-service chat-service analytics-service notification-service; do
+            id="$(docker compose ps -q "$service")"
+            config="$(docker inspect -f '{{.HostConfig.ReadonlyRootfs}} {{.HostConfig.CapDrop}}' "$id")"
+            [ "$config" = "true [ALL]" ] || { echo "::error::$service runs with: $config"; exit 1; }
+            if docker compose exec -T "$service" sh -c 'echo x > /written-at-runtime' 2> /dev/null; then
+              echo "::error::$service could write to its root filesystem"; exit 1
+            fi
+          done
+          echo "all eleven containers are read-only and hold no capabilities"
+
       # Two publishers on one outbox. Production scales a service by running more of it, and only the
       # FOR UPDATE SKIP LOCKED claim keeps two instances from publishing the same row twice - which
       # consumers would mostly hide by deduplicating, so the topic itself is read to check.

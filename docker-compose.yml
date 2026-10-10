@@ -37,6 +37,20 @@ x-service-env: &service-env
   # Scrape credential for /actuator/prometheus; must match infrastructure/monitoring/prometheus.yml.
   DEVFORGE_METRICS_TOKEN: ${DEVFORGE_METRICS_TOKEN:-metrics-dev-only}
   GIT_SERVICE_URL: http://git-service:9005
+  # JGit caches a filesystem probe here; the home directory is read-only.
+  XDG_CONFIG_HOME: /tmp
+
+# Every DevForge container runs as it does on Kubernetes: a read-only root filesystem with a
+# writable /tmp only, no Linux capabilities, and no way to gain privileges (setuid binaries do
+# nothing). What a service must write - git-service's repositories - is a volume. The third-party
+# images below (PostgreSQL, Kafka, Redis, Mailpit, the monitoring stack) keep their own defaults.
+x-hardened: &hardened
+  read_only: true
+  tmpfs:
+    - /tmp
+  cap_drop: [ALL]
+  security_opt:
+    - no-new-privileges:true
 
 # Every service waits for the database and broker to be ready, not merely started.
 x-service-depends: &service-depends
@@ -47,6 +61,10 @@ x-service-depends: &service-depends
 
 services:
   frontend:
+    <<: *hardened
+    tmpfs:
+      - /tmp
+      - /etc/nginx/conf.d
     build:
       context: ./frontend
       args:
@@ -62,6 +80,7 @@ services:
       - api-gateway
 
   api-gateway:
+    <<: *hardened
     build:
       context: .
       dockerfile: Dockerfile
@@ -87,6 +106,7 @@ services:
       DEVFORGE_METRICS_TOKEN: ${DEVFORGE_METRICS_TOKEN:-metrics-dev-only}
 
   auth-service:
+    <<: *hardened
     build:
       context: .
       dockerfile: Dockerfile
@@ -124,6 +144,7 @@ services:
         condition: service_started
 
   project-service:
+    <<: *hardened
     build:
       context: .
       dockerfile: Dockerfile
@@ -144,6 +165,7 @@ services:
     depends_on: *service-depends
 
   task-service:
+    <<: *hardened
     build:
       context: .
       dockerfile: Dockerfile
@@ -164,6 +186,7 @@ services:
     depends_on: *service-depends
 
   git-service:
+    <<: *hardened
     build:
       context: .
       dockerfile: Dockerfile
@@ -186,6 +209,7 @@ services:
     depends_on: *service-depends
 
   review-service:
+    <<: *hardened
     build:
       context: .
       dockerfile: Dockerfile
@@ -206,6 +230,7 @@ services:
     depends_on: *service-depends
 
   documentation-service:
+    <<: *hardened
     build:
       context: .
       dockerfile: Dockerfile
@@ -226,6 +251,7 @@ services:
     depends_on: *service-depends
 
   chat-service:
+    <<: *hardened
     build:
       context: .
       dockerfile: Dockerfile
@@ -246,6 +272,7 @@ services:
     depends_on: *service-depends
 
   analytics-service:
+    <<: *hardened
     build:
       context: .
       dockerfile: Dockerfile
@@ -266,6 +293,7 @@ services:
     depends_on: *service-depends
 
   notification-service:
+    <<: *hardened
     build:
       context: .
       dockerfile: Dockerfile
@@ -289,6 +317,7 @@ services:
   # ai-service needs model credentials and deployment-service a sandbox (docs/SANDBOX.md).
   
   ai-service:
+    <<: *hardened
     profiles: [scaffold]
     build:
       context: .
@@ -306,6 +335,7 @@ services:
       - kafka-certs:/certs:ro
 
   deployment-service:
+    <<: *hardened
     profiles: [scaffold]
     build:
       context: .

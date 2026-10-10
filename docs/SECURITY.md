@@ -273,8 +273,10 @@ Ordered by how much they matter.
    together against real PostgreSQL, Kafka and Redis under compose and on kind. On Kubernetes every
    DevForge container also has a read-only root filesystem (writable `/tmp` and data volumes only),
    the runtime's default seccomp profile, no capabilities and no privilege escalation, and the kind
-   job runs them that way. The compose file does not apply these, and the third-party images
-   (PostgreSQL, Kafka, Redis, Prometheus, Grafana) keep their defaults.
+   job runs them that way. Compose applies the same - read-only root, writable `/tmp`, no
+   capabilities, `no-new-privileges` - and CI checks each running container and that a write to its
+   root filesystem is refused. The third-party images (PostgreSQL, Kafka, Redis, Prometheus,
+   Grafana) keep their defaults.
 5. **Dependency and image scanning blocks.** CI fails on any high or critical npm advisory (build
    tooling included), on any Trivy finding in the Maven and npm trees or a committed secret, and on
    any fixable high or critical advisory in any of the eleven images. Dependabot proposes weekly
