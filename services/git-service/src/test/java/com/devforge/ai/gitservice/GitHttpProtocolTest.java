@@ -304,6 +304,23 @@ class GitHttpProtocolTest {
   }
 
   @Test
+  @DisplayName("a git request with a charset added to its content type is still accepted")
+  void contentTypeParametersAreTolerated() throws Exception {
+    // Found on kind: the gateway's proxy appends ";charset=UTF-8" to the request's content type,
+    // and JGit compares it for exact equality, so every push through the gateway answered 415.
+    var flush = "0000".getBytes(StandardCharsets.US_ASCII);
+    var response = HttpClient.newHttpClient().send(
+        HttpRequest.newBuilder(URI.create(cloneUrl() + "/git-upload-pack"))
+            .header("Authorization", "Basic " + Base64.getEncoder().encodeToString(
+                ("x:" + DEVELOPER_TOKEN).getBytes(StandardCharsets.UTF_8)))
+            .header("Content-Type", "application/x-git-upload-pack-request;charset=UTF-8")
+            .POST(HttpRequest.BodyPublishers.ofByteArray(flush))
+            .build(),
+        HttpResponse.BodyHandlers.ofString());
+    assertThat(response.statusCode()).isNotEqualTo(415);
+  }
+
+  @Test
   @DisplayName("the repository's files are never served directly")
   void dumbProtocolIsOff() throws Exception {
     // The dumb protocol would hand these out as files, config and hooks included.

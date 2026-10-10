@@ -83,7 +83,16 @@ public class GitBasicAuthenticationFilter extends OncePerRequestFilter {
         "Use a personal access token from your DevForge settings as the password");
   }
 
-  /** The original request with its Authorization header replaced. */
+  /**
+   * The original request with its Authorization header replaced, and git's content types without
+   * parameters.
+   *
+   * <p>JGit compares a request's content type with git's media type for exact equality. The
+   * gateway's proxy appends {@code ;charset=UTF-8} on the way through, so on the first real
+   * deployment every push answered 415 while clones, which are GETs, worked. A charset means
+   * nothing for git's binary protocol, so it is dropped here rather than relying on every proxy in
+   * front to leave the header alone.
+   */
   private static final class BearerRequest extends HttpServletRequestWrapper {
     private final String authorization;
 
@@ -94,14 +103,40 @@ public class GitBasicAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     public String getHeader(String name) {
-      return HttpHeaders.AUTHORIZATION.equalsIgnoreCase(name) ? authorization : super.getHeader(name);
+      if (HttpHeaders.AUTHORIZATION.equalsIgnoreCase(name)) {
+        return authorization;
+      }
+      if (HttpHeaders.CONTENT_TYPE.equalsIgnoreCase(name)) {
+        return gitMediaType(super.getHeader(name));
+      }
+      return super.getHeader(name);
     }
 
     @Override
     public Enumeration<String> getHeaders(String name) {
-      return HttpHeaders.AUTHORIZATION.equalsIgnoreCase(name)
-          ? Collections.enumeration(java.util.List.of(authorization))
-          : super.getHeaders(name);
+      if (HttpHeaders.AUTHORIZATION.equalsIgnoreCase(name)) {
+        return Collections.enumeration(java.util.List.of(authorization));
+      }
+      if (HttpHeaders.CONTENT_TYPE.equalsIgnoreCase(name)) {
+        var value = getHeader(name);
+        return Collections.enumeration(value == null ? java.util.List.of() : java.util.List.of(value));
+      }
+      return super.getHeaders(name);
+    }
+
+    @Override
+    public String getContentType() {
+      return gitMediaType(super.getContentType());
+    }
+
+    /** Only git's own types are touched; anything else passes through as sent. */
+    private static String gitMediaType(String contentType) {
+      if (contentType == null) {
+        return null;
+      }
+      var semicolon = contentType.indexOf(';');
+      var bare = (semicolon < 0 ? contentType : contentType.substring(0, semicolon)).trim();
+      return bare.startsWith("application/x-git-") ? bare : contentType;
     }
   }
 }
