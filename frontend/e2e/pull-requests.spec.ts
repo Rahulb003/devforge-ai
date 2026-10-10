@@ -72,6 +72,8 @@ test.describe('Pull requests', () => {
 
     await openPullRequest(page, 'feature/login', 'Add login');
     await expect(page.getByText('No conflicts with main.')).toBeVisible();
+    // No model key in CI: the AI review is offered, disabled, with the reason.
+    await expect(page.getByRole('button', { name: 'Review with AI' })).toBeDisabled();
     // Only what the branch adds.
     const changed = page.getByRole('region', { name: 'Changed files' });
     await expect(changed.getByRole('listitem')).toHaveCount(1);

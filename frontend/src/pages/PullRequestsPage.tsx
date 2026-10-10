@@ -18,6 +18,7 @@ import type {
   PullRequestStatus,
 } from '@/api/git.api';
 import { gitApi, pullRequestApi } from '@/api/git.api';
+import { AiReview } from '@/components/ai/AiReview';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -598,6 +599,13 @@ export function PullRequestDetailPage() {
           </Card>
         )}
       </section>
+
+      <AiReview
+        organizationId={organizationId}
+        projectId={projectId}
+        repositoryId={repositoryId}
+        number={number}
+      />
 
       <section aria-labelledby="discussion" className="space-y-3">
         <h2 id="discussion" className="text-lg font-semibold text-white">

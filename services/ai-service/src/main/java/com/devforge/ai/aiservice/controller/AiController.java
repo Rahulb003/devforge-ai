@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AiController {
 
   private final ExplainService explainService;
+  private final com.devforge.ai.aiservice.service.PullRequestReviewService reviewService;
   private final ModelClient model;
 
   public record ExplainRequest(String path, String ref) {}
@@ -45,5 +46,14 @@ public class AiController {
     return ResponseEntity.ok(new ApiResponse<>(true, explainService.explain(
         organizationId, projectId, repositoryId, request.path(), request.ref(), user,
         http.getHeader(HttpHeaders.AUTHORIZATION)), null));
+  }
+
+  /** Advice for the human reviewers; it approves and changes nothing. */
+  @PostMapping("/api/v1/organizations/{organizationId}/projects/{projectId}/repositories/{repositoryId}/ai/pull-requests/{number}/review")
+  public ResponseEntity<ApiResponse<com.devforge.ai.aiservice.service.PullRequestReviewService.Review>> review(
+      @PathVariable UUID organizationId, @PathVariable UUID projectId, @PathVariable UUID repositoryId,
+      @PathVariable int number, @AuthenticationPrincipal AuthenticatedUser user, HttpServletRequest http) {
+    return ResponseEntity.ok(new ApiResponse<>(true, reviewService.review(
+        organizationId, projectId, repositoryId, number, user, http.getHeader(HttpHeaders.AUTHORIZATION)), null));
   }
 }

@@ -4,13 +4,7 @@ import com.devforge.ai.aiservice.model.ModelClient;
 import com.devforge.ai.common.git.GitContentClient;
 import com.devforge.ai.common.security.AuthenticatedUser;
 import com.devforge.ai.common.security.client.ProjectAccessClient;
-import java.time.Duration;
-import java.time.Instant;
-import java.util.ArrayDeque;
-import java.util.Deque;
-import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -39,13 +33,10 @@ public class ExplainService {
   private final ModelClient model;
   private final GitContentClient git;
   private final ProjectAccessClient projectAccess;
-  private final Map<UUID, Deque<Instant>> recentRequests = new ConcurrentHashMap<>();
+  private final RequestLimiter limiter;
 
   @Value("${devforge.ai.max-input-chars:60000}")
   private int maxInputChars;
-
-  @Value("${devforge.ai.requests-per-hour:30}")
-  private int requestsPerHour;
 
   public record Explanation(String path, String ref, String explanation, String model, boolean truncated) {}
 
@@ -70,7 +61,7 @@ public class ExplainService {
     if (file.content().isBlank()) {
       throw new IllegalArgumentException("That file is empty");
     }
-    takeRequestSlot(user.id());
+    limiter.take(user.id());
 
     var content = file.content();
     var truncated = file.truncated() || content.length() > maxInputChars;
@@ -83,26 +74,5 @@ public class ExplainService {
     var prompt = "Path: " + file.path() + (truncated ? " (only the beginning of the file is included)" : "")
         + "\n<file>\n" + safe + "\n</file>";
     return new Explanation(file.path(), effectiveRef, model.complete(SYSTEM_PROMPT, prompt), model.model(), truncated);
-  }
-
-  /** A rolling hour per user, on this instance. */
-  private void takeRequestSlot(UUID userId) {
-    var now = Instant.now();
-    var window = recentRequests.computeIfAbsent(userId, id -> new ArrayDeque<>());
-    synchronized (window) {
-      while (!window.isEmpty() && window.peekFirst().isBefore(now.minus(Duration.ofHours(1)))) {
-        window.pollFirst();
-      }
-      if (window.size() >= requestsPerHour) {
-        throw new RateLimitedException("You have used this hour's AI requests; try again later");
-      }
-      window.addLast(now);
-    }
-  }
-
-  public static class RateLimitedException extends RuntimeException {
-    public RateLimitedException(String message) {
-      super(message);
-    }
   }
 }

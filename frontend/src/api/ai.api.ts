@@ -17,6 +17,15 @@ export interface Explanation {
   truncated: boolean;
 }
 
+export interface PullRequestReview {
+  number: number;
+  review: string;
+  model: string;
+  filesReviewed: number;
+  filesChanged: number;
+  truncated: boolean;
+}
+
 export const aiApi = {
   status: () => api.get<ApiEnvelope<AiStatus>>('/ai/status'),
 
@@ -30,5 +39,10 @@ export const aiApi = {
     api.post<ApiEnvelope<Explanation>>(
       `/organizations/${organizationId}/projects/${projectId}/repositories/${repositoryId}/ai/explain`,
       { path, ref },
+    ),
+
+  review: (organizationId: string, projectId: string, repositoryId: string, number: number) =>
+    api.post<ApiEnvelope<PullRequestReview>>(
+      `/organizations/${organizationId}/projects/${projectId}/repositories/${repositoryId}/ai/pull-requests/${number}/review`,
     ),
 };

@@ -1,7 +1,7 @@
 package com.devforge.ai.aiservice.controller;
 
 import com.devforge.ai.aiservice.model.ModelClient.ModelUnavailableException;
-import com.devforge.ai.aiservice.service.ExplainService.RateLimitedException;
+import com.devforge.ai.aiservice.service.RequestLimiter.RateLimitedException;
 import com.devforge.ai.common.exception.ApiError;
 import com.devforge.ai.common.git.GitContentClient.GitServiceUnavailableException;
 import jakarta.servlet.http.HttpServletRequest;
