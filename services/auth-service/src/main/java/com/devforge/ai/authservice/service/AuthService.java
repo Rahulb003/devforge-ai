@@ -180,16 +180,6 @@ public class AuthService {
   }
 
   @Transactional
-  public void changePassword(UUID userId, String currentPassword, String newPassword) {
-    var user = userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("User not found"));
-    if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
-      throw new IllegalArgumentException("Current password is incorrect");
-    }
-    user.setPasswordHash(passwordEncoder.encode(newPassword));
-    userRepository.save(user);
-  }
-
-  @Transactional
   public void deactivateAccount(UUID userId) {
     var user = userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("User not found"));
     user.setStatus(AccountStatus.DISABLED);

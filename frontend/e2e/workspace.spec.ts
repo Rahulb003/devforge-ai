@@ -142,6 +142,32 @@ test.describe('Workspace', () => {
     await expectNoErrorBoundary(page);
   });
 
+  test('a changed password is the one that signs in afterwards', async ({ page }) => {
+    const account = uniqueAccount();
+    await signUp(page, account);
+    await signIn(page, account.email, account.password);
+    await page.goto('/settings');
+
+    const newPassword = `${account.password}-Changed9`;
+    const form = page.getByRole('form', { name: 'Change password' });
+    await form.getByLabel('Current password').fill(account.password);
+    await form.getByLabel('New password', { exact: true }).fill(newPassword);
+    await form.getByLabel('Confirm new password').fill(newPassword);
+    await form.getByRole('button', { name: 'Change password' }).click();
+    await expect(form.getByRole('status')).toContainText('Password changed');
+
+    await page.getByRole('button', { name: 'Sign out' }).click();
+    await expect(page).toHaveURL(/\/login$/);
+
+    // The old password no longer works, the new one does.
+    await page.getByLabel('Username or email').fill(account.email);
+    await page.getByLabel('Password', { exact: true }).fill(account.password);
+    await page.getByRole('button', { name: 'Sign in' }).click();
+    await expect(page.getByRole('alert')).toContainText(/invalid credentials/i);
+    await signIn(page, account.email, newPassword);
+    await expectNoErrorBoundary(page);
+  });
+
   test('an access token is shown once, listed by prefix, and can be revoked', async ({ page }) => {
     const account = uniqueAccount();
     await signUp(page, account);

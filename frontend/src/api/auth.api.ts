@@ -26,6 +26,13 @@ export interface ResetPasswordData {
   newPassword: string;
 }
 
+export interface ProfileChanges {
+  firstName?: string;
+  lastName?: string;
+  timezone?: string;
+  language?: string;
+}
+
 export interface UserProfile {
   id: string;
   firstName: string;
@@ -133,6 +140,17 @@ export const authApi = {
 
   /** The signed-in user. Takes no id: the server always returns the caller. */
   me: () => api.get<ApiEnvelope<UserProfile>>('/auth/me'),
+
+  /** Only the fields given change. */
+  updateProfile: (changes: ProfileChanges) =>
+    api.patch<ApiEnvelope<ProfileChanges>>('/auth/me', changes),
+
+  /** Signs out every other device; the response says how many. */
+  changePassword: (currentPassword: string, newPassword: string) =>
+    api.post<ApiEnvelope<{ otherSessionsSignedOut: number }>>('/auth/password', {
+      currentPassword,
+      newPassword,
+    }),
 
   forgotPassword: (email: string) =>
     api.post<ApiEnvelope<void>>('/auth/forgot-password', { email }),

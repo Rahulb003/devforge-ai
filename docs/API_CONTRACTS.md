@@ -92,6 +92,8 @@ if absent, and returned on the response either way.
 | Method | Path | Notes |
 |---|---|---|
 | GET | `/api/v1/auth/me` | the current user |
+| PATCH | `/api/v1/auth/me` | first and last name, time zone (IANA id), language (`en`, `en-GB`); only the fields given change. Username and email are not editable here |
+| POST | `/api/v1/auth/password` | `currentPassword`, `newPassword` (signup rules, must differ). A wrong current password counts toward the sign-in lockout. Signs out every other session and notifies the owner |
 | POST | `/api/v1/auth/logout` | revokes the refresh token server-side |
 | GET | `/api/v1/auth/mfa/status` | |
 | POST | `/api/v1/auth/mfa/enrol` | returns a secret and otpauth URI; enrolment is two-step |
