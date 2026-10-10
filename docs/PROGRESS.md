@@ -1,6 +1,6 @@
 # DevForge AI — Progress
 
-**Last updated:** 2026-10-10
+**Last updated:** 2026-10-10 (end of session)
 **Phase:** Phases 0-4 and §7-§14 built, except what needs a model API key (AI, RAG, agents) or a
 container runtime (the §37 sandbox, deployments). The whole stack runs in CI under docker compose
 and on Kubernetes (kind) against real PostgreSQL, Kafka and Redis.
@@ -18,7 +18,7 @@ and on Kubernetes (kind) against real PostgreSQL, Kafka and Redis.
 | Frontend lint, typecheck, unit tests, build | `npm run lint`, `typecheck`, `test`, `build` | **PASS** — 0 warnings; 90 unit tests |
 | Browser suite, standalone | CI `e2e` job, `npm run test:e2e` locally | **PASS** — 52 Playwright tests, failing on any CSP violation and on serious axe findings |
 | Images | CI `docker` job | **PASS** — eleven images build, run as non-root, start healthy; Trivy blocks on fixable high/critical advisories in every one |
-| Full stack under compose | CI `compose` job | **PASS** — every service in its own container on real PostgreSQL, Kafka (SASL, per-service ACLs, refusals checked) and Redis; the browser suite with real events; outboxes drain; Prometheus scrapes all ten; six alert rules load; a stopped service's ServiceDown alert is emailed |
+| Full stack under compose | CI `compose` job | **PASS** — every DevForge container read-only and without capabilities (checked on the running containers), each in its own container on real PostgreSQL, Kafka (SASL, per-service ACLs, refusals checked) and Redis; the browser suite with real events; outboxes drain; Prometheus scrapes all ten; six alert rules load; a stopped service's ServiceDown alert is emailed |
 | Kubernetes | CI `kubernetes` job on kind | **PASS** — the generated manifests deploy with read-only root filesystems and the default seccomp profile; signup through nginx and the gateway; events reach the audit log and its hash chain verifies on PostgreSQL; git push and clone with the git CLI; Prometheus scrapes all ten and has its Alertmanager |
 | Dependency and secret scanning | CI `security` job | **PASS** — npm audit (high), Trivy over the Maven and npm trees and for committed secrets, blocking |
 
