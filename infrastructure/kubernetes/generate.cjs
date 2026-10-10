@@ -93,7 +93,8 @@ function deployment(svc) {
       ["DEVFORGE_KAFKA_SECURITY_PROTOCOL", { configMapKeyRef: "DEVFORGE_KAFKA_SECURITY_PROTOCOL" }],
       ["DEVFORGE_KAFKA_SASL_MECHANISM", { configMapKeyRef: "DEVFORGE_KAFKA_SASL_MECHANISM" }],
       ["DEVFORGE_KAFKA_SASL_USERNAME", svc.name],
-      ["DEVFORGE_KAFKA_SASL_PASSWORD", { secret: `kafka-password-${svc.name}` }]);
+      ["DEVFORGE_KAFKA_SASL_PASSWORD", { secret: `kafka-password-${svc.name}` }],
+      ["DEVFORGE_KAFKA_SSL_TRUSTSTORE_LOCATION", "/certs/ca.pem"]);
   }
   // JGit caches a filesystem probe under XDG_CONFIG_HOME, by default in the read-only home directory.
   env.push(["XDG_CONFIG_HOME", "/tmp"]);
@@ -103,8 +104,13 @@ function deployment(svc) {
   // Tomcat's work directories, the JVM's perf data and JGit's cached filesystem probe, and the
   // service's own data directory where it has one.
   const volumeMounts = `\n          volumeMounts:\n            - name: tmp\n              mountPath: /tmp`
+    + (svc.kafka ? `\n            - name: kafka-ca\n              mountPath: /certs\n              readOnly: true` : "")
     + (svc.volume ? `\n            - name: data\n              mountPath: ${svc.volume}` : "");
+  // The CA certificate only: the broker's keystore in the same Secret is not mounted here.
   const volumes = `\n      volumes:\n        - name: tmp\n          emptyDir: { sizeLimit: 256Mi }`
+    + (svc.kafka
+      ? `\n        - name: kafka-ca\n          secret:\n            secretName: kafka-tls\n            items:\n              - key: ca.pem\n                path: ca.pem`
+      : "")
     + (svc.volume
       ? `\n        - name: data\n          persistentVolumeClaim:\n            claimName: ${svc.name}-data`
       : "");
@@ -418,7 +424,21 @@ ${indent(kafkaSecretEnv.map(envVar).join("\n"), 12)}
             - name: KAFKA_ADVERTISED_LISTENERS
               value: "INTERNAL://kafka:29092"
             - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
-              value: "CONTROLLER:PLAINTEXT,INTERNAL:SASL_PLAINTEXT"
+              value: "CONTROLLER:PLAINTEXT,INTERNAL:SASL_SSL"
+            # TLS with the certificate in the kafka-tls Secret; see create-secrets.sh.
+            - name: KAFKA_SSL_KEYSTORE_TYPE
+              value: "PKCS12"
+            - name: KAFKA_SSL_KEYSTORE_LOCATION
+              value: "/certs/broker.p12"
+            - name: KAFKA_SSL_KEYSTORE_PASSWORD
+              valueFrom: { secretKeyRef: { name: kafka-tls, key: store-password } }
+            - name: KAFKA_SSL_KEY_PASSWORD
+              valueFrom: { secretKeyRef: { name: kafka-tls, key: store-password } }
+            # The broker connects to itself over INTERNAL, so it verifies its own certificate too.
+            - name: KAFKA_SSL_TRUSTSTORE_TYPE
+              value: "PEM"
+            - name: KAFKA_SSL_TRUSTSTORE_LOCATION
+              value: "/certs/ca.pem"
             - name: KAFKA_INTER_BROKER_LISTENER_NAME
               value: "INTERNAL"
             - name: KAFKA_CONTROLLER_LISTENER_NAMES
@@ -451,6 +471,13 @@ ${indent(kafkaSecretEnv.map(envVar).join("\n"), 12)}
           volumeMounts:
             - name: data
               mountPath: /var/lib/kafka/data
+            - name: tls
+              mountPath: /certs
+              readOnly: true
+      volumes:
+        - name: tls
+          secret:
+            secretName: kafka-tls
   volumeClaimTemplates:
     - metadata:
         name: data
@@ -489,10 +516,19 @@ ${indent(envVar(["KAFKA_ADMIN_PASSWORD", { secret: "kafka-admin-password" }]), 1
           volumeMounts:
             - name: setup
               mountPath: /setup
+            - name: kafka-ca
+              mountPath: /certs
+              readOnly: true
       volumes:
         - name: setup
           configMap:
             name: kafka-setup
+        - name: kafka-ca
+          secret:
+            secretName: kafka-tls
+            items:
+              - key: ca.pem
+                path: ca.pem
 ---
 apiVersion: v1
 kind: Service

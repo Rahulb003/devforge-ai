@@ -12,7 +12,9 @@ set -eu
 BOOTSTRAP="kafka:29092"
 CONFIG=/tmp/admin.properties
 cat > "$CONFIG" <<EOF
-security.protocol=SASL_PLAINTEXT
+security.protocol=SASL_SSL
+ssl.truststore.type=PEM
+ssl.truststore.location=/certs/ca.pem
 sasl.mechanism=PLAIN
 sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required username="admin" password="${KAFKA_ADMIN_PASSWORD}";
 EOF

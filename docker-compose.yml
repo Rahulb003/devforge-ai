@@ -15,12 +15,13 @@ x-service-env: &service-env
   POSTGRES_USER: ${POSTGRES_USER:-devforge}
   POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-devforge}
   KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-  # Every Kafka client authenticates as its own service; a missing credential stops it at startup.
-  # PLAIN over plain TCP is acceptable only on this private compose network - production defaults
-  # to SCRAM over TLS (see KafkaSecurityEnvironmentPostProcessor).
+  # Every Kafka client authenticates as its own service, over TLS; a missing credential stops it at
+  # startup. The broker's certificate is signed by this stack's own CA (kafka-certs), so clients
+  # trust that CA's certificate and verify the broker's name against it.
   DEVFORGE_KAFKA_REQUIRE_AUTHENTICATION: "true"
-  DEVFORGE_KAFKA_SECURITY_PROTOCOL: SASL_PLAINTEXT
+  DEVFORGE_KAFKA_SECURITY_PROTOCOL: SASL_SSL
   DEVFORGE_KAFKA_SASL_MECHANISM: PLAIN
+  DEVFORGE_KAFKA_SSL_TRUSTSTORE_LOCATION: /certs/ca.pem
   # Falls back to the local development key. Override in .env for anything that is not a
   # throwaway local stack.
   DEVFORGE_JWT_SIGNING_KEY: ${DEVFORGE_JWT_SIGNING_KEY:-local-development-only-signing-key-change-me-0123456789abcdef}
@@ -108,6 +109,8 @@ services:
       # Verification mail lands in Mailpit (http://localhost:8025). CI turns it off, since the
       # browser suite signs straight in after signing up.
       DEVFORGE_REQUIRE_EMAIL_VERIFICATION: ${DEVFORGE_REQUIRE_EMAIL_VERIFICATION:-true}
+    volumes:
+      - kafka-certs:/certs:ro
     depends_on:
       <<: *service-depends
       redis:
@@ -131,6 +134,8 @@ services:
       DEVFORGE_DB_URL: jdbc:postgresql://postgres:5432/devforge_project
       DEVFORGE_KAFKA_SASL_USERNAME: project-service
       DEVFORGE_KAFKA_SASL_PASSWORD: ${KAFKA_PASSWORD_PROJECT:-project-dev-only}
+    volumes:
+      - kafka-certs:/certs:ro
     depends_on: *service-depends
 
   task-service:
@@ -149,6 +154,8 @@ services:
       DEVFORGE_DB_URL: jdbc:postgresql://postgres:5432/devforge_task
       DEVFORGE_KAFKA_SASL_USERNAME: task-service
       DEVFORGE_KAFKA_SASL_PASSWORD: ${KAFKA_PASSWORD_TASK:-task-dev-only}
+    volumes:
+      - kafka-certs:/certs:ro
     depends_on: *service-depends
 
   git-service:
@@ -169,6 +176,7 @@ services:
       DEVFORGE_KAFKA_SASL_PASSWORD: ${KAFKA_PASSWORD_GIT:-git-dev-only}
       DEVFORGE_GIT_STORAGE_ROOT: /app/data/git-repositories
     volumes:
+      - kafka-certs:/certs:ro
       - git-repositories:/app/data/git-repositories
     depends_on: *service-depends
 
@@ -188,6 +196,8 @@ services:
       DEVFORGE_DB_URL: jdbc:postgresql://postgres:5432/devforge_review
       DEVFORGE_KAFKA_SASL_USERNAME: review-service
       DEVFORGE_KAFKA_SASL_PASSWORD: ${KAFKA_PASSWORD_REVIEW:-review-dev-only}
+    volumes:
+      - kafka-certs:/certs:ro
     depends_on: *service-depends
 
   documentation-service:
@@ -206,6 +216,8 @@ services:
       DEVFORGE_DB_URL: jdbc:postgresql://postgres:5432/devforge_documentation
       DEVFORGE_KAFKA_SASL_USERNAME: documentation-service
       DEVFORGE_KAFKA_SASL_PASSWORD: ${KAFKA_PASSWORD_DOCUMENTATION:-documentation-dev-only}
+    volumes:
+      - kafka-certs:/certs:ro
     depends_on: *service-depends
 
   chat-service:
@@ -224,6 +236,8 @@ services:
       DEVFORGE_DB_URL: jdbc:postgresql://postgres:5432/devforge_chat
       DEVFORGE_KAFKA_SASL_USERNAME: chat-service
       DEVFORGE_KAFKA_SASL_PASSWORD: ${KAFKA_PASSWORD_CHAT:-chat-dev-only}
+    volumes:
+      - kafka-certs:/certs:ro
     depends_on: *service-depends
 
   analytics-service:
@@ -242,6 +256,8 @@ services:
       DEVFORGE_DB_URL: jdbc:postgresql://postgres:5432/devforge_analytics
       DEVFORGE_KAFKA_SASL_USERNAME: analytics-service
       DEVFORGE_KAFKA_SASL_PASSWORD: ${KAFKA_PASSWORD_ANALYTICS:-analytics-dev-only}
+    volumes:
+      - kafka-certs:/certs:ro
     depends_on: *service-depends
 
   notification-service:
@@ -260,6 +276,8 @@ services:
       DEVFORGE_DB_URL: jdbc:postgresql://postgres:5432/devforge_notification
       DEVFORGE_KAFKA_SASL_USERNAME: notification-service
       DEVFORGE_KAFKA_SASL_PASSWORD: ${KAFKA_PASSWORD_NOTIFICATION:-notification-dev-only}
+    volumes:
+      - kafka-certs:/certs:ro
     depends_on: *service-depends
 
   # --- Not built yet: scaffolds only, opt-in -------------------------------
@@ -279,6 +297,8 @@ services:
       - 9004:9004
     environment:
       <<: *service-env
+    volumes:
+      - kafka-certs:/certs:ro
 
   deployment-service:
     profiles: [scaffold]
@@ -296,6 +316,8 @@ services:
       <<: *service-env
 
   # --- Infrastructure --------------------------------------------------------
+    volumes:
+      - kafka-certs:/certs:ro
 
   postgres:
     image: postgres:15
@@ -336,7 +358,17 @@ services:
       KAFKA_LISTENERS: INTERNAL://0.0.0.0:29092,CONTROLLER://localhost:29093,EXTERNAL://0.0.0.0:9092
       # Services inside the network reach kafka:29092; the host uses localhost:9092.
       KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://localhost:9092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:SASL_PLAINTEXT,EXTERNAL:SASL_PLAINTEXT
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:SASL_SSL,EXTERNAL:SASL_SSL
+      # TLS on both client listeners, with the certificate kafka-certs generated. Set as plain
+      # properties: the image's own SSL handling looks for "SSL://" in the listener names, which
+      # these avoid, and would otherwise demand its credential-file layout.
+      KAFKA_SSL_KEYSTORE_TYPE: PKCS12
+      KAFKA_SSL_KEYSTORE_LOCATION: /certs/broker.p12
+      KAFKA_SSL_KEYSTORE_PASSWORD: ${KAFKA_TLS_STORE_PASSWORD:-tls-dev-only}
+      KAFKA_SSL_KEY_PASSWORD: ${KAFKA_TLS_STORE_PASSWORD:-tls-dev-only}
+      # The broker connects to itself over INTERNAL, so it verifies its own certificate too.
+      KAFKA_SSL_TRUSTSTORE_TYPE: PEM
+      KAFKA_SSL_TRUSTSTORE_LOCATION: /certs/ca.pem
       KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_SASL_ENABLED_MECHANISMS: PLAIN
@@ -359,19 +391,36 @@ services:
       CLUSTER_ID: devforge-local-cluster
     volumes:
       - kafka-data:/var/lib/kafka/data
+      - kafka-certs:/certs:ro
+    depends_on:
+      kafka-certs:
+        condition: service_completed_successfully
     healthcheck:
       # Authenticates as admin, since the client listeners now require it. Listener names avoid
       # "SASL_": the Confluent image then demands a JAAS file instead of the per-listener settings.
       test:
         - CMD-SHELL
         - >-
-          printf '%s\n' security.protocol=SASL_PLAINTEXT sasl.mechanism=PLAIN
+          printf '%s\n' security.protocol=SASL_SSL sasl.mechanism=PLAIN
+          ssl.truststore.type=PEM ssl.truststore.location=/certs/ca.pem
           "sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required username=\"admin\" password=\"$${HEALTHCHECK_ADMIN_PASSWORD}\";"
           > /tmp/hc.properties &&
           kafka-broker-api-versions --bootstrap-server localhost:9092 --command-config /tmp/hc.properties
       interval: 10s
       timeout: 10s
       retries: 15
+
+  # Generates this stack's CA and the broker's certificate on first start, then exits.
+  kafka-certs:
+    image: confluentinc/cp-kafka:7.7.1
+    # Root, to write into the new volume and hand the keystore to the broker's user.
+    user: "0"
+    entrypoint: ["sh", "/setup/certs.sh"]
+    environment:
+      KAFKA_TLS_STORE_PASSWORD: ${KAFKA_TLS_STORE_PASSWORD:-tls-dev-only}
+    volumes:
+      - ./infrastructure/docker/kafka:/setup:ro
+      - kafka-certs:/certs
 
   # Creates the topics and the per-service ACLs, then exits. Services start after it succeeds.
   kafka-setup:
@@ -381,6 +430,7 @@ services:
       KAFKA_ADMIN_PASSWORD: ${KAFKA_ADMIN_PASSWORD:-admin-dev-only}
     volumes:
       - ./infrastructure/docker/kafka:/setup:ro
+      - kafka-certs:/certs:ro
     depends_on:
       kafka:
         condition: service_healthy
@@ -406,10 +456,14 @@ services:
     environment:
       KAFKA_CLUSTERS_0_NAME: devforge-local
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
-      KAFKA_CLUSTERS_0_PROPERTIES_SECURITY_PROTOCOL: SASL_PLAINTEXT
+      KAFKA_CLUSTERS_0_PROPERTIES_SECURITY_PROTOCOL: SASL_SSL
+      KAFKA_CLUSTERS_0_PROPERTIES_SSL_TRUSTSTORE_TYPE: PEM
+      KAFKA_CLUSTERS_0_PROPERTIES_SSL_TRUSTSTORE_LOCATION: /certs/ca.pem
       KAFKA_CLUSTERS_0_PROPERTIES_SASL_MECHANISM: PLAIN
       KAFKA_CLUSTERS_0_PROPERTIES_SASL_JAAS_CONFIG: 'org.apache.kafka.common.security.plain.PlainLoginModule required username="admin" password="${KAFKA_ADMIN_PASSWORD:-admin-dev-only}";'
       DYNAMIC_CONFIG_ENABLED: "true"
+    volumes:
+      - kafka-certs:/certs:ro
     depends_on:
       - kafka
 
@@ -451,4 +505,5 @@ services:
 volumes:
   postgres-data:
   kafka-data:
+  kafka-certs:
   git-repositories:

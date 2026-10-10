@@ -206,6 +206,8 @@ spec:
                 secretKeyRef:
                   name: devforge-ai-secrets
                   key: kafka-password-auth-service
+            - name: DEVFORGE_KAFKA_SSL_TRUSTSTORE_LOCATION
+              value: "/certs/ca.pem"
             - name: XDG_CONFIG_HOME
               value: "/tmp"
             - name: REDIS_HOST
@@ -286,9 +288,18 @@ spec:
           volumeMounts:
             - name: tmp
               mountPath: /tmp
+            - name: kafka-ca
+              mountPath: /certs
+              readOnly: true
       volumes:
         - name: tmp
           emptyDir: { sizeLimit: 256Mi }
+        - name: kafka-ca
+          secret:
+            secretName: kafka-tls
+            items:
+              - key: ca.pem
+                path: ca.pem
 ---
 apiVersion: v1
 kind: Service
@@ -389,6 +400,8 @@ spec:
                 secretKeyRef:
                   name: devforge-ai-secrets
                   key: kafka-password-project-service
+            - name: DEVFORGE_KAFKA_SSL_TRUSTSTORE_LOCATION
+              value: "/certs/ca.pem"
             - name: XDG_CONFIG_HOME
               value: "/tmp"
           # Startup is slow (JVM, Flyway); readiness gates traffic, liveness restarts a stuck pod.
@@ -415,9 +428,18 @@ spec:
           volumeMounts:
             - name: tmp
               mountPath: /tmp
+            - name: kafka-ca
+              mountPath: /certs
+              readOnly: true
       volumes:
         - name: tmp
           emptyDir: { sizeLimit: 256Mi }
+        - name: kafka-ca
+          secret:
+            secretName: kafka-tls
+            items:
+              - key: ca.pem
+                path: ca.pem
 ---
 apiVersion: v1
 kind: Service
@@ -518,6 +540,8 @@ spec:
                 secretKeyRef:
                   name: devforge-ai-secrets
                   key: kafka-password-task-service
+            - name: DEVFORGE_KAFKA_SSL_TRUSTSTORE_LOCATION
+              value: "/certs/ca.pem"
             - name: XDG_CONFIG_HOME
               value: "/tmp"
           # Startup is slow (JVM, Flyway); readiness gates traffic, liveness restarts a stuck pod.
@@ -544,9 +568,18 @@ spec:
           volumeMounts:
             - name: tmp
               mountPath: /tmp
+            - name: kafka-ca
+              mountPath: /certs
+              readOnly: true
       volumes:
         - name: tmp
           emptyDir: { sizeLimit: 256Mi }
+        - name: kafka-ca
+          secret:
+            secretName: kafka-tls
+            items:
+              - key: ca.pem
+                path: ca.pem
 ---
 apiVersion: v1
 kind: Service
@@ -658,6 +691,8 @@ spec:
                 secretKeyRef:
                   name: devforge-ai-secrets
                   key: kafka-password-git-service
+            - name: DEVFORGE_KAFKA_SSL_TRUSTSTORE_LOCATION
+              value: "/certs/ca.pem"
             - name: XDG_CONFIG_HOME
               value: "/tmp"
             - name: DEVFORGE_GIT_STORAGE_ROOT
@@ -686,11 +721,20 @@ spec:
           volumeMounts:
             - name: tmp
               mountPath: /tmp
+            - name: kafka-ca
+              mountPath: /certs
+              readOnly: true
             - name: data
               mountPath: /app/data/git-repositories
       volumes:
         - name: tmp
           emptyDir: { sizeLimit: 256Mi }
+        - name: kafka-ca
+          secret:
+            secretName: kafka-tls
+            items:
+              - key: ca.pem
+                path: ca.pem
         - name: data
           persistentVolumeClaim:
             claimName: git-service-data
@@ -794,6 +838,8 @@ spec:
                 secretKeyRef:
                   name: devforge-ai-secrets
                   key: kafka-password-review-service
+            - name: DEVFORGE_KAFKA_SSL_TRUSTSTORE_LOCATION
+              value: "/certs/ca.pem"
             - name: XDG_CONFIG_HOME
               value: "/tmp"
           # Startup is slow (JVM, Flyway); readiness gates traffic, liveness restarts a stuck pod.
@@ -820,9 +866,18 @@ spec:
           volumeMounts:
             - name: tmp
               mountPath: /tmp
+            - name: kafka-ca
+              mountPath: /certs
+              readOnly: true
       volumes:
         - name: tmp
           emptyDir: { sizeLimit: 256Mi }
+        - name: kafka-ca
+          secret:
+            secretName: kafka-tls
+            items:
+              - key: ca.pem
+                path: ca.pem
 ---
 apiVersion: v1
 kind: Service
@@ -923,6 +978,8 @@ spec:
                 secretKeyRef:
                   name: devforge-ai-secrets
                   key: kafka-password-documentation-service
+            - name: DEVFORGE_KAFKA_SSL_TRUSTSTORE_LOCATION
+              value: "/certs/ca.pem"
             - name: XDG_CONFIG_HOME
               value: "/tmp"
           # Startup is slow (JVM, Flyway); readiness gates traffic, liveness restarts a stuck pod.
@@ -949,9 +1006,18 @@ spec:
           volumeMounts:
             - name: tmp
               mountPath: /tmp
+            - name: kafka-ca
+              mountPath: /certs
+              readOnly: true
       volumes:
         - name: tmp
           emptyDir: { sizeLimit: 256Mi }
+        - name: kafka-ca
+          secret:
+            secretName: kafka-tls
+            items:
+              - key: ca.pem
+                path: ca.pem
 ---
 apiVersion: v1
 kind: Service
@@ -1052,6 +1118,8 @@ spec:
                 secretKeyRef:
                   name: devforge-ai-secrets
                   key: kafka-password-chat-service
+            - name: DEVFORGE_KAFKA_SSL_TRUSTSTORE_LOCATION
+              value: "/certs/ca.pem"
             - name: XDG_CONFIG_HOME
               value: "/tmp"
           # Startup is slow (JVM, Flyway); readiness gates traffic, liveness restarts a stuck pod.
@@ -1078,9 +1146,18 @@ spec:
           volumeMounts:
             - name: tmp
               mountPath: /tmp
+            - name: kafka-ca
+              mountPath: /certs
+              readOnly: true
       volumes:
         - name: tmp
           emptyDir: { sizeLimit: 256Mi }
+        - name: kafka-ca
+          secret:
+            secretName: kafka-tls
+            items:
+              - key: ca.pem
+                path: ca.pem
 ---
 apiVersion: v1
 kind: Service
@@ -1181,6 +1258,8 @@ spec:
                 secretKeyRef:
                   name: devforge-ai-secrets
                   key: kafka-password-analytics-service
+            - name: DEVFORGE_KAFKA_SSL_TRUSTSTORE_LOCATION
+              value: "/certs/ca.pem"
             - name: XDG_CONFIG_HOME
               value: "/tmp"
           # Startup is slow (JVM, Flyway); readiness gates traffic, liveness restarts a stuck pod.
@@ -1207,9 +1286,18 @@ spec:
           volumeMounts:
             - name: tmp
               mountPath: /tmp
+            - name: kafka-ca
+              mountPath: /certs
+              readOnly: true
       volumes:
         - name: tmp
           emptyDir: { sizeLimit: 256Mi }
+        - name: kafka-ca
+          secret:
+            secretName: kafka-tls
+            items:
+              - key: ca.pem
+                path: ca.pem
 ---
 apiVersion: v1
 kind: Service
@@ -1310,6 +1398,8 @@ spec:
                 secretKeyRef:
                   name: devforge-ai-secrets
                   key: kafka-password-notification-service
+            - name: DEVFORGE_KAFKA_SSL_TRUSTSTORE_LOCATION
+              value: "/certs/ca.pem"
             - name: XDG_CONFIG_HOME
               value: "/tmp"
           # Startup is slow (JVM, Flyway); readiness gates traffic, liveness restarts a stuck pod.
@@ -1336,9 +1426,18 @@ spec:
           volumeMounts:
             - name: tmp
               mountPath: /tmp
+            - name: kafka-ca
+              mountPath: /certs
+              readOnly: true
       volumes:
         - name: tmp
           emptyDir: { sizeLimit: 256Mi }
+        - name: kafka-ca
+          secret:
+            secretName: kafka-tls
+            items:
+              - key: ca.pem
+                path: ca.pem
 ---
 apiVersion: v1
 kind: Service

@@ -70,6 +70,14 @@ public class KafkaSecurityEnvironmentPostProcessor implements EnvironmentPostPro
     props.put("spring.kafka.properties[security.protocol]", protocol);
     props.put("spring.kafka.properties[sasl.mechanism]", mechanism);
     props.put("spring.kafka.properties[sasl.jaas.config]", jaasConfig(mechanism, username, password));
+    // The CA that signed the broker's certificate, as a PEM file, for a broker whose certificate a
+    // public CA did not sign - the compose and Kubernetes stacks generate their own. Unset, the
+    // JVM's default trust store decides. Hostname verification stays on either way.
+    var truststore = env.getProperty("devforge.kafka.ssl.truststore-location", "");
+    if (!truststore.isBlank()) {
+      props.put("spring.kafka.properties[ssl.truststore.type]", "PEM");
+      props.put("spring.kafka.properties[ssl.truststore.location]", truststore);
+    }
     env.getPropertySources().addLast(new MapPropertySource(SOURCE_NAME, props));
   }
 

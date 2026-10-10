@@ -19,7 +19,7 @@ data:
   # Kafka clients authenticate as their own service. PLAIN over plain TCP inside the cluster
   # network, matching the broker these manifests deploy; with a TLS-enabled broker, use
   # SASL_SSL and SCRAM-SHA-512 (the client default) instead. TLS is UNVERIFIED.
-  DEVFORGE_KAFKA_SECURITY_PROTOCOL: SASL_PLAINTEXT
+  DEVFORGE_KAFKA_SECURITY_PROTOCOL: SASL_SSL
   DEVFORGE_KAFKA_SASL_MECHANISM: PLAIN
 
   # Mailpit captures mail on a test cluster; point these at a real relay elsewhere.

@@ -28,6 +28,22 @@ class KafkaSecurityEnvironmentPostProcessorTest {
   }
 
   @Test
+  @DisplayName("a CA file becomes a PEM trust store; without one the JVM's trust store decides")
+  void truststore() {
+    var credentials = Map.<String, Object>of(
+        "devforge.kafka.sasl.username", "task-service", "devforge.kafka.sasl.password", "secret");
+    var withCa = new java.util.HashMap<>(credentials);
+    withCa.put("devforge.kafka.ssl.truststore-location", "/certs/ca.pem");
+
+    var env = process(withCa);
+    assertThat(env.getProperty("spring.kafka.properties[ssl.truststore.type]")).isEqualTo("PEM");
+    assertThat(env.getProperty("spring.kafka.properties[ssl.truststore.location]")).isEqualTo("/certs/ca.pem");
+    assertThat(env.getProperty("spring.kafka.properties[security.protocol]")).isEqualTo("SASL_SSL");
+
+    assertThat(process(credentials).getProperty("spring.kafka.properties[ssl.truststore.location]")).isNull();
+  }
+
+  @Test
   @DisplayName("listeners retry an authorization failure instead of stopping for good")
   void authFailuresAreRetried() {
     // Set whether or not credentials are: a refused topic can happen either way.

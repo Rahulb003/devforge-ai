@@ -490,14 +490,23 @@ jobs:
       - name: Verify Kafka refuses what the ACLs do not grant
         run: |
           set -uo pipefail
+          # $3 is the protocol: SASL_SSL trusting the stack's CA, as the services connect.
           attempt() {
             docker compose exec -T kafka sh -c "
-              printf '%s\n' security.protocol=SASL_PLAINTEXT sasl.mechanism=PLAIN \
+              printf '%s\n' security.protocol=${3:-SASL_SSL} sasl.mechanism=PLAIN \
+                ssl.truststore.type=PEM ssl.truststore.location=/certs/ca.pem \
                 'sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required username=\"$1\" password=\"$2\";' \
                 max.block.ms=10000 > /tmp/attempt.properties
               echo forged | kafka-console-producer --bootstrap-server kafka:29092 \
                 --topic devforge.identity.v1 --producer.config /tmp/attempt.properties" 2>&1
           }
+          # The right credentials without TLS: the listener speaks only TLS, so this never authenticates.
+          out="$(attempt auth-service auth-dev-only SASL_PLAINTEXT)"
+          echo "$out" | tail -2
+          echo "$out" | grep -q "TimeoutException\|not present in metadata\|disconnected" \
+            || { echo "::error::a client without TLS was not refused"; exit 1; }
+          # Over TLS, chat-service authenticates and is then refused by the ACLs: reaching an
+          # authorization error at all proves the handshake and the credentials both worked.
           out="$(attempt chat-service chat-dev-only)"
           echo "$out" | tail -3
           echo "$out" | grep -q "TopicAuthorizationException\|Not authorized" \

@@ -223,7 +223,21 @@ spec:
             - name: KAFKA_ADVERTISED_LISTENERS
               value: "INTERNAL://kafka:29092"
             - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
-              value: "CONTROLLER:PLAINTEXT,INTERNAL:SASL_PLAINTEXT"
+              value: "CONTROLLER:PLAINTEXT,INTERNAL:SASL_SSL"
+            # TLS with the certificate in the kafka-tls Secret; see create-secrets.sh.
+            - name: KAFKA_SSL_KEYSTORE_TYPE
+              value: "PKCS12"
+            - name: KAFKA_SSL_KEYSTORE_LOCATION
+              value: "/certs/broker.p12"
+            - name: KAFKA_SSL_KEYSTORE_PASSWORD
+              valueFrom: { secretKeyRef: { name: kafka-tls, key: store-password } }
+            - name: KAFKA_SSL_KEY_PASSWORD
+              valueFrom: { secretKeyRef: { name: kafka-tls, key: store-password } }
+            # The broker connects to itself over INTERNAL, so it verifies its own certificate too.
+            - name: KAFKA_SSL_TRUSTSTORE_TYPE
+              value: "PEM"
+            - name: KAFKA_SSL_TRUSTSTORE_LOCATION
+              value: "/certs/ca.pem"
             - name: KAFKA_INTER_BROKER_LISTENER_NAME
               value: "INTERNAL"
             - name: KAFKA_CONTROLLER_LISTENER_NAMES
@@ -256,6 +270,13 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /var/lib/kafka/data
+            - name: tls
+              mountPath: /certs
+              readOnly: true
+      volumes:
+        - name: tls
+          secret:
+            secretName: kafka-tls
   volumeClaimTemplates:
     - metadata:
         name: data
@@ -287,7 +308,9 @@ data:
     BOOTSTRAP="kafka:29092"
     CONFIG=/tmp/admin.properties
     cat > "$CONFIG" <<EOF
-    security.protocol=SASL_PLAINTEXT
+    security.protocol=SASL_SSL
+    ssl.truststore.type=PEM
+    ssl.truststore.location=/certs/ca.pem
     sasl.mechanism=PLAIN
     sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required username="admin" password="${KAFKA_ADMIN_PASSWORD}";
     EOF
@@ -360,10 +383,19 @@ spec:
           volumeMounts:
             - name: setup
               mountPath: /setup
+            - name: kafka-ca
+              mountPath: /certs
+              readOnly: true
       volumes:
         - name: setup
           configMap:
             name: kafka-setup
+        - name: kafka-ca
+          secret:
+            secretName: kafka-tls
+            items:
+              - key: ca.pem
+                path: ca.pem
 ---
 apiVersion: v1
 kind: Service
