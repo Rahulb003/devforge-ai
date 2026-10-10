@@ -28,6 +28,10 @@ coverage/
 *.p12
 *.jks
 secrets.local.*
+# The one exception: a throwaway test CA and broker keystore for KafkaTlsIntegrationTest, trusted by
+# nothing else (see the README beside them). Named file by file so nothing else slips through.
+!common-events/src/test/resources/kafka-tls/ca.pem
+!common-events/src/test/resources/kafka-tls/broker.p12
 
 # ---- IDE / editor ----
 .idea/
