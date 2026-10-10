@@ -1,8 +1,9 @@
 # DevForge AI — Progress
 
-**Last updated:** 2026-10-02
-**Phase:** 4 complete (tasks/Kanban/sprints). Phases 0–4 plus the api-gateway are in place;
-Phase 2's event backbone is written but has never run against a real broker.
+**Last updated:** 2026-10-10
+**Phase:** Phases 0-4 and §7-§14 built, except what needs a model API key (AI, RAG, agents) or a
+container runtime (the §37 sandbox, deployments). The whole stack runs in CI under docker compose
+and on Kubernetes (kind) against real PostgreSQL, Kafka and Redis.
 
 > Status vocabulary: `IMPLEMENTED`, `PARTIALLY_IMPLEMENTED`, `SCAFFOLDED`, `BROKEN`, `MISSING`.
 > Nothing in this file is marked verified unless a command was actually run and its exit code observed.
@@ -13,19 +14,19 @@ Phase 2's event backbone is written but has never run against a real broker.
 
 | Gate | Command | Result |
 |---|---|---|
-| Backend compile | `mvn -B -ntp -f backend/pom.xml clean compile` | **PASS** — all 16 modules |
-| Backend tests | `mvn -B -ntp -f backend/pom.xml clean test` | **PASS** — 509 tests, 0 failures |
-| Frontend install | `npm ci` (in `frontend/`) | **PASS** |
-| Frontend lint | `npm run lint` | **PASS** — 0 errors, 0 warnings |
-| Frontend tests | `npm test` | **PASS** — 74 unit tests |
-| Frontend build | `npm run build` | **PASS** |
-| End-to-end tests | `npm run test:e2e` (Playwright, stack running) | **PASS** — 28 tests, through the gateway. Needs a machine not otherwise loaded; see docs/TESTING.md |
-| YAML validity | js-yaml parse of all 24 YAML files | **PASS** — 0 invalid |
-| Docker image builds | CI `docker` job | **PASS in CI** — all images build, run non-root, and every service container starts and reports healthy (standalone profile). Compose against real PostgreSQL/Kafka/Redis: **UNVERIFIED** |
-| Testcontainers tests | — | **UNVERIFIED** — requires Docker |
-| CI workflow end-to-end | GitHub Actions | **UNVERIFIED** — not executed here |
+| Backend tests | `mvn -B -ntp -f backend/pom.xml test` | **PASS** — 546 tests, 0 failures, locally and in CI |
+| Frontend lint, typecheck, unit tests, build | `npm run lint`, `typecheck`, `test`, `build` | **PASS** — 0 warnings; 85 unit tests |
+| Browser suite, standalone | CI `e2e` job, `npm run test:e2e` locally | **PASS** — 50 Playwright tests, failing on any CSP violation and on serious axe findings |
+| Images | CI `docker` job | **PASS** — eleven images build, run as non-root, start healthy; Trivy blocks on fixable high/critical advisories in every one |
+| Full stack under compose | CI `compose` job | **PASS** — every service in its own container on real PostgreSQL, Kafka (SASL, per-service ACLs, refusals checked) and Redis; the browser suite with real events; outboxes drain; Prometheus scrapes all ten; six alert rules load; a stopped service's ServiceDown alert is emailed |
+| Kubernetes | CI `kubernetes` job on kind | **PASS** — the generated manifests deploy with read-only root filesystems and the default seccomp profile; signup through nginx and the gateway; events reach the audit log and its hash chain verifies on PostgreSQL; git push and clone with the git CLI; Prometheus scrapes all ten and has its Alertmanager |
+| Dependency and secret scanning | CI `security` job | **PASS** — npm audit (high), Trivy over the Maven and npm trees and for committed secrets, blocking |
 
-Toolchain used: Node 24.18.0, npm 11.16.0, Temurin JDK 21.0.11, Maven 3.9.9. Docker absent.
+Not verified anywhere: a production cluster (ingress, NetworkPolicy, autoscaling, failover), Kafka
+over TLS, OAuth with real providers, contention between several outbox publishers of one service.
+
+Toolchain: Node 24, Temurin JDK 21, Maven 3.9. No Docker daemon locally: everything container-based
+is verified in CI only.
 
 ---
 
@@ -112,13 +113,13 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 
 | # | Issue | Severity | Notes |
 |---|---|---|---|
-| 1 | ~~Not a git repository~~ **RESOLVED.** Repo initialised on `main` with `.gitignore` + `.gitattributes`; two commits so far. Note the commits are authored as the machine's global identity (`Rahulb003 <rbhowmik003@gmail.com>`), which may not be intended. | — | Change with `git config user.name` / `user.email` and amend if wrong. |
-| 2 | ~~Placeholder secrets in tracked config~~ **RESOLVED** (commit `b49d7f7`). All credentials are environment-driven with no fallbacks outside the `local` profile; `.env.example` added; k8s `secrets.yaml` is now a template. | — | The k8s Secret still needs wiring to a real secret store (External Secrets / Sealed Secrets) before any cluster deploy. |
-| 3 | Docker images **build in CI** (first run found the Dockerfile missing two modules). Running them is still **UNVERIFIED**. Images are now non-root with healthchecks and a single shared build stage, but none of it has been executed. | MEDIUM | First run of the `docker` CI job will confirm. |
-| 4 | `api-gateway` is a plain `spring-boot-starter-web` app — not Spring Cloud Gateway, no routes, no filters | MEDIUM | Routing is entirely `MISSING`. |
-| 5 | ~~Theme toggle had no accessible name~~ **RESOLVED** (commit `33a649f`). | — | Icon-only controls now all carry accessible names. |
-| 6 | ~~Kafka absent / RabbitMQ unused~~ **RESOLVED** (commit `0a2f97d`). RabbitMQ removed; Kafka + outbox + idempotency implemented. **Broker itself UNVERIFIED** (no Docker), and Kafka has no TLS/SASL/ACLs configured yet. | MEDIUM | Production needs broker auth before deploy. |
-| 7 | 13 of 15 services are health-endpoint skeletons with `placeholder.txt` | — | Expected; Phases 3+. |
+| 1 | AI features (§5, RAG, agents, AI review) are not built | — | Blocked: needs a model API key. Nothing is stubbed in their place. |
+| 2 | The §37 sandbox and deployment pipelines are not built | — | Blocked: needs a container runtime or hypervisor. Designed in `docs/SANDBOX.md`. |
+| 3 | Kafka listeners have no TLS | MEDIUM | SASL and per-service ACLs are in place and verified; credentials cross the network in clear text inside the cluster. |
+| 4 | Secrets come from environment variables and a Kubernetes Secret | MEDIUM | No vault or rotation. `create-secrets.sh` generates random values for a fresh cluster. |
+| 5 | The audit chain is tamper-evident, not tamper-proof | LOW | A database writer can recompute a whole chain; only an externally recorded head hash catches that, and nothing records one automatically. |
+| 6 | Alerts go to Mailpit | — | Correct for compose and kind; a deployment must point Alertmanager at a real receiver. |
+| 7 | Git over SSH and GitHub/GitLab integration do not exist | — | Git over HTTP does. The integration needs provider credentials. |
 
 ---
 
@@ -142,9 +143,9 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 | Kafka / outbox / event envelope | `IMPLEMENTED` | Envelope, outbox, idempotency, DLQ; 10 staging tests **plus 9 against a real in-process broker** — publication, ordering, dedup on redelivery, dead-lettering, and a poison event not blocking its partition. `SKIP LOCKED` still UNVERIFIED (needs PostgreSQL); see docs/EVENT_CATALOG.md §8 |
 | Kafka consumers in services | `IMPLEMENTED` | Two now: notification-service (identity, security, tasks) and analytics-service (tasks, repositories), each in its own consumer group so neither can starve the other |
 | Notifications (§12) | `IMPLEMENTED` | Consumer, per-recipient storage, read/unread/delete API, bell with unread badge and a feed page. 22 backend tests (8 against a real broker) + 12 frontend. Verified live through the gateway |
-| Kafka TLS / SASL / ACLs | `MISSING` | Not configured |
+| Kafka SASL / ACLs | `IMPLEMENTED` | One identity per service, deny-by-default ACLs; refusals checked in compose, the setup Job runs on kind. **No TLS** |
 | Tasks, Kanban, sprints, comments, labels | `IMPLEMENTED` | task-service, 29 tests. Authorization delegated to project-service |
-| Git hosting (§7) | `IMPLEMENTED` | git-service hosts real repositories via JGit: create, browse, commit, branch, diff. 107 tests. Verified live through the gateway |
+| Git hosting (§7) | `IMPLEMENTED` | git-service hosts real repositories via JGit: create, browse, commit, branch, diff, pull requests with merge rules, and clone/push over HTTP with personal access tokens (default branch protected, merge rule enforced on push). 149 tests; push and clone with the git CLI verified on kind |
 | GitHub/GitLab integration | `MISSING` | Deliberately separate from the above — it needs provider credentials, and faking it was not an option |
 | Code review and quality gates (§8) | `IMPLEMENTED` | review-service: secret detection, credential files, merge-conflict markers, dangerous patterns; severities, a configurable gate, and dismissal with a recorded reason. 83 tests. Verified live against a repository with a planted credential |
 | Chat (§11) | `IMPLEMENTED` | chat-service: one channel per project, post/list/edit/delete, author-only edits, deletes erase the text. 8 tests. Live delivery over Server-Sent Events, verified across two browser windows through the dev proxy and the gateway. 10 backend tests. **Single-instance fan-out only, no presence** |
@@ -161,52 +162,27 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 | Frontend code review | `IMPLEMENTED` | Gate result, severity counts, findings with redacted snippets, and dismissal with a required reason. Reachable from a repository. 10 tests + 4 e2e |
 | Frontend code browser | `IMPLEMENTED` | Repository list and create, file tree, file contents with line numbers, commit history, branch switching, and a commit form so a new repository is not a dead end. 20 tests + 6 e2e |
 | Frontend IDE/AI screens | `MISSING` | Phases 5+ |
-| End-to-end browser tests | `IMPLEMENTED` | 22 Playwright tests through the gateway; `npm run test:e2e` → 22 passed |
+| End-to-end browser tests | `IMPLEMENTED` | 50 Playwright tests, run in CI against the standalone stack and again against the full compose stack |
+| Audit trail | `IMPLEMENTED` | Every published change recorded from the events, per-project SHA-256 hash chain, verify on demand from the UI; verified on PostgreSQL in CI |
+| Monitoring and alerting | `IMPLEMENTED` | Prometheus metrics behind a scrape credential, Grafana dashboard, outbox and dead-letter meters, six alert rules, Alertmanager email; delivery checked in CI |
+| Kubernetes manifests | `IMPLEMENTED` | Generated from one table by `infrastructure/kubernetes/generate.cjs`; deployed and smoke-tested on kind in CI |
+| Personal access tokens | `IMPLEMENTED` | For git only: hashed, shown once, expiring, revocable; exchanged internally for a five-minute token |
 
 ---
 
 ## Next Task (exact)
 
-1. ~~git init~~ **DONE** (commit `75548a6`).
-2. ~~Auth integration tests~~ **DONE** (commit `093d648`, 15 tests).
-3. ~~Phase 0 §16 secrets/config~~ **DONE** (commit `b49d7f7`).
-4. ~~Phase 0 §15 Dockerfile hardening~~ **DONE** (commit `8e27355`, UNVERIFIED — no Docker here).
-5. ~~Phase 1~~ **COMPLETE** (commits `5adfb5b`, `aa6713a`): rotation, throttling, audit trail, MFA/TOTP, per-device sessions, OAuth persistence. OAuth remains UNVERIFIED without provider credentials.
-6. ~~RBAC enforcement~~ **DONE** (commit `4d6caa7`): enforced in project-service via membership-derived checks + `@PreAuthorize`. ~~Phase 2~~ **DONE** (commit `0a2f97d`). ~~Phase 4~~ **DONE** (commit `03c07b0`). ~~Kanban board UI~~ **DONE** (commit `030bf70`).
-7. ~~api-gateway~~ **DONE**: routes, correlation ids, CORS allow-list. The frontend now talks to one origin and the Vite proxy no longer duplicates the service map.
-8. ~~Verify the event backbone against a real broker~~ **DONE**: 9 integration tests on an
-   in-process Kafka prove publication, ordering, deduplication on redelivery and dead-lettering.
-   The §18 RabbitMQ decision was already recorded (removed; `docs/EVENT_CATALOG.md` §1), and the
-   two READMEs that still advertised it have been corrected.
-9. ~~The first production consumer~~ **DONE**: notification-service consumes identity, security
-   and task events and turns them into per-recipient notifications, with a bell and feed in the UI.
-   Two defects in task-service's event publishing were found and fixed on the way — `actorId` was
-   the reporter rather than the acting user, and `TaskCompleted` carried no `assigneeId`.
-10. **NEXT:** the §7 documentation set, which is 2 of 11 files written. `CLAUDE.md` and
-   `ARCHITECTURE.md` matter most: the architectural decisions are currently recorded only in this
-   file's AD table and in code comments.
-11. ~~git-service~~ **DONE**: real repositories via JGit, with browse, commit, branch and diff.
-    Found and fixed a Windows portability bug on the way — git writes loose objects read-only,
-    and Windows refuses to delete a read-only file, so repository deletion half-succeeded with
-    only a warning.
-12. ~~A frontend code browser over git-service~~ **DONE**: repositories are now reachable by
-    clicking, including committing a file, so the domain is usable end to end.
-    **This is also where the CORS regression was caught** — see AD-23. The application had been
-    returning 403 to every browser request since the gateway commit, while every `curl` check
-    passed, because `curl` sends no `Origin` header.
-13. ~~review-service~~ **DONE**: real static analysis over real repository content, with a
-    quality gate. Chosen ahead of the sandbox because reading code is not executing it, so §8
-    needed no sandbox — and it establishes how findings are modelled before AI review reuses
-    that shape.
-14. ~~§37 sandbox~~ **DESIGNED, NOT BUILT** — `docs/SANDBOX.md` specifies the twelve guarantees
-    and the escape-attempt suite any implementation must pass. It cannot be built here: there is
-    no container runtime, VM or hypervisor (checked), and a sandbox that cannot isolate is worse
-    than none because people trust it.
-15. **NEXT:** a frontend surface for reviews, so a gate result is visible beside a repository
-    rather than only over the API. Then documentation-service (§10), which needs no sandbox
-    either.
-16. Then project-service should stage the events its `EventTypes` constants already declare, so
-    "you were added to a project" becomes possible.
+Earlier entries in this list are in the git history; everything they named is done or recorded
+above. What remains, in order:
+
+1. **Blocked on a model API key:** AI assistance (§5), AI code review on top of review-service's
+   findings model, RAG over repositories, agents. Each needs the authorization and failure model
+   written first (docs/API_CONTRACTS.md §8).
+2. **Blocked on a container runtime:** the §37 sandbox to docs/SANDBOX.md's twelve guarantees, then
+   deployment pipelines (deployment-service is a health endpoint).
+3. **Unblocked:** TLS on the Kafka listeners; recording the audit chain's head hash somewhere outside
+   the database automatically; auth-service's own audit table into a chain; a second outbox
+   publisher per service under compose to exercise `SKIP LOCKED` contention.
 
 ---
 
