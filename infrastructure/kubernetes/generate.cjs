@@ -246,8 +246,9 @@ spec:
             - containerPort: 8080
           env:
             # nginx proxies /api here, so the browser stays on one origin for the session cookies.
+            # Fully qualified: nginx resolves it itself, without the search domains.
             - name: API_GATEWAY_UPSTREAM
-              value: "http://api-gateway:8080"
+              value: "http://api-gateway.${NS}.svc.cluster.local:8080"
           readinessProbe:
             httpGet: { path: /, port: 8080 }
             periodSeconds: 10

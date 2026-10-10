@@ -43,6 +43,8 @@ RUN apk upgrade --no-cache
 COPY --chown=nginx:nginx nginx.conf /etc/nginx/templates/default.conf.template
 # Where /api is proxied. The compose and Kubernetes service name; override per environment.
 ENV API_GATEWAY_UPSTREAM=http://api-gateway:8080
+# Has the entrypoint export the container's nameservers as NGINX_LOCAL_RESOLVERS for the template.
+ENV NGINX_ENTRYPOINT_LOCAL_RESOLVERS=1
 COPY --chown=nginx:nginx security-headers.conf /etc/nginx/snippets/security-headers.conf
 COPY --from=build --chown=nginx:nginx /app/dist /usr/share/nginx/html
 
