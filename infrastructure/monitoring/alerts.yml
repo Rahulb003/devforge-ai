@@ -1,8 +1,8 @@
 # Alert rules for the DevForge services.
 #
 # Each rule is here because its failure is otherwise silent: requests keep succeeding while events,
-# notifications or the audit log quietly stop. There is no Alertmanager in the stack yet, so these
-# fire in Prometheus (/alerts) and nowhere else - routing them to a pager is a deployment decision.
+# notifications or the audit log quietly stop. Alertmanager emails them (alertmanager.yml); pointing
+# that at a real mailbox or pager is a deployment decision.
 groups:
   - name: devforge-services
     rules:
