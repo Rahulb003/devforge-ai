@@ -77,6 +77,8 @@ function deployment(svc) {
     ["DEVFORGE_METRICS_TOKEN", { secret: "metrics-token" }],
     ["PROJECT_SERVICE_URL", "http://project-service:9002"],
     ["GIT_SERVICE_URL", "http://git-service:9005"],
+    // git-service exchanges a git client's personal access token here.
+    ["AUTH_SERVICE_URL", "http://auth-service:9001"],
   ];
   if (svc.db) {
     env.push(

@@ -37,6 +37,13 @@ public class MetricsRecorder {
 
   private final ProjectDailyMetricsRepository metrics;
 
+  /** Bounded, so one malformed event cannot add a billion commits to a chart. */
+  static int commitCount(Map<String, Object> payload) {
+    return payload.get("commitCount") instanceof Number n && n.intValue() >= 1
+        ? Math.min(n.intValue(), 10_000)
+        : 1;
+  }
+
   public void record(EventEnvelope<Map<String, Object>> envelope) {
     var payload = envelope.payload() == null ? Map.<String, Object>of() : envelope.payload();
 
@@ -55,7 +62,8 @@ public class MetricsRecorder {
       case TASK_CREATED -> m -> m.setTasksCreated(m.getTasksCreated() + 1);
       case TASK_COMPLETED -> m -> m.setTasksCompleted(m.getTasksCompleted() + 1);
       case TASK_ASSIGNED -> m -> m.setTasksAssigned(m.getTasksAssigned() + 1);
-      case REPOSITORY_PUSHED -> m -> m.setCommits(m.getCommits() + 1);
+      // A push over git carries how many commits it added; a commit from the UI is one.
+      case REPOSITORY_PUSHED -> m -> m.setCommits(m.getCommits() + commitCount(payload));
       case REPOSITORY_CREATED -> m -> m.setRepositoriesCreated(m.getRepositoriesCreated() + 1);
       default -> null;
     };

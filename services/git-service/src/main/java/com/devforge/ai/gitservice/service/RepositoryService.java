@@ -246,9 +246,9 @@ public class RepositoryService {
   /**
    * Commits one file.
    *
-   * <p>Exists so a repository is usable from the browser without an external git client. It is not a
-   * substitute for push: pushing over HTTP or SSH is a separate transport that this service does not
-   * yet speak, and nothing here pretends otherwise.
+   * <p>Exists so a repository is usable from the browser without an external git client. A git
+   * client pushes over HTTP instead, through {@code GitHttpConfig}, which applies the same access
+   * rules.
    */
   @Transactional
   public CommitResponse commitFile(

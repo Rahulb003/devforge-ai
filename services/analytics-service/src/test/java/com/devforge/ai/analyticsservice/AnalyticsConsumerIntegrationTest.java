@@ -134,6 +134,22 @@ class AnalyticsConsumerIntegrationTest {
   }
 
   @Test
+  @DisplayName("a push over git counts every commit it carried")
+  void pushCountsItsCommits() {
+    var push = event("RepositoryPushed", java.time.Instant.now());
+    var payload = new java.util.HashMap<>(push.payload());
+    payload.put("commitCount", 3);
+    publish(KafkaTopics.REPOSITORIES, new EventEnvelope<>(push.eventId(), push.eventType(),
+        push.version(), push.timestamp(), "git-service", push.tenantId(), push.actorId(),
+        push.correlationId(), java.util.Map.copyOf(payload)));
+    // And one from the UI, which carries no count.
+    publish(KafkaTopics.REPOSITORIES, event("RepositoryPushed", java.time.Instant.now()));
+
+    await(() -> metrics.findByProjectIdAndMetricDate(projectId, today())
+        .map(m -> m.getCommits() == 4).orElse(false), "three commits plus one");
+  }
+
+  @Test
   @DisplayName("the same event delivered twice counts once")
   void duplicateCountsOnce() {
     var envelope = event("TaskCreated", Instant.now());

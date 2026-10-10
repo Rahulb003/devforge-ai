@@ -73,6 +73,10 @@ public class SecurityConfig {
             // devforge.mail.dev-mailbox-enabled=true, so this rule matches nothing
             // in any deployment that sends real mail.
             .requestMatchers("/api/v1/dev/mailbox").permitAll()
+            // Authenticated by the personal token in its body. Internal: the gateway does not route
+            // /internal, so only other services reach it. See TokenExchangeController.
+            .requestMatchers(org.springframework.http.HttpMethod.POST, "/internal/v1/tokens/exchange")
+                .permitAll()
             .requestMatchers("/actuator/health/**", "/actuator/info", "/error").permitAll()
             // Its own credential, checked by MetricsEndpointFilter: Prometheus has no user token.
             .requestMatchers("/actuator/prometheus").permitAll()

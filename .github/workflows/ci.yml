@@ -615,7 +615,14 @@ jobs:
           set -euo pipefail
           third_party="postgres:15 redis:7 confluentinc/cp-kafka:7.7.1 ghcr.io/axllent/mailpit:v1.31.4 \
             quay.io/prometheus/prometheus:v3.15.0 grafana/grafana:13.2.3"
-          for image in $third_party; do docker pull -q "$image"; done
+          # Retried: one registry timeout (ghcr.io, once) failed the whole job before anything deployed.
+          for image in $third_party; do
+            for attempt in 1 2 3; do
+              docker pull -q "$image" && break
+              [ "$attempt" = 3 ] && { echo "::error::could not pull $image"; exit 1; }
+              sleep $((attempt * 10))
+            done
+          done
           kind load docker-image --name devforge $third_party \
             $(docker images --format '{{.Repository}}:{{.Tag}}' | grep '^devforge-ai/.*:latest$')
 
@@ -688,6 +695,39 @@ jobs:
           echo "audit verification: $(echo "$verification" | jq -c .data)"
           echo "$verification" | jq -e '.data.intact and .data.entries >= 2' > /dev/null \
             || { echo "::error::the audit chain did not verify"; exit 1; }
+
+          # Git over HTTP with the real git client, through nginx, the gateway and git-service, with
+          # the personal token exchanged at auth-service and access decided by project-service.
+          repo="$(curl -sf -X POST "$api/organizations/$org/projects/$project/repositories" -H "$auth" \
+            -H 'Content-Type: application/json' -d '{"name":"over-git"}' | jq -r .data.id)"
+          pat="$(curl -sf -X POST "$api/auth/tokens" -H "$auth" -H 'Content-Type: application/json' \
+            -d '{"name":"ci","expiresInDays":1}' | jq -r .data.token)"
+          remote="http://ci:$pat@localhost:8081/api/v1/git/$org/$project/$repo.git"
+          work="$(mktemp -d)"
+          git -C "$work" init -q -b main
+          echo "pushed over http" > "$work/README.md"
+          git -C "$work" add README.md
+          git -C "$work" -c user.name=CI -c user.email=ci@example.com commit -q -m "First push"
+          git -C "$work" push -q "$remote" main
+          curl -sf "$api/organizations/$org/projects/$project/repositories/$repo/blob?ref=main&path=README.md" \
+            -H "$auth" | jq -e '.data.content == "pushed over http\n"' > /dev/null \
+            || { echo "::error::the pushed file is not on main"; exit 1; }
+          git clone -q "$remote" "$work/clone"
+          grep -q "pushed over http" "$work/clone/README.md"
+          anonymous="$(curl -s -o /dev/null -w '%{http_code}' \
+            "http://localhost:8081/api/v1/git/$org/$project/$repo.git/info/refs?service=git-upload-pack")"
+          [ "$anonymous" = 401 ] || { echo "::error::anonymous git access answered $anonymous"; exit 1; }
+          # The exchange turns a git-only token into a full access token, so it must stay internal,
+          # including against path tricks that some proxy might fail to normalise.
+          for path in /internal/v1/tokens/exchange /api/v1/auth/../../internal/v1/tokens/exchange \
+              /api/v1/auth/%2e%2e/%2e%2e/internal/v1/tokens/exchange; do
+            body="$(curl -s --path-as-is -X POST "http://localhost:8081$path" \
+              -H 'Content-Type: application/json' -d "{\"token\":\"$pat\"}" || true)"
+            if echo "$body" | grep -q accessToken; then
+              echo "::error::the token exchange answered from outside at $path"; exit 1
+            fi
+          done
+          echo "git push and clone over HTTP work through the cluster"
 
       - name: Prometheus scrapes every service in the cluster
         run: |

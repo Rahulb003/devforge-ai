@@ -111,6 +111,21 @@ class RoutePrecedenceTest {
     assertThat(routeFor("/api/v1/dev/mailbox")).contains("auth");
     assertThat(routeFor("/api/v1/notifications")).contains("notifications");
     assertThat(routeFor("/api/v1/notifications/unread-count")).contains("notifications");
+    // Git's protocol, with the segments git itself appends to the clone URL.
+    var clone = "/api/v1/git/11111111-1111-1111-1111-111111111111/22222222-2222-2222-2222-222222222222"
+        + "/44444444-4444-4444-4444-444444444444.git";
+    assertThat(routeFor(clone + "/info/refs")).contains("git-protocol");
+    assertThat(routeFor(clone + "/git-receive-pack")).contains("git-protocol");
+  }
+
+  @Test
+  @DisplayName("the token exchange stays internal")
+  void internalPathsAreUnrouted() {
+    // Routing it would turn a git-only personal token into a credential for the whole API.
+    assertThat(routeFor("/internal/v1/tokens/exchange")).isEqualTo("(unrouted)");
+    // "/api/v1/auth/../../internal/..." does match the auth route at this level; the container
+    // normalises the path before routing, and auth-service refuses an exchange that came through a
+    // proxy in any case (TokenExchangeController).
   }
 
   @Test

@@ -35,6 +35,7 @@ devforge:
     # Never reached: ProjectAccessClient is replaced by a mock in the tests, so
     # they exercise git logic rather than the network between two services.
     project-service-url: http://localhost:19002
+    auth-service-url: http://localhost:19001
   git:
     # Overridden per test class to a JUnit temporary directory, so a test run
     # never writes git objects into the project tree.

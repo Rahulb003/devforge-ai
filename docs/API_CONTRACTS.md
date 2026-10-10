@@ -101,6 +101,15 @@ if absent, and returned on the response either way.
 | GET | `/api/v1/auth/sessions` | one row per device |
 | DELETE | `/api/v1/auth/sessions/{sessionId}` | |
 | POST | `/api/v1/auth/sessions/revoke-others` | keeps the current session |
+| GET | `/api/v1/auth/tokens` | the caller's personal access tokens: name, prefix, dates. Never the token |
+| POST | `/api/v1/auth/tokens` | 201. `name` (1-100), `expiresInDays` (1-365, default 90). Returns the token **once**; at most 50 active |
+| DELETE | `/api/v1/auth/tokens/{tokenId}` | revokes; 404 for another user's token or one already revoked |
+
+### Internal (not routed by the gateway)
+
+| Method | Path | Notes |
+|---|---|---|
+| POST | `/internal/v1/tokens/exchange` | `{token}` to `{accessToken}` valid five minutes, for git-service only. 401 for any unusable token or account, without saying which; 404 if the request carries proxy headers, i.e. came through nginx or the gateway |
 
 ### Development only
 
@@ -188,7 +197,25 @@ integration — that needs provider credentials and does not exist yet.
 | GET | `…/repositories/{id}/tree?ref=&path=` | one directory level, directories first |
 | GET | `…/repositories/{id}/blob?ref=&path=` | `binary` true means `content` is null rather than mangled; `truncated` true past the size limit |
 | GET | `…/repositories/{id}/diff?from=&to=` | per-file change type and line counts |
-| POST | `…/repositories/{id}/files` | 201. Commits one file: `path`, `content`, `message`, optional `branch`. **Not** a substitute for `git push` |
+| POST | `…/repositories/{id}/files` | 201. Commits one file: `path`, `content`, `message`, optional `branch` |
+
+### Git's smart HTTP protocol
+
+`git clone https://<host>/api/v1/git/{organizationId}/{projectId}/{repositoryId}.git`, with any
+username and a personal access token as the password (HTTP Basic). The token is exchanged at
+auth-service for a short-lived access token, and from there the rules are the REST API's:
+
+- clone and fetch need project membership; push needs a role that can write (not VIEWER), else 403;
+- a repository outside the caller's projects is 404, the same as one that does not exist;
+- no credentials, or a token that is unknown, revoked, expired or whose account is locked: 401
+  with a `WWW-Authenticate: Basic` challenge, so git prompts;
+- only `refs/heads/*` and `refs/tags/*` are writable, branch names follow the same rules as the API;
+- the default branch cannot be deleted or force-pushed, and while the repository requires approvals
+  it changes only through a merged pull request; other branches may be force-pushed and deleted;
+- a push is at most 100 MB, an object at most 50 MB (`devforge.git.max-push-bytes`,
+  `max-object-bytes`), and every received object is checked;
+- the "dumb" protocol is off, so repository files (config, hooks) are never served directly;
+- each pushed branch publishes one `RepositoryPushed` with `via: "git"` and `commitCount`.
 
 **Refs and paths are query parameters, not path segments.** A file path contains slashes, so a
 path segment would need a wildcard mapping or encoding that Spring normalises before the handler
@@ -234,7 +261,7 @@ chat (9008), deployment (9009), analytics (9010).
 
 ## 8. Not yet designed
 
-No contract exists for AI, review, documentation, chat, deployment or analytics, nor for pushing
-over HTTP/SSH or integrating a third-party git provider. When one is
+No contract exists for AI, review, documentation, chat, deployment or analytics, nor for git over
+SSH or integrating a third-party git provider. When one is
 written it must state its authorization model and its failure behaviour before any endpoint is
 implemented — those are the two things that are expensive to retrofit.

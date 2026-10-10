@@ -104,6 +104,18 @@ public class JwtTokenProvider {
         jwtConfig.getAccessTokenTtl());
   }
 
+  /** An access token for a user directly, with its own lifetime: for a personal token exchange. */
+  public String createAccessToken(UserEntity user, java.time.Duration ttl) {
+    var principal = UserPrincipal.fromEntity(user);
+    return buildToken(
+        principal.getId(),
+        principal.getUsername(),
+        principal.getEmail(),
+        principal.getAuthorities().stream().map(GrantedAuthority::getAuthority).toList(),
+        TOKEN_TYPE_ACCESS,
+        ttl);
+  }
+
   public String createRefreshToken(UserEntity user) {
     return buildToken(
         user.getId(),

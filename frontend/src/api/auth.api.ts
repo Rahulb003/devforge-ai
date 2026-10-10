@@ -76,6 +76,22 @@ export interface SessionSummary {
   current: boolean;
 }
 
+/** A personal access token as listed: the token itself is only ever returned at creation. */
+export interface AccessTokenSummary {
+  id: string;
+  name: string;
+  /** The token's first characters, so tokens can be told apart. */
+  prefix: string;
+  createdAt: string;
+  expiresAt: string;
+  lastUsedAt: string | null;
+}
+
+export interface CreatedAccessToken {
+  details: AccessTokenSummary;
+  token: string;
+}
+
 export interface MfaStatus {
   enabled: boolean;
   remainingBackupCodes: number;
@@ -138,6 +154,13 @@ export const authApi = {
 
   revokeOtherSessions: () =>
     api.post<ApiEnvelope<{ revoked: number }>>('/auth/sessions/revoke-others'),
+
+  listAccessTokens: () => api.get<ApiEnvelope<AccessTokenSummary[]>>('/auth/tokens'),
+
+  createAccessToken: (name: string, expiresInDays: number) =>
+    api.post<ApiEnvelope<CreatedAccessToken>>('/auth/tokens', { name, expiresInDays }),
+
+  revokeAccessToken: (tokenId: string) => api.delete<ApiEnvelope<void>>(`/auth/tokens/${tokenId}`),
 
   mfaStatus: () => api.get<ApiEnvelope<MfaStatus>>('/auth/mfa/status'),
 

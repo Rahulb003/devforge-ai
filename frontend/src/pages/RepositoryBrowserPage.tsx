@@ -354,6 +354,11 @@ export function RepositoryBrowserPage() {
               {repository.data?.description && (
                 <p className="mt-1 text-sm text-slate-400">{repository.data.description}</p>
               )}
+              <CloneUrl
+                organizationId={organizationId}
+                projectId={projectId}
+                repositoryId={repositoryId}
+              />
             </>
           )}
         </div>
@@ -999,5 +1004,41 @@ function CommitList({
         ))}
       </ul>
     </Card>
+  );
+}
+
+/**
+ * Where git clones from. Same origin as the app, so it works wherever the app is served; the
+ * password is a personal access token, which the link explains how to make.
+ */
+function CloneUrl({
+  organizationId,
+  projectId,
+  repositoryId,
+}: {
+  organizationId: string;
+  projectId: string;
+  repositoryId: string;
+}) {
+  const url = `${window.location.origin}/api/v1/git/${organizationId}/${projectId}/${repositoryId}.git`;
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-400">
+      <label htmlFor="clone-url" className="font-medium text-slate-300">
+        Clone with git
+      </label>
+      <input
+        id="clone-url"
+        readOnly
+        value={url}
+        onFocus={(e) => e.currentTarget.select()}
+        className="w-96 max-w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 font-mono text-slate-200"
+      />
+      <span>
+        password: an{' '}
+        <Link to="/settings" className="underline underline-offset-4 hover:text-slate-200">
+          access token
+        </Link>
+      </span>
+    </div>
   );
 }

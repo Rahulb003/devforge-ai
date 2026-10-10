@@ -27,6 +27,12 @@ marked **UNVERIFIED** have been written but never executed in this environment.
 | Per-account rate limiting on password and MFA attempts | Implemented, time-windowed | `LoginAttemptService` |
 | Per-device sessions, individually revocable | Implemented | `/api/v1/auth/sessions` |
 | OAuth sign-in | **UNVERIFIED** — needs real provider credentials | conditional on `ClientRegistrationRepository` |
+| Personal access tokens for git: 256 random bits, stored as SHA-256, shown once, always expiring, revocable, stopped at once by locking the account | Implemented, tested | `PersonalAccessTokenService` |
+| A personal token works for git only: exchanged for a 5-minute access token on an internal endpoint that refuses proxied requests, and never returned to the client | Implemented; unreachability from outside checked on kind, path tricks included | `TokenExchangeController`, `GitBasicAuthenticationFilter` |
+
+A personal token has the owner's project roles for git, so a leaked one can read and push wherever
+they can. It cannot call the API, change the account or mint more tokens. It survives a password
+change, as GitHub's do; revoking it, or locking the account, is how it is stopped.
 
 Lockout is **time-windowed, not sticky**: a rolling window of failures locks the account for a
 period rather than permanently. A permanent lock is a denial-of-service primitive — anyone who knows

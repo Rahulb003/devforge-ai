@@ -142,6 +142,34 @@ test.describe('Workspace', () => {
     await expectNoErrorBoundary(page);
   });
 
+  test('an access token is shown once, listed by prefix, and can be revoked', async ({ page }) => {
+    const account = uniqueAccount();
+    await signUp(page, account);
+    await signIn(page, account.email, account.password);
+    await page.goto('/settings');
+
+    const form = page.getByRole('form', { name: 'New access token' });
+    await form.getByLabel('Token name').fill('e2e laptop');
+    await form.getByRole('button', { name: 'Create token' }).click();
+
+    const shown = page.getByLabel('New token');
+    await expect(shown).toHaveText(/^dfp_[A-Za-z0-9_-]{43}$/);
+    const token = (await shown.textContent()) ?? '';
+
+    const list = page.getByRole('list', { name: 'Access tokens' });
+    await expect(list.getByText('e2e laptop')).toBeVisible();
+    await expect(list.getByText(`${token.slice(0, 12)}…`)).toBeVisible();
+
+    // Gone after "Done", and not recoverable from the list: only the prefix was ever stored.
+    await page.getByRole('button', { name: 'Done' }).click();
+    await page.reload();
+    await expect(page.getByText(token)).toHaveCount(0);
+
+    await list.getByRole('button', { name: 'Revoke e2e laptop' }).click();
+    await expect(page.getByText('No access tokens')).toBeVisible();
+    await expectNoErrorBoundary(page);
+  });
+
   test('enabling MFA shows a scannable QR code and recovery codes', async ({ page }) => {
     const account = uniqueAccount();
     await signUp(page, account);

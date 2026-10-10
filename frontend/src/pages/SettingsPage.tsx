@@ -1,5 +1,6 @@
 import { Moon, Sun } from 'lucide-react';
 
+import { AccessTokensSection } from '@/components/settings/AccessTokensSection';
 import { MfaSection } from '@/components/settings/MfaSection';
 import { SessionsSection } from '@/components/settings/SessionsSection';
 import { Badge } from '@/components/ui/Badge';
@@ -56,6 +57,8 @@ export function SettingsPage() {
       <MfaSection />
 
       <SessionsSection />
+
+      <AccessTokensSection />
 
       <Card>
         <CardHeader title="Appearance" description="Applies to this browser only." />

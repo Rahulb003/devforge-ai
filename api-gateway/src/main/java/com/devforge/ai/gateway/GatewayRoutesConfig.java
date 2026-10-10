@@ -132,6 +132,18 @@ public class GatewayRoutesConfig {
   }
 
   /**
+   * Git's smart HTTP protocol, served by git-service. Outside the organizations path because git
+   * appends its own segments ({@code /info/refs}, {@code /git-upload-pack}) to the clone URL.
+   */
+  @Bean
+  @Order(31)
+  public RouterFunction<ServerResponse> gitProtocolRoutes() {
+    return route("git-protocol")
+        .route(RequestPredicates.path("/api/v1/git/**"), http(gitServiceUrl))
+        .build();
+  }
+
+  /**
    * Project analytics, which sit under the project path like tasks.
    *
    * <p>Before the organizations route for the usual reason: the broader pattern also matches it.

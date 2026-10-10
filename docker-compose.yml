@@ -26,6 +26,8 @@ x-service-env: &service-env
   DEVFORGE_JWT_SIGNING_KEY: ${DEVFORGE_JWT_SIGNING_KEY:-local-development-only-signing-key-change-me-0123456789abcdef}
   DEVFORGE_JWT_ISSUER: ${DEVFORGE_JWT_ISSUER:-devforge-ai}
   PROJECT_SERVICE_URL: http://project-service:9002
+  # git-service exchanges a git client's personal access token here.
+  AUTH_SERVICE_URL: http://auth-service:9001
   # Scrape credential for /actuator/prometheus; must match infrastructure/monitoring/prometheus.yml.
   DEVFORGE_METRICS_TOKEN: ${DEVFORGE_METRICS_TOKEN:-metrics-dev-only}
   GIT_SERVICE_URL: http://git-service:9005

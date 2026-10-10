@@ -34,6 +34,7 @@ security:
 devforge:
   services:
     project-service-url: ${PROJECT_SERVICE_URL:http://localhost:9002}
+    auth-service-url: ${AUTH_SERVICE_URL:http://localhost:9001}
   git:
     # Beside the H2 files, so stopapp.bat's advice to delete .\data\ for a clean
     # slate removes the repositories too and the two cannot drift apart.

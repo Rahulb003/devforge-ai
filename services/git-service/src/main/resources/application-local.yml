@@ -14,6 +14,7 @@ security:
 devforge:
   services:
     project-service-url: ${PROJECT_SERVICE_URL:http://localhost:9002}
+    auth-service-url: ${AUTH_SERVICE_URL:http://localhost:9001}
   git:
     storage-root: ${DEVFORGE_GIT_STORAGE_ROOT:./data/git-repositories}
 
