@@ -37,6 +37,10 @@ x-service-env: &service-env
   # Scrape credential for /actuator/prometheus; must match infrastructure/monitoring/prometheus.yml.
   DEVFORGE_METRICS_TOKEN: ${DEVFORGE_METRICS_TOKEN:-metrics-dev-only}
   GIT_SERVICE_URL: http://git-service:9005
+  # Every request's path through the services as one trace, sent to Jaeger (UI on :16686). All of
+  # them in this local stack; production would sample a fraction.
+  MANAGEMENT_OTLP_TRACING_ENDPOINT: http://jaeger:4318/v1/traces
+  MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
   # JGit caches a filesystem probe here; the home directory is read-only.
   XDG_CONFIG_HOME: /tmp
 
@@ -102,6 +106,8 @@ services:
       DOCUMENTATION_SERVICE_URL: http://documentation-service:9007
       CHAT_SERVICE_URL: http://chat-service:9008
       AI_SERVICE_URL: http://ai-service:9004
+      MANAGEMENT_OTLP_TRACING_ENDPOINT: http://jaeger:4318/v1/traces
+      MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
       ANALYTICS_SERVICE_URL: http://analytics-service:9010
       NOTIFICATION_SERVICE_URL: http://notification-service:9011
       DEVFORGE_CORS_ORIGINS: ${DEVFORGE_CORS_ORIGINS:-http://localhost:4173}
@@ -475,6 +481,13 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
+
+  # Collects the services' traces. In-memory: traces are for looking at now, not keeping.
+  # From quay.io rather than Docker Hub, which rate-limits anonymous pulls.
+  jaeger:
+    image: quay.io/jaegertracing/jaeger:2.22.0
+    ports:
+      - 16686:16686
 
   # Captures outbound mail locally instead of delivering it.
   # Web UI: http://localhost:8025

@@ -166,7 +166,7 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 | Frontend IDE/AI screens | `MISSING` | Phases 5+ |
 | End-to-end browser tests | `IMPLEMENTED` | 50 Playwright tests, run in CI against the standalone stack and again against the full compose stack |
 | Audit trail | `IMPLEMENTED` | Every published change recorded from the events, per-project SHA-256 hash chain, verify on demand from the UI; verified on PostgreSQL in CI |
-| Monitoring and alerting | `IMPLEMENTED` | Prometheus metrics behind a scrape credential, Grafana dashboard, outbox and dead-letter meters, six alert rules, Alertmanager email; delivery checked in CI |
+| Monitoring and alerting | `IMPLEMENTED` | Prometheus metrics behind a scrape credential, Grafana dashboard, outbox and dead-letter meters, six alert rules, Alertmanager email; delivery checked in CI. Distributed tracing to Jaeger in compose, checked across services in CI |
 | Kubernetes manifests | `IMPLEMENTED` | Generated from one table by `infrastructure/kubernetes/generate.cjs`; deployed and smoke-tested on kind in CI |
 | Personal access tokens | `IMPLEMENTED` | For git only: hashed, shown once, expiring, revocable; exchanged internally for a five-minute token |
 

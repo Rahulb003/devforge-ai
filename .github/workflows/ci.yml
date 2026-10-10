@@ -486,6 +486,28 @@ jobs:
 
       # The hardening in docker-compose.yml, checked on the running containers rather than read off
       # the file: a read-only root, no capabilities, and a write outside /tmp actually refused.
+      # The browser suite's requests, as traces: every service reported to Jaeger, and a request that
+      # crossed services is one trace - task-service asking project-service, at least.
+      - name: Requests are traced across services
+        run: |
+          set -euo pipefail
+          services=""
+          for _ in $(seq 1 30); do
+            services="$( (curl -s http://localhost:16686/api/services || true) | jq -r '.data[]?' 2>/dev/null | sort | tr '\n' ' ')"
+            echo "$services" | grep -q "task-service" && echo "$services" | grep -q "project-service" && break
+            sleep 4
+          done
+          echo "services reporting traces: $services"
+          for s in api-gateway auth-service project-service task-service git-service; do
+            echo "$services" | grep -qw "$s" || { echo "::error::no traces from $s"; exit 1; }
+          done
+          widest="$(curl -s "http://localhost:16686/api/traces?service=task-service&limit=100&lookback=2h" \
+            | jq '[.data[] | [.processes[].serviceName] | unique | length] | max // 0')"
+          echo "most services in one task-service trace: $widest"
+          [ "$widest" -ge 2 ] || { echo "::error::no trace spans more than one service"; exit 1; }
+          curl -s "http://localhost:16686/api/traces?service=task-service&limit=100&lookback=2h" \
+            | jq -r '[.data[] | [.processes[].serviceName] | unique | join(" -> ")] | unique | .[:5][]'
+
       - name: Containers run read-only and unprivileged
         run: |
           set -euo pipefail
