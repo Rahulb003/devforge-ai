@@ -38,6 +38,8 @@ public interface OutboxEventRepository extends JpaRepository<OutboxEvent, UUID> 
 
   long countByPublishedAtIsNull();
 
+  long countByPublishedAtIsNullAndAttemptsGreaterThanEqual(int attempts);
+
   /** Sweeps successfully published rows so the table does not grow without bound. */
   @Modifying
   @Query("DELETE FROM OutboxEvent o WHERE o.publishedAt IS NOT NULL AND o.publishedAt < :before")

@@ -47,6 +47,7 @@ class OutboxPublicationIntegrationTest {
 
   @Autowired private OutboxEventRecorder recorder;
   @Autowired private OutboxPublisher publisher;
+  @Autowired private com.devforge.ai.common.events.outbox.OutboxMetrics outboxMetrics;
   @Autowired private OutboxEventRepository outboxEventRepository;
   @Autowired private TransactionTemplate transactionTemplate;
   @Autowired private ObjectMapper objectMapper;
@@ -173,6 +174,32 @@ class OutboxPublicationIntegrationTest {
         .isInstanceOf(org.springframework.transaction.IllegalTransactionStateException.class);
 
     assertThat(outboxEventRepository.findAll()).isEmpty();
+  }
+
+  @Test
+  @DisplayName("the backlog and the stuck rows are exported as gauges, and fall once drained")
+  void backlogIsExported() {
+    var registry = new io.micrometer.core.instrument.simple.SimpleMeterRegistry();
+    outboxMetrics.bindTo(registry);
+
+    transactionTemplate.execute(status -> {
+      recorder.record(topic, EventTypes.PROJECT_CREATED, UUID.randomUUID(), null,
+          "corr-metrics", Map.of("name", "first"));
+      recorder.record(topic, EventTypes.PROJECT_CREATED, UUID.randomUUID(), null,
+          "corr-metrics", Map.of("name", "second"));
+      return null;
+    });
+    // One row as the publisher leaves it after the alert threshold of failed sends.
+    var stuck = outboxEventRepository.findAll().get(0);
+    stuck.setAttempts(10);
+    outboxEventRepository.save(stuck);
+
+    assertThat(registry.get("devforge.outbox.pending").gauge().value()).isEqualTo(2);
+    assertThat(registry.get("devforge.outbox.stuck").gauge().value()).isEqualTo(1);
+
+    assertThat(publisher.drainOnce()).isEqualTo(2);
+    assertThat(registry.get("devforge.outbox.pending").gauge().value()).isZero();
+    assertThat(registry.get("devforge.outbox.stuck").gauge().value()).isZero();
   }
 
   @Test

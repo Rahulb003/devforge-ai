@@ -2,9 +2,11 @@ package com.devforge.ai.common.events.config;
 
 import com.devforge.ai.common.events.KafkaTopics;
 import java.time.Duration;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.TopicPartition;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -71,12 +73,18 @@ public class KafkaConfig {
    * <p>Backoff is exponential so a transient dependency outage is absorbed without hammering it.
    */
   @Bean
-  public DefaultErrorHandler kafkaErrorHandler(KafkaTemplate<String, String> kafkaTemplate) {
+  public DefaultErrorHandler kafkaErrorHandler(KafkaTemplate<String, String> kafkaTemplate,
+      ObjectProvider<MeterRegistry> meterRegistry) {
     var recoverer = new DeadLetterPublishingRecoverer(kafkaTemplate,
         (record, exception) -> {
           var deadLetterTopic = KafkaTopics.deadLetterTopicFor(record.topic());
           log.error("Routing unprocessable record from {} to {} after retries exhausted: {}",
               record.topic(), deadLetterTopic, exception.getMessage());
+          // Counted, because the error log is the only other trace: a dead-lettered event is a
+          // notification, audit entry or analytics row that will never exist unless someone acts.
+          meterRegistry.ifAvailable(registry -> registry
+              .counter("devforge.events.dead.lettered", "topic", record.topic())
+              .increment());
           // Same partition on the DLT, so a tenant's failures stay ordered relative to each other.
           return new TopicPartition(deadLetterTopic, record.partition());
         });

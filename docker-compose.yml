@@ -446,6 +446,7 @@ services:
       - 9090:9090
     volumes:
       - ./infrastructure/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infrastructure/monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
 
   grafana:
     profiles: [observability]

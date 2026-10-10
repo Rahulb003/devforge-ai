@@ -522,6 +522,7 @@ data:
   # The compose file with the development password swapped for the token from the Secret.
   prometheus.yml: ${literal(read("infrastructure/monitoring/prometheus.yml")
     .replace("password: metrics-dev-only", "password_file: /etc/prometheus-secret/metrics-token"), 4)}
+  alerts.yml: ${literal(read("infrastructure/monitoring/alerts.yml"), 4)}
 ---
 apiVersion: v1
 kind: Service

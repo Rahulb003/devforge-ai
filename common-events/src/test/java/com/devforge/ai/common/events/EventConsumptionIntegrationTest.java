@@ -55,6 +55,7 @@ class EventConsumptionIntegrationTest {
   @Autowired private ObjectMapper objectMapper;
   @Autowired private RecordingListener listener;
   @Autowired private EmbeddedKafkaBroker broker;
+  @Autowired private io.micrometer.core.instrument.MeterRegistry meterRegistry;
   @Autowired private org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory<?, ?> listenerFactory;
 
   @BeforeEach
@@ -106,6 +107,9 @@ class EventConsumptionIntegrationTest {
   @Test
   @DisplayName("an event that can never succeed is dead-lettered instead of blocking its partition")
   void poisonEventIsDeadLettered() throws Exception {
+    var deadLettered = meterRegistry.counter(
+        "devforge.events.dead.lettered", "topic", KafkaTopics.NOTIFICATIONS);
+    var before = deadLettered.count();
     try (var dltConsumer = new KafkaConsumer<String, String>(
         OutboxPublicationIntegrationTest.assertionConsumerProps(broker))) {
       dltConsumer.subscribe(List.of(KafkaTopics.deadLetterTopicFor(KafkaTopics.NOTIFICATIONS)));
@@ -119,6 +123,8 @@ class EventConsumptionIntegrationTest {
 
       var dead = objectMapper.readValue(dltRecords.iterator().next().value(), EventEnvelope.class);
       assertThat(dead.eventId()).isEqualTo(poison.eventId());
+      // What the alert rule watches; the error log line is not something anyone is paged on.
+      assertThat(deadLettered.count()).isEqualTo(before + 1);
 
       // IllegalArgumentException is registered as non-retryable, so it must go straight across
       // rather than burning the two-minute backoff budget first. A single attempt is the proof.
