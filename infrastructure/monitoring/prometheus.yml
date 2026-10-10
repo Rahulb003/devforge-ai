@@ -10,6 +10,12 @@ global:
 rule_files:
   - /etc/prometheus/alerts.yml
 
+# Where firing alerts go; alertmanager.yml decides who hears about them.
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: [alertmanager:9093]
+
 scrape_configs:
   - job_name: devforge-services
     metrics_path: /actuator/prometheus

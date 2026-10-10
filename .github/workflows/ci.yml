@@ -513,7 +513,7 @@ jobs:
       - name: Verify Prometheus scrapes every service and Grafana is provisioned
         run: |
           set -euo pipefail
-          docker compose --profile observability up -d prometheus grafana
+          docker compose --profile observability up -d prometheus alertmanager grafana
           up=0
           # Tolerant while Prometheus starts: an early request can be reset (curl exit 56), and under
           # "set -e" that ended the step before Prometheus had scraped anything.
@@ -560,6 +560,27 @@ jobs:
             | jq -e '.status == "OK"'
           curl -sf -u admin:admin "http://localhost:3000/api/dashboards/uid/devforge-services" \
             | jq -e '.dashboard.title == "DevForge services"'
+
+      # An alert reaching a person, not just firing: stop a service and wait for ServiceDown to be
+      # emailed through Alertmanager to Mailpit. Last, because it takes a service away.
+      - name: An alert is delivered when a service goes down
+        run: |
+          set -euo pipefail
+          curl -s http://localhost:9090/api/v1/alertmanagers \
+            | jq -e '.data.activeAlertmanagers | length == 1' > /dev/null \
+            || { echo "::error::Prometheus has no Alertmanager"; exit 1; }
+          docker compose stop chat-service
+          # ServiceDown waits 2 minutes before firing, then Alertmanager groups for 10s.
+          delivered=""
+          for _ in $(seq 1 60); do
+            delivered="$( (curl -s "http://localhost:8025/api/v1/search?query=subject:ServiceDown" || true) \
+              | jq -r '[.messages[]? | select(.Subject | contains("chat-service"))] | length' 2>/dev/null || echo 0)"
+            [ "${delivered:-0}" -ge 1 ] && break
+            sleep 5
+          done
+          curl -s "http://localhost:8025/api/v1/search?query=subject:ServiceDown" | jq -r '.messages[]?.Subject'
+          [ "${delivered:-0}" -ge 1 ] || { echo "::error::no ServiceDown email for chat-service"; exit 1; }
+          docker compose start chat-service
 
       - name: Service logs
         if: failure()
@@ -614,7 +635,7 @@ jobs:
         run: |
           set -euo pipefail
           third_party="postgres:15 redis:7 confluentinc/cp-kafka:7.7.1 ghcr.io/axllent/mailpit:v1.31.4 \
-            quay.io/prometheus/prometheus:v3.15.0 grafana/grafana:13.2.3"
+            quay.io/prometheus/prometheus:v3.15.0 quay.io/prometheus/alertmanager:v0.34.1 grafana/grafana:13.2.3"
           # Retried: one registry timeout (ghcr.io, once) failed the whole job before anything deployed.
           for image in $third_party; do
             for attempt in 1 2 3; do
@@ -742,6 +763,10 @@ jobs:
           done
           echo "targets up: $up"
           [ "$up" = 10 ] || { echo "::error::only $up of 10 services scraped"; exit 1; }
+          curl -s http://localhost:9090/api/v1/alertmanagers \
+            | jq -e '.data.activeAlertmanagers | length == 1' > /dev/null \
+            || { echo "::error::Prometheus in the cluster has no Alertmanager"; exit 1; }
+          echo "Prometheus is sending alerts to Alertmanager"
 
       - name: Cluster state on failure
         if: failure()

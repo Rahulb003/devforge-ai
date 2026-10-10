@@ -1,7 +1,7 @@
 # DevForge AI — the whole platform against real PostgreSQL, Kafka and Redis.
 #
 #   docker compose up -d --build              # the platform: http://localhost:4173
-#   docker compose --profile observability up # also Kafka UI, Prometheus, Grafana
+#   docker compose --profile observability up # also Kafka UI, Prometheus, Alertmanager, Grafana
 #   docker compose --profile scaffold up      # also the not-yet-built services
 #
 # CI starts this file and runs the browser suite against it, so it is exercised, not decorative.
@@ -422,6 +422,16 @@ services:
     volumes:
       - ./infrastructure/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./infrastructure/monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
+
+  alertmanager:
+    profiles: [observability]
+    image: quay.io/prometheus/alertmanager:v0.34.1
+    ports:
+      - 9093:9093
+    volumes:
+      - ./infrastructure/monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    depends_on:
+      - mailpit
 
   grafana:
     profiles: [observability]

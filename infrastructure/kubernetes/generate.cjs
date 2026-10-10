@@ -598,6 +598,61 @@ spec:
 apiVersion: v1
 kind: ConfigMap
 metadata:
+  name: alertmanager-config
+  namespace: ${NS}
+data:
+  alertmanager.yml: ${literal(read("infrastructure/monitoring/alertmanager.yml"), 4)}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alertmanager
+  namespace: ${NS}
+spec:
+  selector:
+    app: alertmanager
+  ports:
+    - port: 9093
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alertmanager
+  namespace: ${NS}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alertmanager
+  template:
+    metadata:
+      labels:
+        app: alertmanager
+    spec:
+      containers:
+        - name: alertmanager
+          image: quay.io/prometheus/alertmanager:v0.34.1
+          ports:
+            - containerPort: 9093
+          readinessProbe:
+            httpGet: { path: /-/ready, port: 9093 }
+            periodSeconds: 10
+          volumeMounts:
+            - name: config
+              mountPath: /etc/alertmanager
+            # Silences and notification state. Lost on restart, which at worst repeats a notification.
+            - name: data
+              mountPath: /alertmanager
+      volumes:
+        - name: config
+          configMap:
+            name: alertmanager-config
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
   name: grafana-provisioning
   namespace: ${NS}
 data:
@@ -670,5 +725,5 @@ const write = (file, title, body) => fs.writeFileSync(path.join(OUT, file), head
 write("infrastructure.yaml", "PostgreSQL, Redis, Kafka with per-service ACLs, Mailpit", infrastructure());
 write("services.yaml", "The gateway, the services and the frontend",
   [gateway(), ...SERVICES.map(deployment), frontend()].join(""));
-write("monitoring.yaml", "Prometheus and Grafana, provisioned from the compose stack's files", monitoring());
+write("monitoring.yaml", "Prometheus, Alertmanager and Grafana, provisioned from the compose stack's files", monitoring());
 console.log("wrote infrastructure.yaml, services.yaml, monitoring.yaml");
