@@ -288,8 +288,10 @@ Ordered by how much they matter.
    admins, in a SHA-256 hash chain per project. Re-hashing it (the "Verify integrity" button, or
    `GET .../analytics/audit/verification`) finds an edited, reordered, deleted or truncated entry.
    Someone with write access to the database can still recompute a whole chain: that is caught only
-   by comparing the head hash with a copy recorded outside DevForge, and nothing records one
-   automatically - there is no external sink or signing key. Auth events stay in auth-service's own
+   by comparing the head hash with a copy held elsewhere. analytics-service writes every chain head
+   that moved to the log stream each hour (`audit-chain-anchor chain=... sequence=... head=...`);
+   that is an external copy only once the logs are shipped somewhere the database's operators cannot
+   rewrite, which is a deployment decision. There is no signing key. Auth events stay in auth-service's own
    audit table, which is not chained. Entries from before the chain are reported as unchained.
 
 ---

@@ -245,7 +245,30 @@ class AnalyticsApiTest {
 
   @Nested
   @DisplayName("the audit chain")
+  @org.junit.jupiter.api.extension.ExtendWith(org.springframework.boot.test.system.OutputCaptureExtension.class)
   class AuditChainVerification {
+
+    @Autowired private com.devforge.ai.analyticsservice.service.AuditChainAnchor anchor;
+
+    @Test
+    @DisplayName("the chain's head is written to the log stream, once per change, matching verification")
+    void headIsAnchoredOutsideTheDatabase(org.springframework.boot.test.system.CapturedOutput output)
+        throws Exception {
+      record("ProjectCreated");
+      record("ProjectUpdated");
+
+      org.assertj.core.api.Assertions.assertThat(anchor.anchorChangedHeads()).isPositive();
+      var head = new com.fasterxml.jackson.databind.ObjectMapper().readTree(verify().andReturn().getResponse().getContentAsString())
+          .path("data").path("headHash").asText();
+      var chain = com.devforge.ai.analyticsservice.entity.AuditChain.key(organizationId, projectId);
+      org.assertj.core.api.Assertions.assertThat(output.getOut())
+          .contains("audit-chain-anchor chain=" + chain + " sequence=2 head=" + head);
+
+      // Unchanged since: nothing more is written for it.
+      var before = output.getOut().split("chain=" + chain, -1).length;
+      anchor.anchorChangedHeads();
+      org.assertj.core.api.Assertions.assertThat(output.getOut().split("chain=" + chain, -1).length).isEqualTo(before);
+    }
 
     /** Through the real recorder, in a transaction as the consumer runs it. */
     private void record(String type) {

@@ -14,7 +14,7 @@ and on Kubernetes (kind) against real PostgreSQL, Kafka and Redis.
 
 | Gate | Command | Result |
 |---|---|---|
-| Backend tests | `mvn -B -ntp -f backend/pom.xml test` | **PASS** — 569 tests, 0 failures, locally and in CI |
+| Backend tests | `mvn -B -ntp -f backend/pom.xml test` | **PASS** — 570 tests, 0 failures, locally and in CI |
 | Frontend lint, typecheck, unit tests, build | `npm run lint`, `typecheck`, `test`, `build` | **PASS** — 0 warnings; 90 unit tests |
 | Browser suite, standalone | CI `e2e` job, `npm run test:e2e` locally | **PASS** — 52 Playwright tests, failing on any CSP violation and on serious axe findings |
 | Images | CI `docker` job | **PASS** — eleven images build, run as non-root, start healthy; Trivy blocks on fixable high/critical advisories in every one |
@@ -118,7 +118,7 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 | 2 | The §37 sandbox and deployment pipelines are not built | — | Blocked: needs a container runtime or hypervisor. Designed in `docs/SANDBOX.md`. |
 | 3 | Kafka uses PLAIN over TLS, and each stack's own CA | LOW | SCRAM is supported but not exercised; a deployment should issue the broker certificate from its PKI (cert-manager). |
 | 4 | Secrets come from environment variables and a Kubernetes Secret | MEDIUM | No vault or rotation. `create-secrets.sh` generates random values for a fresh cluster. |
-| 5 | The audit chain is tamper-evident, not tamper-proof | LOW | A database writer can recompute a whole chain; only an externally recorded head hash catches that, and nothing records one automatically. |
+| 5 | The audit chain is tamper-evident, not tamper-proof | LOW | A database writer can recompute a whole chain. Chain heads are written to the log stream hourly; that catches a rewrite only if the logs are shipped off the database host. |
 | 6 | Alerts go to Mailpit | — | Correct for compose and kind; a deployment must point Alertmanager at a real receiver. |
 | 7 | Git over SSH and GitHub/GitLab integration do not exist | — | Git over HTTP does. The integration needs provider credentials. |
 
@@ -181,8 +181,7 @@ above. What remains, in order:
    written first (docs/API_CONTRACTS.md §8).
 2. **Blocked on a container runtime:** the §37 sandbox to docs/SANDBOX.md's twelve guarantees, then
    deployment pipelines (deployment-service is a health endpoint).
-3. **Unblocked:** recording the audit chain's head hash somewhere outside
-   the database automatically; auth-service's own audit table into a chain.
+3. **Unblocked:** auth-service's own audit table into a chain.
 
 ---
 
