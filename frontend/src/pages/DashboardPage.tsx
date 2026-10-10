@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import { projectApi } from '@/api/project.api';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { InvitationsInbox } from '@/components/organizations/InvitationsInbox';
 import { EmptyState, Skeleton } from '@/components/ui/states';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -30,10 +31,13 @@ export function DashboardPage() {
           Welcome back{user ? `, ${user.firstName}` : ''}
         </h1>
         <p className="mt-3 max-w-2xl text-slate-400">
-          Build. Review. Test. Deploy. Collaborate. Authentication, organizations and projects are
-          live; the remaining workspace features are still being built.
+          Organizations and teams, projects and boards, repositories with pull requests and review,
+          documentation, chat and activity are live. AI assistance and running code are not built
+          yet.
         </p>
       </section>
+
+      <InvitationsInbox />
 
       <section className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         <Card>
