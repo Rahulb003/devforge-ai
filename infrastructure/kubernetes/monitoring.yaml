@@ -45,6 +45,7 @@ data:
               - chat-service:9008
               - analytics-service:9010
               - notification-service:9011
+              - ai-service:9004
         relabel_configs:
           # "auth-service:9001" -> service="auth-service", for dashboards.
           - source_labels: [__address__]

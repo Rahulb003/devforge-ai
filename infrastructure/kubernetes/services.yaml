@@ -79,6 +79,8 @@ spec:
               value: "http://analytics-service:9010"
             - name: NOTIFICATION_SERVICE_URL
               value: "http://notification-service:9011"
+            - name: AI_SERVICE_URL
+              value: "http://ai-service:9004"
           # Startup is slow (JVM, Flyway); readiness gates traffic, liveness restarts a stuck pod.
           startupProbe:
             httpGet: { path: /actuator/health, port: 8080 }
@@ -1456,6 +1458,107 @@ spec:
             items:
               - key: ca.pem
                 path: ca.pem
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-service
+  namespace: devforge-ai
+spec:
+  selector:
+    app: ai-service
+  ports:
+    - port: 9004
+      targetPort: 9004
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-service
+  namespace: devforge-ai
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ai-service
+  template:
+    metadata:
+      labels:
+        app: ai-service
+    spec:
+      # The images run as uid 10001; fsGroup makes a mounted volume writable for it, where it would
+      # otherwise be owned by root.
+      securityContext:
+        fsGroup: 10001
+      containers:
+        - name: ai-service
+          image: devforge-ai/ai-service:latest
+          # Built and loaded into the cluster rather than pulled; a registry deployment would
+          # set a real tag and Always.
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 9004
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              valueFrom:
+                configMapKeyRef:
+                  name: devforge-ai-config
+                  key: SPRING_PROFILES_ACTIVE
+            - name: DEVFORGE_JWT_ISSUER
+              valueFrom:
+                configMapKeyRef:
+                  name: devforge-ai-config
+                  key: DEVFORGE_JWT_ISSUER
+            - name: DEVFORGE_JWT_SIGNING_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: devforge-ai-secrets
+                  key: jwt-signing-key
+            - name: DEVFORGE_METRICS_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: devforge-ai-secrets
+                  key: metrics-token
+            - name: PROJECT_SERVICE_URL
+              value: "http://project-service:9002"
+            - name: GIT_SERVICE_URL
+              value: "http://git-service:9005"
+            - name: AUTH_SERVICE_URL
+              value: "http://auth-service:9001"
+            - name: XDG_CONFIG_HOME
+              value: "/tmp"
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: devforge-ai-secrets
+                  key: anthropic-api-key
+          # Startup is slow (JVM, Flyway); readiness gates traffic, liveness restarts a stuck pod.
+          startupProbe:
+            httpGet: { path: /actuator/health, port: 9004 }
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            httpGet: { path: /actuator/health, port: 9004 }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /actuator/health, port: 9004 }
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests: { cpu: 50m, memory: 384Mi }
+            limits: { memory: 768Mi }
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            seccompProfile: { type: RuntimeDefault }
+            capabilities: { drop: [ALL] }
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 256Mi }
 ---
 apiVersion: v1
 kind: Service

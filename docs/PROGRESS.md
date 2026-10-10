@@ -153,7 +153,8 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 | Analytics (§14) | `IMPLEMENTED` | With a UI: totals, a daily chart and a screen-reader table, plus the server's completeness note shown verbatim. analytics-service consumes task and repository events into daily per-project counters, with a read API. The platform's second production consumer. 14 tests, 5 against a real broker |
 | Documentation generation (§10) | `IMPLEMENTED` | documentation-service: repository overview, API surface and doc-coverage documents generated from real content. 31 tests. Not AI-written — every statement is derived from files that exist |
 | Code-execution sandbox (§37) | `MISSING` | **Designed, deliberately not built** — see docs/SANDBOX.md. No container, VM or hypervisor is available here, and a sandbox that cannot isolate is worse than none because people trust it |
-| IDE, AI, deploy, RAG, agents | `MISSING` / `SCAFFOLDED` | Health endpoints only — 2 services remain scaffolds, both blocked (model credentials; container runtime) |
+| AI file explanation | `IMPLEMENTED` (live call **UNVERIFIED**) | ai-service reads the file as the caller and asks Claude, treating the content as untrusted data; off without a key, and the UI says so. 6 tests against a stand-in API; CI checks the unconfigured state in the browser |
+| IDE, deploy, RAG, agents, AI generation and review | `MISSING` / `SCAFFOLDED` | deployment-service is a health endpoint (needs a container runtime); the rest need the model key to be verified |
 | Frontend app shell, routing, theme store | `IMPLEMENTED` | 12 passing tests |
 | Frontend auth screens (login/MFA/signup/verify/forgot/reset) | `IMPLEMENTED` | Driven against the live API; verified end-to-end through the dev proxy |
 | Frontend organization + project screens | `IMPLEMENTED` | List/create, loading/empty/error states |

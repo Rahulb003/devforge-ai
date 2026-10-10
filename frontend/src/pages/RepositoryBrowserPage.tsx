@@ -19,6 +19,7 @@ import { Link, useParams, useSearchParams } from 'react-router-dom';
 
 import type { FileChange, TreeEntry } from '@/api/git.api';
 import { gitApi } from '@/api/git.api';
+import { AiExplain } from '@/components/ai/AiExplain';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -708,6 +709,15 @@ export function RepositoryBrowserPage() {
                 onEdit={() => void startEditing(filePath)}
                 onDelete={() => void stageDeletion(filePath)}
               />
+              {blob.data && !blob.data.binary && (
+                <AiExplain
+                  organizationId={organizationId}
+                  projectId={projectId}
+                  repositoryId={repositoryId}
+                  path={filePath}
+                  gitRef={ref}
+                />
+              )}
             </>
           )}
 

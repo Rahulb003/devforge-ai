@@ -21,6 +21,7 @@ devforge:
     documentation-service-url: http://localhost:19007
     analytics-service-url: http://localhost:19010
     chat-service-url: http://localhost:19008
+    ai-service-url: http://localhost:19004
   cors:
     allowed-origins: http://localhost:4173
 

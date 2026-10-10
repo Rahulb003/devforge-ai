@@ -1,0 +1,10 @@
+# ai-service — LOCAL profile, used by docker compose.
+security:
+  jwt:
+    issuer: ${DEVFORGE_JWT_ISSUER:devforge-ai}
+    signing-key: ${DEVFORGE_JWT_SIGNING_KEY:local-development-only-signing-key-change-me-0123456789abcdef}
+
+devforge:
+  services:
+    project-service-url: ${PROJECT_SERVICE_URL:http://localhost:9002}
+    git-service-url: ${GIT_SERVICE_URL:http://localhost:9005}

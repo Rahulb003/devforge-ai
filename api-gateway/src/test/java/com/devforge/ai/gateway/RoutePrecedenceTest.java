@@ -89,6 +89,10 @@ class RoutePrecedenceTest {
     assertThat(routeFor(repository + "/reviews/55555555-5555-5555-5555-555555555555/findings"))
         .contains("reviews");
 
+    // AI assistance nests the same way.
+    assertThat(routeFor(repository + "/ai/explain")).contains("routeId=ai ");
+    assertThat(routeFor("/api/v1/ai/status")).contains("routeId=ai ");
+
     // Generated documentation nests the same way and must not be claimed by git-service either.
     assertThat(routeFor(repository + "/docs")).contains("docs");
     assertThat(routeFor(repository + "/docs/latest")).contains("docs");

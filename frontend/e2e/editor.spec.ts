@@ -138,5 +138,11 @@ test.describe('Editor', () => {
     // Their commit stands, and the file still has the content it had.
     await openFile(page, 'notes.txt');
     await expect(page.getByText('v1', { exact: true })).toBeVisible();
+
+    // No model API key in CI: the AI button is there, disabled, and says why - no stand-in answer.
+    await expect(page.getByRole('button', { name: 'Explain with AI' })).toBeDisabled();
+    await expect(
+      page.getByText('AI assistance is not configured on this deployment.'),
+    ).toBeVisible();
   });
 });

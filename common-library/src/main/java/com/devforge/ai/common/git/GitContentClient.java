@@ -185,6 +185,18 @@ public class GitContentClient {
     return files;
   }
 
+  /**
+   * One file, read as the caller. Not-found when it does not exist at {@code ref} or the caller
+   * cannot read the repository - the two are not told apart.
+   */
+  public RepositoryFile file(Context context, String ref, String path, String bearerToken) {
+    var file = fetchBlob(context, ref, path, bearerToken);
+    if (file == null) {
+      throw new ResourceNotFoundException("File not found");
+    }
+    return file;
+  }
+
   private RepositoryFile fetchBlob(Context context, String ref, String path, String bearerToken) {
     var url = UriComponentsBuilder.fromHttpUrl(base(context) + "/blob")
         .queryParam("ref", ref)

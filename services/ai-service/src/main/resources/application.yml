@@ -1,13 +1,45 @@
+# ai-service — base configuration.
 server:
-  port: 9004
+  port: ${SERVER_PORT:9004}
+
 spring:
   application:
     name: ai-service
+
+security:
+  jwt:
+    # Must match the auth service: this service only verifies the tokens it issues.
+    issuer: ${DEVFORGE_JWT_ISSUER:devforge-ai}
+    signing-key: ${DEVFORGE_JWT_SIGNING_KEY}
+
+devforge:
+  metrics:
+    token: ${DEVFORGE_METRICS_TOKEN:}
+  services:
+    project-service-url: ${PROJECT_SERVICE_URL}
+    git-service-url: ${GIT_SERVICE_URL}
+  git-content:
+    max-files: 1
+    max-directories: 1
+    # One file is explained at a time; anything larger is cut, and the answer says so.
+    max-file-bytes: ${DEVFORGE_AI_MAX_FILE_BYTES:262144}
+  ai:
+    # Unset means AI assistance is off: requests answer 503 and the UI says it is not configured.
+    # Nothing is simulated in its place.
+    api-key: ${ANTHROPIC_API_KEY:}
+    base-url: ${DEVFORGE_AI_BASE_URL:https://api.anthropic.com}
+    model: ${DEVFORGE_AI_MODEL:claude-opus-5-5}
+    max-output-tokens: ${DEVFORGE_AI_MAX_OUTPUT_TOKENS:1500}
+    # Characters of file content sent; beyond this the file is cut, and the answer says so.
+    max-input-chars: ${DEVFORGE_AI_MAX_INPUT_CHARS:60000}
+    # Requests per user per hour on this instance, so one account cannot run up the bill.
+    requests-per-hour: ${DEVFORGE_AI_REQUESTS_PER_HOUR:30}
+
 management:
   endpoints:
     web:
       exposure:
-        include: health, info
+        include: health, info, prometheus
   endpoint:
     health:
-      show-details: always
+      show-details: when-authorized

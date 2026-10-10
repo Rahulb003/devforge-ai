@@ -1,0 +1,10 @@
+# ai-service — STANDALONE profile, for running the platform without Docker. Never use anywhere real.
+security:
+  jwt:
+    issuer: devforge-ai
+    signing-key: local-development-only-signing-key-change-me-0123456789abcdef
+
+devforge:
+  services:
+    project-service-url: ${PROJECT_SERVICE_URL:http://localhost:9002}
+    git-service-url: ${GIT_SERVICE_URL:http://localhost:9005}

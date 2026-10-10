@@ -1,0 +1,16 @@
+spring:
+  application:
+    name: ai-service
+security:
+  jwt:
+    issuer: devforge-ai-test
+    # Test-only key, never used outside the test source set.
+    signing-key: test-only-signing-key-that-is-long-enough-to-satisfy-hs256-256-bit-requirement
+devforge:
+  services:
+    project-service-url: http://localhost:19002
+    git-service-url: http://localhost:19005
+  ai:
+    # Set per test: the stub model server's address, and a key so the client calls it.
+    api-key: test-key
+    requests-per-hour: 3

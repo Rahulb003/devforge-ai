@@ -18,6 +18,7 @@ devforge:
     documentation-service-url: ${DOCUMENTATION_SERVICE_URL:http://localhost:9007}
     analytics-service-url: ${ANALYTICS_SERVICE_URL:http://localhost:9010}
     chat-service-url: ${CHAT_SERVICE_URL:http://localhost:9008}
+    ai-service-url: ${AI_SERVICE_URL:http://localhost:9004}
   cors:
     allowed-origins: ${DEVFORGE_CORS_ORIGINS:http://localhost:4173}
 

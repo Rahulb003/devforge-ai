@@ -26,6 +26,7 @@ set REVIEW_PORT=9006
 set DOCS_PORT=9007
 set ANALYTICS_PORT=9010
 set CHAT_PORT=9008
+set AI_PORT=9004
 set NOTIFICATION_PORT=9011
 set GATEWAY_PORT=8080
 set WEB_PORT=4173
@@ -37,6 +38,7 @@ set REVIEW_JAR=services\review-service\target\review-service-0.1.0.jar
 set DOCS_JAR=services\documentation-service\target\documentation-service-0.1.0.jar
 set ANALYTICS_JAR=services\analytics-service\target\analytics-service-0.1.0.jar
 set CHAT_JAR=services\chat-service\target\chat-service-0.1.0.jar
+set AI_JAR=services\ai-service\target\ai-service-0.1.0.jar
 set NOTIFICATION_JAR=services\notification-service\target\notification-service-0.1.0.jar
 set GATEWAY_JAR=api-gateway\target\api-gateway-0.1.0.jar
 
@@ -87,6 +89,7 @@ if not exist "%REVIEW_JAR%" goto :build
 if not exist "%DOCS_JAR%" goto :build
 if not exist "%ANALYTICS_JAR%" goto :build
 if not exist "%CHAT_JAR%" goto :build
+if not exist "%AI_JAR%" goto :build
 if not exist "%NOTIFICATION_JAR%" goto :build
 if not exist "%GATEWAY_JAR%" goto :build
 echo   Jars found - skipping build.
@@ -101,7 +104,7 @@ if errorlevel 1 (
   echo         Install Maven, or build once with your IDE.
   goto :fail
 )
-call mvn -B -ntp -f backend\pom.xml -pl ..\services\auth-service,..\services\project-service,..\services\task-service,..\api-gateway,..\services\notification-service,..\services\git-service,..\services\review-service,..\services\documentation-service,..\services\analytics-service,..\services\chat-service -am package -DskipTests
+call mvn -B -ntp -f backend\pom.xml -pl ..\services\auth-service,..\services\project-service,..\services\task-service,..\api-gateway,..\services\notification-service,..\services\git-service,..\services\review-service,..\services\documentation-service,..\services\analytics-service,..\services\chat-service,..\services\ai-service -am package -DskipTests
 if errorlevel 1 (
   echo [ERROR] Backend build failed. Scroll up for the Maven output.
   goto :fail
@@ -150,6 +153,10 @@ start "DevForge analytics-service" cmd /k "java -jar %ANALYTICS_JAR% --spring.pr
 echo   Starting chat-service on port %CHAT_PORT% ...
 start "DevForge chat-service" cmd /k "java -jar %CHAT_JAR% --spring.profiles.active=standalone"
 
+rem AI assistance is off unless ANTHROPIC_API_KEY is set in this window's environment.
+echo   Starting ai-service on port %AI_PORT% ...
+start "DevForge ai-service" cmd /k "java -jar %AI_JAR% --spring.profiles.active=standalone"
+
 echo   Starting notification-service on port %NOTIFICATION_PORT% ...
 start "DevForge notification-service" cmd /k "java -jar %NOTIFICATION_JAR% --spring.profiles.active=standalone"
 
@@ -172,6 +179,7 @@ call :waitfor review-service   "http://localhost:%REVIEW_PORT%/actuator/health" 
 call :waitfor documentation-service "http://localhost:%DOCS_PORT%/actuator/health"      60
 call :waitfor analytics-service "http://localhost:%ANALYTICS_PORT%/actuator/health"     60
 call :waitfor chat-service      "http://localhost:%CHAT_PORT%/actuator/health"          60
+call :waitfor ai-service        "http://localhost:%AI_PORT%/actuator/health"            60
 call :waitfor notification-service "http://localhost:%NOTIFICATION_PORT%/actuator/health" 60
 call :waitfor api-gateway     "http://localhost:%GATEWAY_PORT%/actuator/health" 60
 call :waitfor frontend        "http://localhost:%WEB_PORT%/"                    45

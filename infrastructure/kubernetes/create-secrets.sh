@@ -22,6 +22,7 @@ done
 kubectl create secret generic devforge-ai-secrets --namespace devforge-ai \
   --from-literal=postgres-username=devforge \
   --from-literal=mail-username= --from-literal=mail-password= \
+  --from-literal=anthropic-api-key="${ANTHROPIC_API_KEY:-}" \
   $args
 echo "devforge-ai-secrets created with random values"
 

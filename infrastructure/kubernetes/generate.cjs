@@ -41,13 +41,15 @@ const SERVICES = [
   { name: "chat-service", port: 9008, db: "devforge_chat", kafka: true },
   { name: "analytics-service", port: 9010, db: "devforge_analytics", kafka: true },
   { name: "notification-service", port: 9011, db: "devforge_notification", kafka: true },
+  // Stateless, and off until the Secret's anthropic-api-key is set.
+  { name: "ai-service", port: 9004, env: [["ANTHROPIC_API_KEY", { secret: "anthropic-api-key" }]] },
 ];
 const GATEWAY_ROUTES = {
   AUTH_SERVICE_URL: "auth-service:9001", PROJECT_SERVICE_URL: "project-service:9002",
   TASK_SERVICE_URL: "task-service:9003", GIT_SERVICE_URL: "git-service:9005",
   REVIEW_SERVICE_URL: "review-service:9006", DOCUMENTATION_SERVICE_URL: "documentation-service:9007",
   CHAT_SERVICE_URL: "chat-service:9008", ANALYTICS_SERVICE_URL: "analytics-service:9010",
-  NOTIFICATION_SERVICE_URL: "notification-service:9011",
+  NOTIFICATION_SERVICE_URL: "notification-service:9011", AI_SERVICE_URL: "ai-service:9004",
 };
 
 // ---------------------------------------------------------------- YAML helpers

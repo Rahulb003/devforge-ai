@@ -101,6 +101,7 @@ services:
       REVIEW_SERVICE_URL: http://review-service:9006
       DOCUMENTATION_SERVICE_URL: http://documentation-service:9007
       CHAT_SERVICE_URL: http://chat-service:9008
+      AI_SERVICE_URL: http://ai-service:9004
       ANALYTICS_SERVICE_URL: http://analytics-service:9010
       NOTIFICATION_SERVICE_URL: http://notification-service:9011
       DEVFORGE_CORS_ORIGINS: ${DEVFORGE_CORS_ORIGINS:-http://localhost:4173}
@@ -316,11 +317,10 @@ services:
     depends_on: *service-depends
 
   # --- Not built yet: scaffolds only, opt-in -------------------------------
-  # ai-service needs model credentials and deployment-service a sandbox (docs/SANDBOX.md).
+  # deployment-service needs a sandbox (docs/SANDBOX.md).
   
   ai-service:
     <<: *hardened
-    profiles: [scaffold]
     build:
       context: .
       dockerfile: Dockerfile
@@ -333,6 +333,8 @@ services:
       - 9004:9004
     environment:
       <<: *service-env
+      # Empty unless set in .env: AI assistance then answers that it is not configured.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     volumes:
       - kafka-certs:/certs:ro
 

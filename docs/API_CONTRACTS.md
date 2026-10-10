@@ -270,9 +270,28 @@ chat (9008), deployment (9009), analytics (9010).
 
 ---
 
+## 7a. ai-service
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/api/v1/ai/status` | `{configured, model}`; signed-in callers only |
+| POST | `/api/v1/organizations/{organizationId}/projects/{projectId}/repositories/{repositoryId}/ai/explain` | `path`, optional `ref` (default branch). Returns `{path, ref, explanation, model, truncated}` |
+
+**Authorization:** project read access, checked with project-service using the caller's token; the
+file is read from git-service as the caller. A repository the caller cannot read is 404.
+
+**Failure behaviour:** no key configured, a provider error, an unreachable provider or an
+unreachable git-service is 503 with a message for the user and never the provider's own error body;
+binary or empty files are 400; more than `devforge.ai.requests-per-hour` (default 30) per user per
+hour is 429. Nothing is ever returned in place of a real answer.
+
+**Untrusted content:** the file is sent between `<file>` tags under a system prompt that says its
+content is data, never instructions; a `</file>` inside it is neutralised so it cannot end the block
+early. The model has no tools and the answer is shown as plain text.
+
 ## 8. Not yet designed
 
-No contract exists for AI, review, documentation, chat, deployment or analytics, nor for git over
+No contract exists for AI generation, AI review, deployment or analytics, nor for git over
 SSH or integrating a third-party git provider. When one is
 written it must state its authorization model and its failure behaviour before any endpoint is
 implemented — those are the two things that are expensive to retrofit.

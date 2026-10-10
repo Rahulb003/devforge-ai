@@ -58,6 +58,9 @@ public class GatewayRoutesConfig {
   @Value("${devforge.services.chat-service-url}")
   private String chatServiceUrl;
 
+  @Value("${devforge.services.ai-service-url}")
+  private String aiServiceUrl;
+
   /**
    * Tasks and sprints, which live under the project path but belong to task-service.
    *
@@ -102,6 +105,21 @@ public class GatewayRoutesConfig {
    * <p>Before the repositories route for the same reason: {@code /repositories/**} also matches
    * every path beneath a repository.
    */
+  /**
+   * AI assistance, which sits under the repository path but belongs to ai-service; ahead of the
+   * repositories route for the usual reason. Its status endpoint is outside any project.
+   */
+  @Bean
+  @Order(24)
+  public RouterFunction<ServerResponse> aiRoutes() {
+    return route("ai")
+        .route(
+            RequestPredicates.path("/api/v1/organizations/*/projects/*/repositories/*/ai/**")
+                .or(RequestPredicates.path("/api/v1/ai/**")),
+            http(aiServiceUrl))
+        .build();
+  }
+
   @Bean
   @Order(25)
   public RouterFunction<ServerResponse> documentationRoutes() {

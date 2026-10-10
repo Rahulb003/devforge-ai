@@ -122,7 +122,7 @@ jobs:
       - name: Build service jars
         run: >
           mvn -B -ntp -f backend/pom.xml
-          -pl ../api-gateway,../services/auth-service,../services/project-service,../services/task-service,../services/git-service,../services/review-service,../services/documentation-service,../services/analytics-service,../services/chat-service,../services/notification-service
+          -pl ../api-gateway,../services/auth-service,../services/project-service,../services/task-service,../services/git-service,../services/review-service,../services/documentation-service,../services/analytics-service,../services/chat-service,../services/notification-service,../services/ai-service
           -am package -DskipTests
 
       # The standalone profile runs the real application code against an
@@ -131,7 +131,7 @@ jobs:
       - name: Start backend services
         run: |
           mkdir -p logs
-          for m in auth-service project-service task-service git-service review-service documentation-service analytics-service chat-service notification-service; do
+          for m in auth-service project-service task-service git-service review-service documentation-service analytics-service chat-service notification-service ai-service; do
             java -jar "services/$m/target/$m-0.1.0.jar" \
               --spring.profiles.active=standalone > "logs/$m.log" 2>&1 &
           done
@@ -171,7 +171,7 @@ jobs:
             echo "::error::timed out waiting for $url"
             return 1
           }
-          for port in 9001 9002 9003 9005 9006 9007 9008 9010 9011 8080; do
+          for port in 9001 9002 9003 9004 9005 9006 9007 9008 9010 9011 8080; do
             wait_for "http://localhost:$port/actuator/health"
           done
           wait_for http://localhost:4173/
@@ -305,7 +305,7 @@ jobs:
           services=(
             "auth-service:9001" "project-service:9002" "task-service:9003" "git-service:9005"
             "review-service:9006" "documentation-service:9007" "chat-service:9008"
-            "analytics-service:9010" "notification-service:9011" "api-gateway:8080"
+            "analytics-service:9010" "notification-service:9011" "ai-service:9004" "api-gateway:8080"
           )
           for entry in "${services[@]}"; do
             name="${entry%%:*}"; port="${entry##*:}"
@@ -366,7 +366,7 @@ jobs:
           command -v trivy > /dev/null || { echo "::error::trivy not on PATH"; exit 1; }
           failed=0
           for name in api-gateway project-service task-service git-service review-service \
-                      documentation-service chat-service analytics-service notification-service frontend; do
+                      documentation-service chat-service analytics-service notification-service ai-service frontend; do
             echo "::group::$name"
             if ! trivy image --quiet --exit-code 1 --ignore-unfixed --severity HIGH,CRITICAL \
                 --ignorefile .trivyignore "devforge-ai/$name:${GITHUB_SHA}"; then
@@ -490,7 +490,8 @@ jobs:
         run: |
           set -euo pipefail
           for service in frontend api-gateway auth-service project-service task-service git-service \
-              review-service documentation-service chat-service analytics-service notification-service; do
+              review-service documentation-service chat-service analytics-service notification-service \
+              ai-service; do
             id="$(docker compose ps -q "$service")"
             config="$(docker inspect -f '{{.HostConfig.ReadonlyRootfs}} {{.HostConfig.CapDrop}}' "$id")"
             [ "$config" = "true [ALL]" ] || { echo "::error::$service runs with: $config"; exit 1; }
@@ -498,7 +499,7 @@ jobs:
               echo "::error::$service could write to its root filesystem"; exit 1
             fi
           done
-          echo "all eleven containers are read-only and hold no capabilities"
+          echo "all twelve containers are read-only and hold no capabilities"
 
       # Two publishers on one outbox. Production scales a service by running more of it, and only the
       # FOR UPDATE SKIP LOCKED claim keeps two instances from publishing the same row twice - which
@@ -603,18 +604,18 @@ jobs:
           for _ in $(seq 1 30); do
             up="$( (curl -s http://localhost:9090/api/v1/targets || true) \
               | jq '[.data.activeTargets[]? | select(.labels.job=="devforge-services" and .health=="up")] | length' 2>/dev/null || echo 0)"
-            [ "$up" = 10 ] && break
+            [ "$up" = 11 ] && break
             sleep 4
           done
           curl -s http://localhost:9090/api/v1/targets \
             | jq -r '.data.activeTargets[] | "\(.labels.service) \(.health) \(.lastError)"'
-          [ "$up" = 10 ] || { echo "::error::only $up of 10 services are being scraped"; exit 1; }
+          [ "$up" = 11 ] || { echo "::error::only $up of 11 services are being scraped"; exit 1; }
 
           series="$(curl -s --get http://localhost:9090/api/v1/query \
             --data-urlencode 'query=sum by (service) (jvm_memory_used_bytes{area="heap"})' \
             | jq '.data.result | length')"
           echo "services reporting heap: $series"
-          [ "$series" = 10 ] || { echo "::error::heap metrics from $series services, not 10"; exit 1; }
+          [ "$series" = 11 ] || { echo "::error::heap metrics from $series services, not 11"; exit 1; }
 
           # The alert rules loaded and evaluate, and the event-pipeline meters they watch exist in
           # every service that publishes - auth, project, task, git, review, documentation; the three that
@@ -841,11 +842,11 @@ jobs:
           for _ in $(seq 1 40); do
             up="$( (curl -s http://localhost:9090/api/v1/targets || true) \
               | jq '[.data.activeTargets[]? | select(.health=="up")] | length' 2>/dev/null || echo 0)"
-            [ "$up" = 10 ] && break
+            [ "$up" = 11 ] && break
             sleep 4
           done
           echo "targets up: $up"
-          [ "$up" = 10 ] || { echo "::error::only $up of 10 services scraped"; exit 1; }
+          [ "$up" = 11 ] || { echo "::error::only $up of 11 services scraped"; exit 1; }
           curl -s http://localhost:9090/api/v1/alertmanagers \
             | jq -e '.data.activeAlertmanagers | length == 1' > /dev/null \
             || { echo "::error::Prometheus in the cluster has no Alertmanager"; exit 1; }
