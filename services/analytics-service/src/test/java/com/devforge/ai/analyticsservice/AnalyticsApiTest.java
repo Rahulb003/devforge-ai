@@ -35,6 +35,11 @@ class AnalyticsApiTest {
   @Autowired private ProjectDailyMetricsRepository metrics;
   @Autowired private com.devforge.ai.analyticsservice.repository.AuditEntryRepository auditEntries;
 
+  @Autowired private com.devforge.ai.analyticsservice.repository.AuditChainHeadRepository auditChainHeads;
+  @Autowired private com.devforge.ai.analyticsservice.consumer.AuditRecorder auditRecorder;
+  @Autowired private org.springframework.transaction.support.TransactionTemplate transactionTemplate;
+  @Autowired private org.springframework.jdbc.core.JdbcTemplate jdbc;
+
   @MockitoBean private ProjectAccessClient projectAccessClient;
 
   private final UUID organizationId = UUID.randomUUID();
@@ -57,6 +62,7 @@ class AnalyticsApiTest {
   void setUp() {
     metrics.deleteAll();
     auditEntries.deleteAll();
+    auditChainHeads.deleteAll();
   }
 
   private void store(LocalDate day, int created, int completed, int commits) {
@@ -234,6 +240,113 @@ class AnalyticsApiTest {
       // The activity numbers stay readable to every member.
       mockMvc.perform(get(base()).header(HttpHeaders.AUTHORIZATION, bearer()))
           .andExpect(status().isOk());
+    }
+  }
+
+  @Nested
+  @DisplayName("the audit chain")
+  class AuditChainVerification {
+
+    /** Through the real recorder, in a transaction as the consumer runs it. */
+    private void record(String type) {
+      transactionTemplate.executeWithoutResult(status -> auditRecorder.record(
+          com.devforge.ai.common.events.EventEnvelope.<java.util.Map<String, Object>>of(
+              type, "project-service", organizationId, user, "corr-chain",
+              java.util.Map.of("projectId", projectId.toString(), "name", type))));
+    }
+
+    private org.springframework.test.web.servlet.ResultActions verify() throws Exception {
+      return mockMvc.perform(
+          get(base() + "/audit/verification").header(HttpHeaders.AUTHORIZATION, bearer()));
+    }
+
+    private void tamper(String sql, long sequence) {
+      // What someone with database access, but not the application, could do.
+      jdbc.update(sql, com.devforge.ai.analyticsservice.entity.AuditChain.key(organizationId, projectId), sequence);
+    }
+
+    @Test
+    @DisplayName("an untouched chain verifies, and reports the hash it ends on")
+    void intactChainVerifies() throws Exception {
+      record("ProjectCreated");
+      record("ProjectMemberAdded");
+      record("ProjectUpdated");
+
+      verify()
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.data.intact").value(true))
+          .andExpect(jsonPath("$.data.entries").value(3))
+          .andExpect(jsonPath("$.data.unchainedEntries").value(0))
+          .andExpect(jsonPath("$.data.headHash").value(org.hamcrest.Matchers.matchesPattern("[0-9a-f]{64}")));
+    }
+
+    @Test
+    @DisplayName("an edited entry is found, at its position")
+    void editIsDetected() throws Exception {
+      record("ProjectCreated");
+      record("ProjectMemberAdded");
+      record("ProjectUpdated");
+      tamper("UPDATE audit_log SET details = '{\"role\":\"OWNER\"}' WHERE chain_key = ? AND chain_sequence = ?", 2);
+
+      verify()
+          .andExpect(jsonPath("$.data.intact").value(false))
+          .andExpect(jsonPath("$.data.brokenAtSequence").value(2))
+          .andExpect(jsonPath("$.data.problem").value("its content does not match its hash"))
+          .andExpect(jsonPath("$.data.headHash").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("an entry deleted from the middle is found")
+    void middleDeletionIsDetected() throws Exception {
+      record("ProjectCreated");
+      record("ProjectMemberRemoved");
+      record("ProjectUpdated");
+      tamper("DELETE FROM audit_log WHERE chain_key = ? AND chain_sequence = ?", 2);
+
+      verify()
+          .andExpect(jsonPath("$.data.intact").value(false))
+          .andExpect(jsonPath("$.data.brokenAtSequence").value(2))
+          .andExpect(jsonPath("$.data.problem").value("the entry is missing"));
+    }
+
+    @Test
+    @DisplayName("entries deleted from the end are found, though what remains is consistent")
+    void truncationIsDetected() throws Exception {
+      record("ProjectCreated");
+      record("ProjectMemberRemoved");
+      tamper("DELETE FROM audit_log WHERE chain_key = ? AND chain_sequence = ?", 2);
+
+      verify()
+          .andExpect(jsonPath("$.data.intact").value(false))
+          .andExpect(jsonPath("$.data.entries").value(1))
+          .andExpect(jsonPath("$.data.brokenAtSequence").value(2))
+          .andExpect(jsonPath("$.data.problem").value("the chain stops short of the 2 entries it recorded"));
+    }
+
+    @Test
+    @DisplayName("each project is its own chain, so another project's entries neither break nor join it")
+    void chainsAreIndependent() throws Exception {
+      record("ProjectCreated");
+      // Another project in the same organization, through the same recorder.
+      transactionTemplate.executeWithoutResult(status -> auditRecorder.record(
+          com.devforge.ai.common.events.EventEnvelope.<java.util.Map<String, Object>>of(
+              "ProjectCreated", "project-service", organizationId, user, "corr-other",
+              java.util.Map.of("projectId", UUID.randomUUID().toString()))));
+      record("ProjectUpdated");
+
+      verify()
+          .andExpect(jsonPath("$.data.intact").value(true))
+          .andExpect(jsonPath("$.data.entries").value(2));
+    }
+
+    @Test
+    @DisplayName("is refused to a member who is not a project admin")
+    void nonAdminIsRefused() throws Exception {
+      doThrow(new org.springframework.security.access.AccessDeniedException("admin only"))
+          .when(projectAccessClient).requireProjectAccess(eq(organizationId), eq(projectId), any(),
+              eq(ProjectAccessClient.Access.ADMIN));
+
+      verify().andExpect(status().isForbidden());
     }
   }
 }

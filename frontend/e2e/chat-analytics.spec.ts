@@ -66,6 +66,9 @@ test.describe('Chat and activity', () => {
         await page.reload();
         await expect(log.getByText('Project created')).toBeVisible({ timeout: 2_000 });
       }).toPass({ timeout: 30_000 });
+      // And the chain re-hashes on real PostgreSQL, which H2 in the unit tests cannot show.
+      await page.getByRole('button', { name: 'Verify integrity' }).click();
+      await expect(page.getByText(/chained (entry is|entries are) intact/)).toBeVisible();
     } else {
       // Standalone runs without a broker, so nothing reaches the log - and it says so.
       await expect(page.getByText('Nothing recorded yet.')).toBeVisible();

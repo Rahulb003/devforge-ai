@@ -39,6 +39,14 @@ public class AnalyticsController {
         true, analyticsService.audit(organizationId, projectId, pageable), null));
   }
 
+  /** Re-hashes the project's audit chain and reports whether any entry was altered or removed. */
+  @GetMapping("/audit/verification")
+  public ResponseEntity<ApiResponse<com.devforge.ai.analyticsservice.dto.AnalyticsDtos.AuditVerification>> verifyAudit(
+      @PathVariable UUID organizationId, @PathVariable UUID projectId) {
+    return ResponseEntity.ok(new ApiResponse<>(
+        true, analyticsService.verifyAudit(organizationId, projectId), null));
+  }
+
   /** Defaults to the last 30 days when no range is given. */
   @GetMapping
   public ResponseEntity<ApiResponse<ProjectActivity>> activity(

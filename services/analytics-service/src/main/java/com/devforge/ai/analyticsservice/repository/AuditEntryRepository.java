@@ -13,4 +13,9 @@ public interface AuditEntryRepository extends JpaRepository<AuditEntryEntity, UU
       UUID organizationId, UUID projectId, Pageable pageable);
 
   boolean existsByEventId(UUID eventId);
+
+  org.springframework.data.domain.Slice<AuditEntryEntity> findByChainKeyAndChainSequenceGreaterThanOrderByChainSequenceAsc(
+      String chainKey, long after, Pageable pageable);
+
+  long countByOrganizationIdAndProjectIdAndChainSequenceIsNull(UUID organizationId, UUID projectId);
 }

@@ -1,8 +1,9 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { ArrowLeft } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 
 import { analyticsApi } from '@/api/chat.api';
+import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ErrorState, LoadingState } from '@/components/ui/states';
 import { describeApiError } from '@/lib/errors';
@@ -202,6 +203,59 @@ function AuditLog({ organizationId, projectId }: { organizationId: string; proje
           </table>
         </Card>
       )}
+      {audit.isSuccess && audit.data.content.length > 0 && (
+        <AuditIntegrity organizationId={organizationId} projectId={projectId} />
+      )}
     </section>
+  );
+}
+
+/**
+ * Asks the server to re-hash the chain. On demand rather than on load: it reads every entry, and
+ * the answer only matters when someone is checking.
+ */
+function AuditIntegrity({
+  organizationId,
+  projectId,
+}: {
+  organizationId: string;
+  projectId: string;
+}) {
+  const verify = useMutation({
+    mutationFn: async () => (await analyticsApi.verifyAudit(organizationId, projectId)).data.data,
+  });
+  const result = verify.data;
+
+  return (
+    <div className="space-y-2">
+      <Button
+        variant="secondary"
+        size="sm"
+        loading={verify.isPending}
+        onClick={() => verify.mutate()}
+      >
+        Verify integrity
+      </Button>
+      {verify.isError && (
+        <p role="alert" className="text-sm text-red-400">
+          {describeApiError(verify.error)}
+        </p>
+      )}
+      {result?.intact && (
+        <p role="status" className="text-sm text-slate-300">
+          All {result.entries} chained {result.entries === 1 ? 'entry is' : 'entries are'} intact.
+          The chain ends on <code className="text-xs break-all">{result.headHash}</code> - note it
+          somewhere outside DevForge, and a later check ending elsewhere at the same length means
+          history was rewritten.
+          {result.unchainedEntries > 0 &&
+            ` ${result.unchainedEntries} older ${result.unchainedEntries === 1 ? 'entry predates' : 'entries predate'} the chain and ${result.unchainedEntries === 1 ? 'is' : 'are'} not covered.`}
+        </p>
+      )}
+      {result && !result.intact && (
+        <p role="alert" className="text-sm text-red-400">
+          The audit log has been altered at entry {result.brokenAtSequence}: {result.problem}.
+        </p>
+      )}
+    </div>
   );
 }

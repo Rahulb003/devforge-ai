@@ -47,4 +47,24 @@ public class AuditEntryEntity {
 
   @Column(name = "details", nullable = false, updatable = false, columnDefinition = "TEXT")
   private String details;
+
+  // The chain position (see AuditChain). Null only on rows written before the chain existed.
+  @Column(name = "chain_key", updatable = false, length = 80)
+  private String chainKey;
+
+  @Column(name = "chain_sequence", updatable = false)
+  private Long chainSequence;
+
+  @Column(name = "previous_hash", updatable = false, length = 64)
+  private String previousHash;
+
+  @Column(name = "entry_hash", updatable = false, length = 64)
+  private String entryHash;
+
+  /** Sets the chain position once, before the row is first saved. */
+  public void chain(long sequence, String previousHash) {
+    this.chainSequence = sequence;
+    this.previousHash = previousHash;
+    this.entryHash = AuditChain.hash(previousHash, sequence, this);
+  }
 }

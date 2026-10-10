@@ -57,6 +57,18 @@ export interface AuditEntry {
   details: Record<string, unknown>;
 }
 
+/** The server re-hashing the project's audit chain; see AuditChain in analytics-service. */
+export interface AuditVerification {
+  intact: boolean;
+  entries: number;
+  /** Written before the chain existed, so not covered by it. */
+  unchainedEntries: number;
+  brokenAtSequence: number | null;
+  problem: string | null;
+  /** Null unless intact. Recorded elsewhere, it shows a later rewrite of the whole chain. */
+  headHash: string | null;
+}
+
 export const analyticsApi = {
   activity: (o: string, p: string) =>
     api.get<ApiEnvelope<ProjectActivity>>(`${project(o, p)}/analytics`),
@@ -71,4 +83,7 @@ export const analyticsApi = {
         totalPages: number;
       }>
     >(`${project(o, p)}/analytics/audit`, { params: { page, size: 50 } }),
+
+  verifyAudit: (o: string, p: string) =>
+    api.get<ApiEnvelope<AuditVerification>>(`${project(o, p)}/analytics/audit/verification`),
 };

@@ -14,6 +14,8 @@ const list = vi.fn();
 const post = vi.fn();
 const remove = vi.fn();
 const activity = vi.fn();
+const audit = vi.fn();
+const verifyAudit = vi.fn();
 
 // The stream is a network concern; here the page is tested against each status it can report.
 const streamStatus = vi.fn(() => 'live');
@@ -25,7 +27,11 @@ vi.mock('@/api/chat.api', () => ({
     post: (...a: unknown[]) => post(...a),
     remove: (...a: unknown[]) => remove(...a),
   },
-  analyticsApi: { activity: (...a: unknown[]) => activity(...a) },
+  analyticsApi: {
+    activity: (...a: unknown[]) => activity(...a),
+    audit: (...a: unknown[]) => audit(...a),
+    verifyAudit: (...a: unknown[]) => verifyAudit(...a),
+  },
 }));
 
 const env = <T,>(data: T) => ({ data: { data } });
@@ -165,6 +171,67 @@ describe('AnalyticsPage', () => {
     activity.mockResolvedValue(env(data));
     renderAt('analytics', <AnalyticsPage />);
     expect(await screen.findByText(/Counted from domain events/)).toBeInTheDocument();
+  });
+
+  describe('audit integrity', () => {
+    beforeEach(() => {
+      activity.mockResolvedValue(env(data));
+      audit.mockResolvedValue(
+        env({
+          content: [
+            {
+              eventId: 'e1',
+              eventType: 'ProjectCreated',
+              source: 'project-service',
+              actorId: 'me',
+              occurredAt: new Date().toISOString(),
+              details: { name: 'Demo' },
+            },
+          ],
+          totalElements: 1,
+          number: 0,
+          totalPages: 1,
+        }),
+      );
+    });
+
+    it('reports an intact chain with the hash to keep', async () => {
+      verifyAudit.mockResolvedValue(
+        env({
+          intact: true,
+          entries: 3,
+          unchainedEntries: 0,
+          brokenAtSequence: null,
+          problem: null,
+          headHash: 'ab'.repeat(32),
+        }),
+      );
+      renderAt('analytics', <AnalyticsPage />);
+
+      await userEvent.click(await screen.findByRole('button', { name: 'Verify integrity' }));
+      const status = await screen.findByRole('status');
+      expect(status).toHaveTextContent('All 3 chained entries are intact');
+      expect(status).toHaveTextContent('ab'.repeat(32));
+    });
+
+    it('says where the log was altered', async () => {
+      verifyAudit.mockResolvedValue(
+        env({
+          intact: false,
+          entries: 1,
+          unchainedEntries: 0,
+          brokenAtSequence: 2,
+          problem: 'its content does not match its hash',
+          headHash: null,
+        }),
+      );
+      renderAt('analytics', <AnalyticsPage />);
+
+      await userEvent.click(await screen.findByRole('button', { name: 'Verify integrity' }));
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'altered at entry 2: its content does not match its hash',
+      );
+    });
   });
 
   it('offers a retry when loading fails', async () => {

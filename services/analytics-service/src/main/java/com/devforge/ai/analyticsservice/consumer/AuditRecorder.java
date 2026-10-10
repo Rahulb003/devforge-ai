@@ -1,5 +1,7 @@
 package com.devforge.ai.analyticsservice.consumer;
 
+import com.devforge.ai.analyticsservice.entity.AuditChain;
+import com.devforge.ai.analyticsservice.entity.AuditChainHeadEntity;
 import com.devforge.ai.analyticsservice.entity.AuditEntryEntity;
 import com.devforge.ai.analyticsservice.repository.AuditEntryRepository;
 import com.devforge.ai.common.events.EventEnvelope;
@@ -23,6 +25,7 @@ import org.springframework.stereotype.Component;
 public class AuditRecorder {
 
   private final AuditEntryRepository entries;
+  private final com.devforge.ai.analyticsservice.repository.AuditChainHeadRepository heads;
   private final ObjectMapper objectMapper;
 
   public void record(EventEnvelope<Map<String, Object>> envelope) {
@@ -31,17 +34,29 @@ public class AuditRecorder {
       return;
     }
     var payload = envelope.payload() == null ? Map.<String, Object>of() : envelope.payload();
-    entries.save(AuditEntryEntity.builder()
+    var projectId = uuid(payload.get("projectId"));
+    var chainKey = AuditChain.key(envelope.tenantId(), projectId);
+    var entry = AuditEntryEntity.builder()
         .id(UUID.randomUUID())
         .eventId(envelope.eventId())
         .eventType(envelope.eventType())
         .source(envelope.source())
         .organizationId(envelope.tenantId())
-        .projectId(uuid(payload.get("projectId")))
+        .projectId(projectId)
         .actorId(envelope.actorId())
-        .occurredAt(envelope.timestamp())
+        .occurredAt(AuditChain.storable(envelope.timestamp()))
         .details(json(payload))
-        .build());
+        .chainKey(chainKey)
+        .build();
+
+    // A chain's first entry creates its head. Two threads starting the same chain at once both
+    // insert it; the loser's transaction fails on the primary key and the consumer's retry
+    // appends it behind the winner, which is the order it lost the race in anyway.
+    var head = heads.lock(chainKey).orElseGet(() -> heads.save(new AuditChainHeadEntity(chainKey)));
+    var sequence = head.getLastSequence() + 1;
+    entry.chain(sequence, head.getLastHash());
+    entries.save(entry);
+    head.advance(sequence, entry.getEntryHash());
   }
 
   private String json(Map<String, Object> payload) {

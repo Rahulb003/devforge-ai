@@ -28,6 +28,7 @@ public class AnalyticsService {
   private final ProjectAccessClient projectAccess;
   private final com.devforge.ai.analyticsservice.repository.AuditEntryRepository auditEntries;
   private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
+  private final com.devforge.ai.analyticsservice.repository.AuditChainHeadRepository auditChainHeads;
 
   /** Longest window a single request may ask for, so one query cannot pull years of rows. */
   @Value("${devforge.analytics.max-range-days:366}")
@@ -47,6 +48,58 @@ public class AnalyticsService {
         .map(row -> new com.devforge.ai.analyticsservice.dto.AnalyticsDtos.AuditEntry(
             row.getEventId(), row.getEventType(), row.getSource(), row.getActorId(),
             row.getOccurredAt(), parse(row.getDetails())));
+  }
+
+  /** Re-hashes the project's audit chain end to end. Project admins only, like the log itself. */
+  @Transactional(readOnly = true)
+  public com.devforge.ai.analyticsservice.dto.AnalyticsDtos.AuditVerification verifyAudit(
+      UUID organizationId, UUID projectId) {
+    projectAccess.requireProjectAccess(
+        organizationId, projectId, currentBearerToken(), ProjectAccessClient.Access.ADMIN);
+    var chainKey = com.devforge.ai.analyticsservice.entity.AuditChain.key(organizationId, projectId);
+    var unchained = auditEntries.countByOrganizationIdAndProjectIdAndChainSequenceIsNull(
+        organizationId, projectId);
+
+    long checked = 0;
+    var expectedPrevious = com.devforge.ai.analyticsservice.entity.AuditChain.GENESIS;
+    // Paged by position rather than offset, so a long chain is read in bounded memory.
+    while (true) {
+      var page = auditEntries.findByChainKeyAndChainSequenceGreaterThanOrderByChainSequenceAsc(
+          chainKey, checked, org.springframework.data.domain.PageRequest.of(0, 500));
+      for (var row : page) {
+        var position = checked + 1;
+        String problem = null;
+        if (row.getChainSequence() != position) {
+          problem = "the entry is missing";
+        } else if (!expectedPrevious.equals(row.getPreviousHash())) {
+          problem = "it does not follow the entry before it";
+        } else if (!com.devforge.ai.analyticsservice.entity.AuditChain
+            .hash(row.getPreviousHash(), position, row).equals(row.getEntryHash())) {
+          problem = "its content does not match its hash";
+        }
+        if (problem != null) {
+          return new com.devforge.ai.analyticsservice.dto.AnalyticsDtos.AuditVerification(
+              false, checked, unchained, position, problem, null);
+        }
+        expectedPrevious = row.getEntryHash();
+        checked = position;
+      }
+      if (!page.hasNext()) {
+        break;
+      }
+    }
+
+    // Rows deleted from the end leave a chain that is consistent as far as it goes; only the head
+    // knows how far it went.
+    var head = auditChainHeads.findById(chainKey);
+    var headSequence = head.map(h -> h.getLastSequence()).orElse(0L);
+    if (headSequence != checked || (head.isPresent() && !head.get().getLastHash().equals(expectedPrevious))) {
+      return new com.devforge.ai.analyticsservice.dto.AnalyticsDtos.AuditVerification(
+          false, checked, unchained, checked + 1,
+          "the chain stops short of the " + headSequence + " entries it recorded", null);
+    }
+    return new com.devforge.ai.analyticsservice.dto.AnalyticsDtos.AuditVerification(
+        true, checked, unchained, null, null, expectedPrevious);
   }
 
   private com.fasterxml.jackson.databind.JsonNode parse(String details) {

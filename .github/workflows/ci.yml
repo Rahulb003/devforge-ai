@@ -671,6 +671,13 @@ jobs:
           echo "audit entries for the project: $entries"
           [ "$entries" -ge 2 ] || { echo "::error::events did not reach the audit log"; exit 1; }
 
+          # The chain re-hashes on real PostgreSQL. H2 cannot show that a timestamp comes back from
+          # the database exactly as it was hashed, and if it did not, every entry would read as
+          # tampered with.
+          verification="$(curl -sf "$api/organizations/$org/projects/$project/analytics/audit/verification" -H "$auth")"
+          echo "audit verification: $(echo "$verification" | jq -c .data)"
+          echo "$verification" | jq -e '.data.intact and .data.entries >= 2' > /dev/null             || { echo "::error::the audit chain did not verify"; exit 1; }
+
       - name: Prometheus scrapes every service in the cluster
         run: |
           set -euo pipefail
