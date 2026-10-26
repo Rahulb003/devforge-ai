@@ -14,7 +14,7 @@ and on Kubernetes (kind) against real PostgreSQL, Kafka and Redis.
 
 | Gate | Command | Result |
 |---|---|---|
-| Backend tests | `mvn -B -ntp -f backend/pom.xml test` | **PASS** — 609 tests, 0 failures locally (2026-10-27); CI not rerun since |
+| Backend tests | `mvn -B -ntp -f backend/pom.xml test` | **PASS** — 612 tests, 0 failures locally (2026-10-27); CI not rerun since |
 | Frontend lint, typecheck, unit tests, build | `npm run lint`, `typecheck`, `test`, `build` | **PASS** — 0 warnings; 104 unit tests |
 | Browser suite, standalone | CI `e2e` job, `npm run test:e2e` locally | **PASS** — 52 Playwright tests, failing on any CSP violation and on serious axe findings |
 | Images | CI `docker` job | **PASS** — eleven images build, run as non-root, start healthy; Trivy blocks on fixable high/critical advisories in every one |
@@ -150,7 +150,7 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 | Git hosting (§7) | `IMPLEMENTED` | git-service hosts real repositories via JGit: create, browse, commit, branch, diff, pull requests with merge rules, and clone/push over HTTP with personal access tokens (default branch protected, merge rule enforced on push). 149 tests; push and clone with the git CLI verified on kind |
 | GitHub/GitLab integration | `MISSING` | Deliberately separate from the above — it needs provider credentials, and faking it was not an option |
 | Code review and quality gates (§8) | `IMPLEMENTED` | review-service: secret detection, credential files, merge-conflict markers, dangerous patterns; severities, a configurable gate, and dismissal with a recorded reason. 83 tests. Verified live against a repository with a planted credential |
-| Chat (§11) | `IMPLEMENTED` | chat-service: one channel per project, post/list/edit/delete, author-only edits, deletes erase the text. 8 tests. Live delivery over Server-Sent Events, verified across two browser windows through the dev proxy and the gateway. 10 backend tests. **Single-instance fan-out only, no presence** |
+| Chat (§11) | `IMPLEMENTED` | chat-service: one channel per project, post/list/edit/delete, author-only edits, deletes erase the text. 8 tests. Live delivery over Server-Sent Events, verified across two browser windows through the dev proxy and the gateway. 14 backend tests. Pushes reach subscribers on every instance: each relays over `devforge.chat.v1` and reads it in a group of its own, verified against an in-process broker (3 tests) and the topic and ACLs against the real broker image. Two instances behind the gateway end to end **UNVERIFIED**. **No presence** |
 | Analytics (§14) | `IMPLEMENTED` | With a UI: totals, a daily chart and a screen-reader table, plus the server's completeness note shown verbatim. analytics-service consumes task and repository events into daily per-project counters, with a read API. The platform's second production consumer. 14 tests, 5 against a real broker |
 | Documentation generation (§10) | `IMPLEMENTED` | documentation-service: repository overview, API surface and doc-coverage documents generated from real content. 31 tests. Not AI-written — every statement is derived from files that exist |
 | Code-execution sandbox (§37) | `MISSING` | **Designed, deliberately not built** — see docs/SANDBOX.md. No container, VM or hypervisor is available here, and a sandbox that cannot isolate is worse than none because people trust it |

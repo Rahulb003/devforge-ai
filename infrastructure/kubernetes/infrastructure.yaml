@@ -355,8 +355,17 @@ data:
     consumes notification-service devforge.identity.v1 devforge.security.v1 devforge.tasks.v1 devforge.repositories.v1 devforge.projects.v1
     consumes analytics-service devforge.tasks.v1 devforge.repositories.v1 devforge.projects.v1
 
-    # review-service, documentation-service and chat-service have an identity and no grants: they
-    # publish nothing yet. Giving one a grant is a deliberate change to this file, not a default.
+    # Chat's live-push relay between chat-service instances. Each instance reads in a consumer group of
+    # its own (chat-service.fanout.<random id>) so all of them see every message, hence the prefixed
+    # group grant. The pushes are worthless minutes later - the messages are in the database - so the
+    # topic keeps an hour, and has no dead-letter copy.
+    kafka-topics --bootstrap-server "$BOOTSTRAP" --command-config "$CONFIG"   --create --if-not-exists --topic devforge.chat.v1 --partitions 3 --replication-factor 1   --config retention.ms=3600000
+    produces chat-service devforge.chat.v1
+    acl --allow-principal "User:chat-service" --operation Read --operation Describe --topic devforge.chat.v1
+    acl --allow-principal "User:chat-service" --operation Read --resource-pattern-type prefixed --group chat-service.fanout.
+
+    # review-service and documentation-service have an identity and no grants: they publish nothing
+    # yet. Giving one a grant is a deliberate change to this file, not a default.
 
     echo "kafka-setup: topics and ACLs in place"
     kafka-acls --bootstrap-server "$BOOTSTRAP" --command-config "$CONFIG" --list

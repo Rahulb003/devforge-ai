@@ -14,9 +14,8 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 /**
  * Open Server-Sent Event streams, per project channel.
  *
- * <p>In-memory, so it fans out only to clients connected to <em>this</em> instance. With more than
- * one chat-service instance a message posted on one would not reach subscribers on another; that
- * needs a shared channel (Kafka or Redis pub/sub) and is recorded as a limitation, not hidden.
+ * <p>In-memory: the streams connected to <em>this</em> instance. {@link ChatFanout} relays messages
+ * between instances, so a message posted on one reaches subscribers on all of them.
  */
 @Slf4j
 @Component

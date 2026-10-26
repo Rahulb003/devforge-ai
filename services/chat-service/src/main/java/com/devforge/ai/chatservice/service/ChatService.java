@@ -36,6 +36,7 @@ public class ChatService {
   private final ChatMessageRepository messages;
   private final ProjectAccessClient projectAccess;
   private final ChatStreamRegistry streams;
+  private final ChatFanout fanout;
 
   /** Opens a live stream of this channel. Access is checked here, once, when it opens. */
   public SseEmitter subscribe(UUID organizationId, UUID projectId) {
@@ -115,7 +116,7 @@ public class ChatService {
     TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
       @Override
       public void afterCommit() {
-        streams.broadcast(projectId, message);
+        fanout.deliver(projectId, message);
       }
     });
   }
