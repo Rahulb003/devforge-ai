@@ -4,7 +4,7 @@
 
 ## What is included
 
-This is a foundation with eight service domains built on it, not a finished platform.
+This is a foundation with ten working services built on it, not a finished platform.
 `docs/PROGRESS.md` tracks exactly what works, and what is only scaffolded, per feature.
 
 **Working end-to-end, with tests:**
