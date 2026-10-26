@@ -30,11 +30,16 @@ This is a foundation with eight service domains built on it, not a finished plat
   assigned, and commits, as a daily series
 - React 19 + Vite frontend covering the above
 
-**Scaffolded only — health endpoint, no behaviour yet:** AI and deployment services.
-Chat is live: per-project channels with messages pushed over Server-Sent Events.
+- Chat: per-project channels with messages pushed over Server-Sent Events
+- Repository webhooks, account data export and account deletion
 
-**Present but unverified:** Docker Compose and the Kubernetes manifests have never been
-run here (no Docker daemon available). Treat them as untested.
+**Built, but the live call is unverified:** AI file explanation and pull request review,
+which need an Anthropic API key. Without one they say so; nothing is simulated.
+
+**Scaffolded only — health endpoint, no behaviour yet:** the deployment service.
+
+**Run in CI only:** the Docker Compose stack and the Kubernetes manifests (on a one-node kind
+cluster). There is no Docker daemon on the development machine.
 
 ## A note on credentials in this repository
 
@@ -86,10 +91,6 @@ devforge-ai/
 │   └── task-service/
 └── .github/workflows/
 ```
-
-## Phase 0 scope
-
-This repository currently contains the foundation for the DevForge AI platform. No business logic, authentication, ChatGPT integration, or deployment workflows are implemented yet.
 
 ## Getting started
 
