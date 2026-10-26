@@ -10,6 +10,7 @@ import com.devforge.ai.deploymentservice.pipeline.PipelineDtos.RunSummary;
 import com.devforge.ai.deploymentservice.sandbox.Sandbox;
 import com.devforge.ai.deploymentservice.sandbox.Sandbox.Limits;
 import com.devforge.ai.deploymentservice.sandbox.Sandbox.SandboxUnavailableException;
+import com.devforge.ai.deploymentservice.sandbox.Workspace;
 import jakarta.annotation.PreDestroy;
 import java.time.Duration;
 import java.time.Instant;
@@ -58,6 +59,7 @@ public class PipelineService {
   private final int stepMemoryMb;
   private final int stepOutputBytes;
   private final int runsPerHour;
+  private final long maxWorkspaceBytes;
   private final ThreadPoolExecutor executor;
 
   public PipelineService(PipelineRunRepository runs, PipelineStepRepository steps,
@@ -67,7 +69,8 @@ public class PipelineService {
       @Value("${devforge.pipelines.step-output-bytes:262144}") int stepOutputBytes,
       @Value("${devforge.pipelines.runs-per-hour:10}") int runsPerHour,
       @Value("${devforge.pipelines.concurrent-runs:2}") int concurrentRuns,
-      @Value("${devforge.pipelines.queue-size:20}") int queueSize) {
+      @Value("${devforge.pipelines.queue-size:20}") int queueSize,
+      @Value("${devforge.pipelines.max-workspace-bytes:16777216}") long maxWorkspaceBytes) {
     this.runs = runs;
     this.steps = steps;
     this.projectAccess = projectAccess;
@@ -77,6 +80,7 @@ public class PipelineService {
     this.stepMemoryMb = stepMemoryMb;
     this.stepOutputBytes = stepOutputBytes;
     this.runsPerHour = runsPerHour;
+    this.maxWorkspaceBytes = maxWorkspaceBytes;
     // Bounded both ways: a burst of triggers waits in a short queue and is then refused, rather
     // than growing a backlog nobody is waiting for any more.
     this.executor = new ThreadPoolExecutor(concurrentRuns, concurrentRuns, 0, TimeUnit.SECONDS,
@@ -115,11 +119,17 @@ public class PipelineService {
 
     var files = new LinkedHashMap<String, String>();
     var omitted = new ArrayList<String>();
+    long workspaceBytes = 0;
     for (var file : gitContent.filesToAnalyse(context, ref, null, token)) {
-      if (file.binary() || file.truncated()) {
+      // Held in memory until the run's steps finish, and up to queue-size runs can wait, so the
+      // workspace is capped: uncapped, twenty queued runs of a large repository were gigabytes.
+      var bytes = (long) file.content().length() * 3;
+      if (file.binary() || file.truncated() || !Workspace.isSafe(file.path())
+          || workspaceBytes + bytes > maxWorkspaceBytes) {
         omitted.add(file.path());
       } else {
         files.put(file.path(), file.content());
+        workspaceBytes += bytes;
       }
     }
 

@@ -40,6 +40,8 @@ devforge:
     runs-per-hour: 3
   pipelines:
     runs-per-hour: 3
+    # Small, so one test can show a file over the cap being left out.
+    max-workspace-bytes: 1000
 
 management:
   endpoints:

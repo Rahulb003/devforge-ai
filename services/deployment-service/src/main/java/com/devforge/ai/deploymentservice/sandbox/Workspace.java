@@ -13,7 +13,7 @@ import java.util.Map;
  * inside the sandbox, and a {@code ../} entry is exactly how an archive writes outside its
  * directory. The sandbox would contain it anyway; the archive should never ask.
  */
-final class Workspace {
+public final class Workspace {
 
   private static final int BLOCK = 512;
 
@@ -28,6 +28,16 @@ final class Workspace {
     file(out, "step.sh", script.getBytes(StandardCharsets.UTF_8));
     out.writeBytes(new byte[BLOCK * 2]);
     return out.toByteArray();
+  }
+
+  /** Whether {@link #checked} would accept the path. */
+  public static boolean isSafe(String path) {
+    try {
+      checked(path);
+      return true;
+    } catch (IllegalArgumentException ex) {
+      return false;
+    }
   }
 
   /** A repository path is relative, has no empty, "." or ".." segment, and fits a ustar header. */

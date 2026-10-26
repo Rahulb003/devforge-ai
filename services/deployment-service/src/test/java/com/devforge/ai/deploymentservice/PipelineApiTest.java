@@ -155,6 +155,24 @@ class PipelineApiTest {
   }
 
   @Test
+  @DisplayName("the workspace is capped in size, and unsafe paths are left out rather than failing the run")
+  void workspaceIsBounded() throws Exception {
+    when(gitContent.filesToAnalyse(any(), eq("main"), eq(null), anyString())).thenReturn(List.of(
+        RepositoryFile.of("app.py", 10, false, false, "print(1)\n"),
+        RepositoryFile.of("big.txt", 5000, false, false, "x".repeat(5000)),
+        RepositoryFile.of("../escape.sh", 5, false, false, "boom\n")));
+    when(sandbox.runStep(any(), anyMap(), anyString(), any())).thenReturn(ok(""));
+
+    var id = triggerAndWait("SUCCEEDED");
+
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<Map<String, String>> files = ArgumentCaptor.forClass(Map.class);
+    verify(sandbox, org.mockito.Mockito.atLeastOnce()).runStep(any(), files.capture(), anyString(), any());
+    assertThat(files.getValue()).containsOnlyKeys("app.py");
+    assertThat(runs.findById(id).orElseThrow().getOmittedFiles()).contains("big.txt", "../escape.sh");
+  }
+
+  @Test
   @DisplayName("stops at the first failing step and skips the rest")
   void stopsAtFailure() throws Exception {
     when(sandbox.runStep(any(), anyMap(), eq("python -m pyflakes ."), any()))
