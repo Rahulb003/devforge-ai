@@ -136,6 +136,7 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 | Auth: MFA/TOTP | `IMPLEMENTED` | RFC 6238 verified against published vectors; two-step enrolment, recovery codes, throttled |
 | Auth: per-device sessions | `IMPLEMENTED` | List/revoke/revoke-others; 7 tests |
 | Auth: rate limiting | `IMPLEMENTED` | Per-account rolling window on password and MFA attempts |
+| Auth: account data export | `IMPLEMENTED` | `GET /auth/me/export`: profile, sessions, access tokens, linked providers, sign-in history and audit trail as a JSON download; built field by field so no credential can leak. 3 tests. Settings has a download button. auth-service data only. Download in a real browser **UNVERIFIED** |
 | RBAC enforcement | `PARTIALLY_IMPLEMENTED` | Enforced in project-service (org + project roles, server-side, membership-derived). Other services remain skeletons. |
 | Multi-tenancy / organizations | `IMPLEMENTED` | Organizations, projects and their members; 23 tenant-isolation/IDOR tests. Teams form by email invitation, accepted only by the verified owner of the address; owners and admins manage roles and members, the last owner is protected, and leaving removes project access. Project members are managed from the project. Verified in the browser with two users on both CI stacks |
 | API gateway routing | `IMPLEMENTED` | Single entry point on 8080; routes auth, organizations/projects and the nested task/sprint paths. Verified live: signup 201, `/auth/me` 200, create org, create project, create task — all through the gateway |

@@ -3,6 +3,7 @@ package com.devforge.ai.authservice.controller;
 import com.devforge.ai.authservice.dto.ApiResponseDto;
 import com.devforge.ai.authservice.security.UserPrincipal;
 import com.devforge.ai.authservice.service.AccountDeletionService;
+import com.devforge.ai.authservice.service.AccountExportService;
 import com.devforge.ai.authservice.service.AccountService;
 import com.devforge.ai.authservice.service.AccountService.ProfileChanges;
 import com.devforge.ai.authservice.service.AuthService;
@@ -14,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -30,6 +32,7 @@ public class AccountController {
   private final AuthService authService;
   private final SessionService sessions;
   private final AccountDeletionService deletion;
+  private final AccountExportService export;
 
   public record PasswordChange(String currentPassword, String newPassword) {}
 
@@ -64,6 +67,18 @@ public class AccountController {
         .data(Map.of("otherSessionsSignedOut", signedOut))
         .message("Password changed")
         .build());
+  }
+
+  /**
+   * The caller's data as a JSON download. Not wrapped in the usual envelope: it is a file for the
+   * user to keep, and should read as one. no-store, because it carries their sign-in history.
+   */
+  @GetMapping("/me/export")
+  public ResponseEntity<AccountExportService.Export> exportAccount(@AuthenticationPrincipal UserPrincipal principal) {
+    return ResponseEntity.ok()
+        .header("Content-Disposition", "attachment; filename=\"devforge-account.json\"")
+        .header("Cache-Control", "no-store")
+        .body(export.export(principal.getId()));
   }
 
   /**

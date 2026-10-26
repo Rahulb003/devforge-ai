@@ -159,6 +159,9 @@ export const authApi = {
   deleteAccount: (confirmation: { username: string; password: string; mfaCode?: string }) =>
     api.delete<ApiEnvelope<void>>('/auth/me', { data: confirmation }),
 
+  /** The caller's account data as a file. Not enveloped: the body is the document itself. */
+  exportAccount: () => api.get<Blob>('/auth/me/export', { responseType: 'blob' }),
+
   forgotPassword: (email: string) =>
     api.post<ApiEnvelope<void>>('/auth/forgot-password', { email }),
 
