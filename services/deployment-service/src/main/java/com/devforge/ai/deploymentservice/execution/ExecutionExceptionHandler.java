@@ -1,6 +1,7 @@
 package com.devforge.ai.deploymentservice.execution;
 
 import com.devforge.ai.common.exception.ApiError;
+import com.devforge.ai.common.git.GitContentClient.GitServiceUnavailableException;
 import com.devforge.ai.deploymentservice.execution.ExecutionService.QuotaExceededException;
 import com.devforge.ai.deploymentservice.sandbox.Sandbox.SandboxUnavailableException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -20,6 +21,11 @@ public class ExecutionExceptionHandler {
 
   @ExceptionHandler(SandboxUnavailableException.class)
   public ResponseEntity<ApiError> unavailable(SandboxUnavailableException ex, HttpServletRequest request) {
+    return build(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage(), request);
+  }
+
+  @ExceptionHandler(GitServiceUnavailableException.class)
+  public ResponseEntity<ApiError> gitUnavailable(GitServiceUnavailableException ex, HttpServletRequest request) {
     return build(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage(), request);
   }
 

@@ -33,6 +33,8 @@ devforge:
   services:
     # Project membership decides who may run code in a project and read its runs.
     project-service-url: ${PROJECT_SERVICE_URL}
+    # Pipelines read the repository and its .devforge/pipeline.yml from here, as the caller.
+    git-service-url: ${GIT_SERVICE_URL}
   sandbox:
     # Off by default: see SandboxConfig and docs/SANDBOX.md before turning it on.
     enabled: ${DEVFORGE_SANDBOX_ENABLED:false}
@@ -42,6 +44,11 @@ devforge:
     max-output-bytes: ${DEVFORGE_SANDBOX_MAX_OUTPUT_BYTES:65536}
     runs-per-hour: ${DEVFORGE_SANDBOX_RUNS_PER_HOUR:30}
     concurrent-runs: ${DEVFORGE_SANDBOX_CONCURRENT_RUNS:4}
+  pipelines:
+    max-step-seconds: ${DEVFORGE_PIPELINE_MAX_STEP_SECONDS:120}
+    step-memory-mb: ${DEVFORGE_PIPELINE_STEP_MEMORY_MB:512}
+    runs-per-hour: ${DEVFORGE_PIPELINE_RUNS_PER_HOUR:10}
+    concurrent-runs: ${DEVFORGE_PIPELINE_CONCURRENT_RUNS:2}
 
 management:
   endpoints:

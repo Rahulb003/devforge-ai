@@ -11,6 +11,12 @@ public interface Sandbox {
 
   Result run(Language language, String code, Limits limits);
 
+  /**
+   * Runs a pipeline step: {@code script} under {@code sh}, in a work directory holding
+   * {@code files} (repository path to text content). Same isolation as {@link #run}.
+   */
+  Result runStep(Language runtime, java.util.Map<String, String> files, String script, Limits limits);
+
   enum Language {
     PYTHON("python:3.12-alpine", "python3", "-u", "-"),
     JAVASCRIPT("node:22-alpine", "node", "-");

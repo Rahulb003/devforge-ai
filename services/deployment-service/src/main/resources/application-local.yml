@@ -12,6 +12,7 @@ security:
 devforge:
   services:
     project-service-url: ${PROJECT_SERVICE_URL:http://localhost:9002}
+    git-service-url: ${GIT_SERVICE_URL:http://localhost:9005}
 
 logging:
   level:

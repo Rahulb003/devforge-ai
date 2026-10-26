@@ -17,6 +17,7 @@ import { RepositoriesPage } from './pages/RepositoriesPage';
 import { RepositoryBrowserPage } from './pages/RepositoryBrowserPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
 import { ChatPage } from './pages/ChatPage';
+import { PipelinesPage } from './pages/PipelinesPage';
 import { RunCodePage } from './pages/RunCodePage';
 import { ProjectMembersPage } from './pages/ProjectMembersPage';
 import { DocsPage } from './pages/DocsPage';
@@ -105,6 +106,10 @@ function App() {
               <Route
                 path="organizations/:organizationId/projects/:projectId/repositories/:repositoryId/docs"
                 element={<DocsPage />}
+              />
+              <Route
+                path="organizations/:organizationId/projects/:projectId/repositories/:repositoryId/pipelines"
+                element={<PipelinesPage />}
               />
               <Route
                 path="organizations/:organizationId/projects/:projectId/repositories/:repositoryId/pull-requests"

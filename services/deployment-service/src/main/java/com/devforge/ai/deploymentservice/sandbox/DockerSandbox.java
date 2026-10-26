@@ -54,12 +54,35 @@ public class DockerSandbox implements Sandbox {
 
   @Override
   public Result run(Language language, String code, Limits limits) {
-    ensureImage(language.image);
+    return execute(language.image, List.of(language.command), code.getBytes(StandardCharsets.UTF_8),
+        limits, SNIPPET_TMPFS);
+  }
+
+  /**
+   * The repository and the step's script arrive together as one tar on stdin, unpacked into /tmp.
+   * The script travels inside the archive rather than as an argument, so no user text ever reaches
+   * the docker command line - where Windows argument quoting would mangle it, and where it would
+   * be one quoting bug away from being parsed rather than passed.
+   */
+  @Override
+  public Result runStep(Language runtime, Map<String, String> files, String script, Limits limits) {
+    var archive = Workspace.archive(files, script);
+    return execute(runtime.image,
+        List.of("sh", "-c", "tar -xf - -C /tmp && cd /tmp/workspace && exec sh /tmp/step.sh"),
+        archive, limits, STEP_TMPFS);
+  }
+
+  private static final String SNIPPET_TMPFS = "16m";
+  private static final String STEP_TMPFS = "128m";
+
+  private Result execute(String image, List<String> program, byte[] input, Limits limits,
+      String tmpSize) {
+    ensureImage(image);
     var name = "devforge-run-" + UUID.randomUUID();
     var started = System.nanoTime();
     Process process;
     try {
-      process = docker(runCommand(name, language, limits)).start();
+      process = docker(runCommand(name, image, program, limits, tmpSize)).start();
     } catch (IOException ex) {
       throw new SandboxUnavailableException("The sandbox could not be started: " + ex.getMessage());
     }
@@ -72,7 +95,7 @@ public class DockerSandbox implements Sandbox {
       var errReader = drain(process.getErrorStream(), stderr, budget, exceeded, process);
 
       try (var stdin = process.getOutputStream()) {
-        stdin.write(code.getBytes(StandardCharsets.UTF_8));
+        stdin.write(input);
       } catch (IOException ex) {
         // The program exited, or was killed, before reading all of its input. Its result says why.
       }
@@ -123,13 +146,14 @@ public class DockerSandbox implements Sandbox {
     }
   }
 
-  List<String> runCommand(String name, Language language, Limits limits) {
+  List<String> runCommand(String name, String image, List<String> program, Limits limits,
+      String tmpSize) {
     var memory = limits.memoryMb() + "m";
     var command = new ArrayList<>(List.of(dockerBinary, "run", "-i", "--name", name,
         "--network", "none",                                  // G1, G3: no route anywhere, metadata included
         "--read-only",                                        // G2: the image cannot be written to
         "--tmpfs", "/work:rw,size=16m,mode=1777",             // G2, G9: the only writable place, gone after
-        "--tmpfs", "/tmp:rw,size=16m,mode=1777",
+        "--tmpfs", "/tmp:rw,size=" + tmpSize + ",mode=1777",
         "--workdir", "/work",
         "--user", "65534:65534",                              // nobody, not root inside the container
         "--cap-drop", "ALL",
@@ -144,9 +168,9 @@ public class DockerSandbox implements Sandbox {
         // ignores any signal it has no handler for - SIGKILL included - so without an init the
         // program sat in that slot and the limit silently never fired.
         "--init",
-        language.image,
+        image,
         "timeout", "-s", "KILL", String.valueOf(limits.timeoutSeconds()))); // G6, G11
-    command.addAll(List.of(language.command));
+    command.addAll(program);
     return command;
   }
 

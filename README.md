@@ -39,7 +39,10 @@ which need an Anthropic API key. Without one they say so; nothing is simulated.
 - A code-execution sandbox: each run in its own locked-down container, proven by escape
   tests against a real Docker engine. Off by default; see `docs/SANDBOX.md`
 
-**Not built:** deployment pipelines, a full IDE, and AI code generation.
+- CI pipelines: the steps in a repository's `.devforge/pipeline.yml`, each run in that
+  sandbox against the repository's files. Triggered by hand; nothing is deployed
+
+**Not built:** deployment to an environment, a full IDE, and AI code generation.
 
 **Run in CI only:** the Docker Compose stack and the Kubernetes manifests (on a one-node kind
 cluster). The development machine has Docker only for the sandbox tests.

@@ -32,9 +32,13 @@ devforge:
   services:
     # Never reached: ProjectAccessClient is replaced by a mock in the tests.
     project-service-url: http://localhost:19002
+    # Never reached: GitContentClient is replaced by a mock in the tests.
+    git-service-url: http://localhost:19005
   sandbox:
     # The API tests replace the sandbox; DockerSandboxEscapeTest drives the real one directly.
     enabled: false
+    runs-per-hour: 3
+  pipelines:
     runs-per-hour: 3
 
 management:

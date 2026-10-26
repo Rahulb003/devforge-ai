@@ -217,6 +217,40 @@ class DockerSandboxEscapeTest {
     assertThat(marker).doesNotExist();
   }
 
+  @Test
+  @DisplayName("a pipeline step sees the repository in its work directory and nothing else")
+  void stepWorkspace() {
+    var files = java.util.Map.of(
+        "README.md", "hello\n",
+        "src/app/main.py", "print('from the repo')\n",
+        "tests/test_main.py", "import unittest\nclass T(unittest.TestCase):\n    def test_ok(self):\n        self.assertEqual(1 + 1, 2)\n");
+    var result = sandbox.runStep(Language.PYTHON, files,
+        "pwd\ncat README.md\npython3 src/app/main.py\npython3 -m unittest discover -s tests -q 2>&1\n",
+        new Limits(60, 256, 64 * 1024));
+    assertThat(result.outcome()).isEqualTo(Outcome.COMPLETED);
+    assertThat(result.exitCode()).isZero();
+    assertThat(result.stdout()).contains("/tmp/workspace", "hello", "from the repo", "OK");
+  }
+
+  @Test
+  @DisplayName("a failing step reports the failure, and the workspace cannot be executed directly")
+  void stepFailureAndNoExec() {
+    var result = sandbox.runStep(Language.JAVASCRIPT, java.util.Map.of("run.sh", "echo ran\n"),
+        "./run.sh || echo 'not executable'\nnode -e 'process.exit(4)'\n", new Limits(30, 256, 64 * 1024));
+    assertThat(result.outcome()).isEqualTo(Outcome.COMPLETED);
+    assertThat(result.exitCode()).isEqualTo(4);
+    assertThat(result.stdout()).contains("not executable").doesNotContain("ran\n");
+  }
+
+  @Test
+  @DisplayName("a path that climbs out of the workspace is rejected before anything runs")
+  void stepRejectsTraversal() {
+    for (var path : java.util.List.of("../escape", "a/../../b", "/etc/x", "a//b", "./a")) {
+      assertThatThrownBy(() -> Workspace.checked(path)).isInstanceOf(IllegalArgumentException.class);
+    }
+    assertThat(Workspace.checked("src/main/App.java")).isEqualTo("src/main/App.java");
+  }
+
   private static String pythonString(String value) {
     return "'" + value.replace("\\", "\\\\").replace("'", "\\'") + "'";
   }

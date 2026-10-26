@@ -30,6 +30,7 @@ security:
 devforge:
   services:
     project-service-url: ${PROJECT_SERVICE_URL:http://localhost:9002}
+    git-service-url: ${GIT_SERVICE_URL:http://localhost:9005}
   sandbox:
     # Still off unless asked for: set DEVFORGE_SANDBOX_ENABLED=true with Docker running.
     enabled: ${DEVFORGE_SANDBOX_ENABLED:false}

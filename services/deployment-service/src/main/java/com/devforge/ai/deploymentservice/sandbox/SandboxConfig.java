@@ -24,9 +24,21 @@ public class SandboxConfig {
       return new DockerSandbox(dockerBinary);
     }
     log.info("Code execution sandbox disabled; every run will be refused");
-    return (language, code, limits) -> {
-      throw new Sandbox.SandboxUnavailableException(
-          "Code execution is not enabled on this deployment");
+    return new Sandbox() {
+      @Override
+      public Result run(Language language, String code, Limits limits) {
+        throw refused();
+      }
+
+      @Override
+      public Result runStep(Language runtime, java.util.Map<String, String> files, String script,
+          Limits limits) {
+        throw refused();
+      }
+
+      private SandboxUnavailableException refused() {
+        return new SandboxUnavailableException("Code execution is not enabled on this deployment");
+      }
     };
   }
 }

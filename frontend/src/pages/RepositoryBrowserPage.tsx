@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   Trash2,
   Undo2,
+  Workflow,
 } from 'lucide-react';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
@@ -408,6 +409,16 @@ export function RepositoryBrowserPage() {
             >
               <BookText className="h-4 w-4" aria-hidden="true" />
               Docs
+            </Link>
+          )}
+
+          {!isEmpty && repository.isSuccess && (
+            <Link
+              to={`/organizations/${organizationId}/projects/${projectId}/repositories/${repositoryId}/pipelines`}
+              className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-700 bg-slate-800 px-5 text-sm font-medium text-slate-100 transition hover:border-slate-600 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-indigo-400"
+            >
+              <Workflow className="h-4 w-4" aria-hidden="true" />
+              Pipelines
             </Link>
           )}
 

@@ -22,7 +22,8 @@ available it was built to this contract.
 | Container-per-run backend | `sandbox/DockerSandbox.java` — every flag is annotated with the guarantee it serves |
 | Escape tests, G1–G12 | `DockerSandboxEscapeTest` — 11 tests against a real engine; skipped where there is none, **failed** in CI if there is none |
 | Execution API, audit, quota | `execution/` — `POST/GET /api/v1/organizations/{o}/projects/{p}/executions` |
-| UI | Project board → **Run code** |
+| Pipelines | `pipeline/` — a repository's `.devforge/pipeline.yml`, each step in its own container with the repository's text files unpacked from a tar on stdin; the step script travels inside the archive, never on the docker command line |
+| UI | Project board → **Run code**; repository → **Pipelines** |
 
 **Why deployment-service and not a new execution-service** (section 3 names one): deployment-service
 was an empty scaffold with its image, compose entry, manifest and gateway path already in place, and

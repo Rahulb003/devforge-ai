@@ -68,6 +68,7 @@ class RoutePrecedenceTest {
     // Analytics nests under a project the same way.
     assertThat(routeFor(project + "/analytics")).contains("analytics");
     assertThat(routeFor(project + "/chat/messages")).contains("chat");
+    assertThat(routeFor(project + "/executions")).contains("executions");
 
     // The broader route still claims everything else under organizations.
     assertThat(routeFor(organization)).contains("projects");
@@ -85,6 +86,9 @@ class RoutePrecedenceTest {
     // This is the pairing most easily broken: the repository pattern ends in /repositories/**,
     // which also matches every review path beneath it.
     assertThat(routeFor(repository + "/reviews")).contains("reviews");
+    assertThat(routeFor(repository + "/pipelines")).contains("executions");
+    assertThat(routeFor(repository + "/pipelines/55555555-5555-5555-5555-555555555555"))
+        .contains("executions");
     assertThat(routeFor(repository + "/reviews/latest")).contains("reviews");
     assertThat(routeFor(repository + "/reviews/55555555-5555-5555-5555-555555555555/findings"))
         .contains("reviews");

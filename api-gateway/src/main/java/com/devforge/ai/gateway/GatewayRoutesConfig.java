@@ -191,13 +191,16 @@ public class GatewayRoutesConfig {
         .build();
   }
 
-  /** Sandboxed code runs, under the project path: membership decides who may run code. */
+  /** Sandboxed code runs and pipelines, under the project path: membership decides who may run code. */
   @Bean
-  @Order(37)
+  @Order(26)
   public RouterFunction<ServerResponse> executionRoutes() {
     return route("executions")
         .route(
-            RequestPredicates.path("/api/v1/organizations/*/projects/*/executions/**"),
+            RequestPredicates.path("/api/v1/organizations/*/projects/*/executions/**")
+                // Pipelines sit under a repository, so they must win over the repositories route.
+                .or(RequestPredicates.path(
+                    "/api/v1/organizations/*/projects/*/repositories/*/pipelines/**")),
             http(deploymentServiceUrl))
         .build();
   }
