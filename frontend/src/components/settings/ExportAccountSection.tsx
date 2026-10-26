@@ -1,4 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
+import { AxiosError } from 'axios';
 import { Download } from 'lucide-react';
 
 import { authApi } from '@/api/auth.api';
@@ -12,7 +13,22 @@ import { describeApiError } from '@/lib/errors';
  */
 export function ExportAccountSection() {
   const download = useMutation({
-    mutationFn: async () => (await authApi.exportAccount()).data,
+    mutationFn: async () => {
+      try {
+        return (await authApi.exportAccount()).data;
+      } catch (error) {
+        // A blob request gets its error body as a blob too, which hides the server's message
+        // from describeApiError; read it back as JSON so the user sees what actually went wrong.
+        if (error instanceof AxiosError && error.response?.data instanceof Blob) {
+          try {
+            error.response.data = JSON.parse(await error.response.data.text());
+          } catch {
+            // Not JSON: fall through to the status-based message.
+          }
+        }
+        throw error;
+      }
+    },
     onSuccess: (blob) => {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
