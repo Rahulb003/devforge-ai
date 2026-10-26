@@ -30,7 +30,7 @@ export function LoginPage() {
 
   // Where the user was heading before being bounced to login.
   const from = (location.state as { from?: string } | null)?.from ?? '/';
-  const accountDeleted = (location.state as { accountDeleted?: boolean } | null)?.accountDeleted;
+  const accountDeleted = useAuthStore((s) => s.signedOutReason === 'account-deleted');
 
   async function completeLogin() {
     // The session is an HttpOnly cookie the page cannot see, so the profile is fetched to render a

@@ -11,7 +11,7 @@ test.describe('Account deletion', () => {
     await page.getByRole('button', { name: 'Delete my account' }).click();
     const form = page.getByRole('form', { name: 'Delete account' });
     await form.getByLabel(`Type your username (${username})`).fill(username);
-    await form.getByLabel('Password').fill(password);
+    await form.getByLabel('Password', { exact: true }).fill(password);
     await form.getByRole('button', { name: 'Delete account permanently' }).click();
   }
 

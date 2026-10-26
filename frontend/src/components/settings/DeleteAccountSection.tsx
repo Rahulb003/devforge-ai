@@ -38,8 +38,8 @@ export function DeleteAccountSection() {
       authApi.deleteAccount({ username, password, mfaCode: mfaCode.trim() || undefined }),
     onSuccess: () => {
       queryClient.clear();
-      clearAuth();
-      navigate('/login', { replace: true, state: { accountDeleted: true } });
+      clearAuth('account-deleted');
+      navigate('/login', { replace: true });
     },
   });
 

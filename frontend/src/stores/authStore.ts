@@ -7,9 +7,16 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   sessionExpiresAt: number | null;
+  /**
+   * Why the last sign-out happened, for the login page to say so. Kept here rather than passed as
+   * navigation state: clearing the user re-renders the route guard synchronously, and its own
+   * redirect to /login replaced the state before the caller's navigate arrived, so "Your account
+   * has been deleted" was never shown.
+   */
+  signedOutReason: 'account-deleted' | null;
 
   setAuth: (user: UserProfile, expiresIn?: number) => void;
-  clearAuth: () => void;
+  clearAuth: (reason?: 'account-deleted') => void;
   updateUser: (updates: Partial<UserProfile>) => void;
   setLoading: (loading: boolean) => void;
   initializeAuth: () => void;
@@ -20,6 +27,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isAuthenticated: false,
   isLoading: true,
   sessionExpiresAt: null,
+  signedOutReason: null,
 
   setAuth: (user, expiresIn) => {
     localStorage.setItem('user', JSON.stringify(user));
@@ -29,16 +37,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       isAuthenticated: true,
       isLoading: false,
       sessionExpiresAt: expiresAt,
+      signedOutReason: null,
     });
   },
 
-  clearAuth: () => {
+  clearAuth: (reason) => {
     localStorage.removeItem('user');
     set({
       user: null,
       isAuthenticated: false,
       isLoading: false,
       sessionExpiresAt: null,
+      signedOutReason: reason ?? null,
     });
   },
 
