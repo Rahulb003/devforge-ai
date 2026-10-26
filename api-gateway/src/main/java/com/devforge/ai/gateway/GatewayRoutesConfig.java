@@ -61,6 +61,9 @@ public class GatewayRoutesConfig {
   @Value("${devforge.services.ai-service-url}")
   private String aiServiceUrl;
 
+  @Value("${devforge.services.deployment-service-url}")
+  private String deploymentServiceUrl;
+
   /**
    * Tasks and sprints, which live under the project path but belong to task-service.
    *
@@ -185,6 +188,17 @@ public class GatewayRoutesConfig {
         .route(
             RequestPredicates.path("/api/v1/organizations/*/projects/*/chat/**"),
             http(chatServiceUrl))
+        .build();
+  }
+
+  /** Sandboxed code runs, under the project path: membership decides who may run code. */
+  @Bean
+  @Order(37)
+  public RouterFunction<ServerResponse> executionRoutes() {
+    return route("executions")
+        .route(
+            RequestPredicates.path("/api/v1/organizations/*/projects/*/executions/**"),
+            http(deploymentServiceUrl))
         .build();
   }
 

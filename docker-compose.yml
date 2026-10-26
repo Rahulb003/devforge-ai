@@ -2,7 +2,6 @@
 #
 #   docker compose up -d --build              # the platform: http://localhost:4173
 #   docker compose --profile observability up # also Kafka UI, Prometheus, Alertmanager, Grafana
-#   docker compose --profile scaffold up      # also the not-yet-built services
 #
 # CI starts this file and runs the browser suite against it, so it is exercised, not decorative.
 # The first CI attempt found that six services had no database or broker settings, the gateway had
@@ -105,6 +104,7 @@ services:
       REVIEW_SERVICE_URL: http://review-service:9006
       DOCUMENTATION_SERVICE_URL: http://documentation-service:9007
       CHAT_SERVICE_URL: http://chat-service:9008
+      DEPLOYMENT_SERVICE_URL: http://deployment-service:9009
       AI_SERVICE_URL: http://ai-service:9004
       MANAGEMENT_OTLP_TRACING_ENDPOINT: http://jaeger:4318/v1/traces
       MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
@@ -322,9 +322,6 @@ services:
       - kafka-certs:/certs:ro
     depends_on: *service-depends
 
-  # --- Not built yet: scaffolds only, opt-in -------------------------------
-  # deployment-service needs a sandbox (docs/SANDBOX.md).
-  
   ai-service:
     <<: *hardened
     build:
@@ -344,9 +341,11 @@ services:
     volumes:
       - kafka-certs:/certs:ro
 
+  # Sandboxed code execution. Off here: turning it on means giving this container a Docker engine,
+  # which is close to root on that engine's host - see docs/SANDBOX.md before doing it. Off, every
+  # run is refused with 503 and recorded as REFUSED; nothing is ever run another way.
   deployment-service:
     <<: *hardened
-    profiles: [scaffold]
     build:
       context: .
       dockerfile: Dockerfile
@@ -359,6 +358,9 @@ services:
       - 9009:9009
     environment:
       <<: *service-env
+      DEVFORGE_DB_URL: jdbc:postgresql://postgres:5432/devforge_deployment
+      DEVFORGE_SANDBOX_ENABLED: "false"
+    depends_on: *service-depends
 
   # --- Infrastructure --------------------------------------------------------
     volumes:

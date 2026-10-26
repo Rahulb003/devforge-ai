@@ -11,3 +11,4 @@ CREATE DATABASE devforge_documentation;
 CREATE DATABASE devforge_chat;
 CREATE DATABASE devforge_analytics;
 CREATE DATABASE devforge_notification;
+CREATE DATABASE devforge_deployment;

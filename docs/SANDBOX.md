@@ -1,28 +1,49 @@
 # Code execution sandbox (§37)
 
-**Last updated:** 2026-10-03
-**Status:** `MISSING` — designed, not built. **Nothing in DevForge executes developer code today**,
-which is the correct state until this exists.
+**Last updated:** 2026-10-27
+**Status:** `IMPLEMENTED` — a container per run (backend 2 in section 5), every guarantee below
+proven by an escape test against a real engine. **Off by default** in every deployment shape.
 
-This document says what a sandbox must guarantee, how an implementation will be judged, and why
-one has not been built yet. It is here so the controls arrive with the feature rather than after it.
+This document says what the sandbox must guarantee, how it is judged, and how the implementation
+meets it. It was written before the code, so the controls arrived with the feature rather than
+after it.
 
 ---
 
-## 1. Why this is not implemented
+## 1. What exists
 
-Real isolation is an operating-system facility: containers with seccomp and dropped capabilities, a
-microVM, or a separate machine. None is available in this environment — there is no Docker daemon,
-no Podman, and no hypervisor (checked, not assumed).
+Until 2026-10-27 there was no container engine here, so this was designed and deliberately not
+built: a sandbox that cannot isolate is worse than none, because people trust it. Once Docker was
+available it was built to this contract.
 
-A sandbox that cannot isolate is worse than no sandbox, because people trust it. Implementing
-something that *looks* like one — a thread with a timeout, a `ProcessBuilder` with a scrubbed
-environment, a bytecode verifier — would be the clearest possible case of the fake functionality
-this project forbids. Java's `SecurityManager`, the historical answer, is deprecated for removal
-and was never a security boundary against hostile code anyway.
+| Piece | Where |
+|---|---|
+| Sandbox contract | `deployment-service` `sandbox/Sandbox.java` |
+| Container-per-run backend | `sandbox/DockerSandbox.java` — every flag is annotated with the guarantee it serves |
+| Escape tests, G1–G12 | `DockerSandboxEscapeTest` — 11 tests against a real engine; skipped where there is none, **failed** in CI if there is none |
+| Execution API, audit, quota | `execution/` — `POST/GET /api/v1/organizations/{o}/projects/{p}/executions` |
+| UI | Project board → **Run code** |
 
-So the honest position is: the contract and its verification suite are specified here, and the
-feature stays marked `MISSING` until a backend exists that can satisfy them.
+**Why deployment-service and not a new execution-service** (section 3 names one): deployment-service
+was an empty scaffold with its image, compose entry, manifest and gateway path already in place, and
+build and pipeline steps (section 4) are the sandbox's main consumer. One service owning everything
+that runs untrusted code keeps the container-engine access in one place.
+
+**How it is configured.** `DEVFORGE_SANDBOX_ENABLED=true` and a docker CLI that reaches an engine.
+Off, every run is refused with 503 and recorded as `REFUSED` (G12). Compose and the Kubernetes
+manifests leave it off: turning it on means giving deployment-service an engine, and an engine that
+can start containers is close to root on its host. Do that only on a host dedicated to it (backend 3
+below describes the shape).
+
+**Residual risk, stated rather than hidden:**
+
+- A container shares the host kernel. A kernel exploit escapes it; a microVM (backend 1) would not
+  share one. This is why backend 1 stays preferred.
+- Docker's default seccomp profile applies; no custom one is loaded.
+- Two bugs were found while building it, both now covered by tests: Python buffered its output, so a
+  killed program lost everything it had printed; and the in-container time limit never fired
+  because the program ran as PID 1, which ignores signals it has no handler for (fixed with
+  `--init`).
 
 ---
 

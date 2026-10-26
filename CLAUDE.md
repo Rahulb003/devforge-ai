@@ -28,12 +28,12 @@ documentation. Not before.
 
 ```bash
 # Backend: always through the reactor root, never a service's own pom.
-mvn -B -ntp -f backend/pom.xml test                 # 612 tests
+mvn -B -ntp -f backend/pom.xml test                 # 631 tests
 mvn -B -ntp -f backend/pom.xml -pl ../services/auth-service -am test   # one module (-am is required)
 
 # Frontend
 cd frontend
-npm test            # 104 unit tests (vitest)
+npm test            # 106 unit tests (vitest)
 npm run lint        # prettier runs as an eslint rule; 0 warnings allowed
 npm run typecheck
 npm run test:e2e    # 54 Playwright tests — needs the stack already running, on an idle machine
@@ -144,8 +144,9 @@ reasoning in a comment and the commit message. Do not fix the symptom.
 
 ## What not to assume works
 
-- **The whole stack runs under docker compose and on Kubernetes (kind), in CI only.** There is no
-  daemon locally. CI builds every image, starts each alone, then starts `docker-compose.yml` - every
+- **The whole stack runs under docker compose and on Kubernetes (kind), in CI only.** Docker Desktop
+  has been installed locally since 2026-10-27 (the sandbox escape tests use it), but compose and kind
+  are still only exercised in CI. CI builds every image, starts each alone, then starts `docker-compose.yml` - every
   service in its own container with its own PostgreSQL database, real Kafka and Redis, nginx in
   front - runs the browser suite against it, and checks every outbox drained and the consumers
   processed events. The first such run found snappy compression could not load on Alpine, so no

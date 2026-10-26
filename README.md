@@ -36,10 +36,13 @@ This is a foundation with ten working services built on it, not a finished platf
 **Built, but the live call is unverified:** AI file explanation and pull request review,
 which need an Anthropic API key. Without one they say so; nothing is simulated.
 
-**Scaffolded only — health endpoint, no behaviour yet:** the deployment service.
+- A code-execution sandbox: each run in its own locked-down container, proven by escape
+  tests against a real Docker engine. Off by default; see `docs/SANDBOX.md`
+
+**Not built:** deployment pipelines, a full IDE, and AI code generation.
 
 **Run in CI only:** the Docker Compose stack and the Kubernetes manifests (on a one-node kind
-cluster). There is no Docker daemon on the development machine.
+cluster). The development machine has Docker only for the sandbox tests.
 
 ## A note on credentials in this repository
 

@@ -69,5 +69,7 @@ fails.
 ## Things that need credentials
 
 - **Google sign-in** needs `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in `.env`.
+- **Code execution** needs `DEVFORGE_SANDBOX_ENABLED=true` and a running Docker engine. Read
+  `docs/SANDBOX.md` first: it gives deployment-service the power to start containers.
 - **AI features** need `ANTHROPIC_API_KEY`; without it the UI says AI assistance is not
   configured, and nothing is simulated in its place.

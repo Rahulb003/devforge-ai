@@ -22,6 +22,7 @@ data:
     CREATE DATABASE devforge_chat;
     CREATE DATABASE devforge_analytics;
     CREATE DATABASE devforge_notification;
+    CREATE DATABASE devforge_deployment;
 ---
 apiVersion: v1
 kind: Service

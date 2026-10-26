@@ -14,8 +14,8 @@ and on Kubernetes (kind) against real PostgreSQL, Kafka and Redis.
 
 | Gate | Command | Result |
 |---|---|---|
-| Backend tests | `mvn -B -ntp -f backend/pom.xml test` | **PASS** — 612 tests, 0 failures locally (2026-10-27); CI not rerun since |
-| Frontend lint, typecheck, unit tests, build | `npm run lint`, `typecheck`, `test`, `build` | **PASS** — 0 warnings; 104 unit tests |
+| Backend tests | `mvn -B -ntp -f backend/pom.xml test` | **PASS** — 631 tests, 0 failures, 0 skipped locally (2026-10-27), sandbox escape tests against a real Docker engine; CI not rerun since |
+| Frontend lint, typecheck, unit tests, build | `npm run lint`, `typecheck`, `test`, `build` | **PASS** — 0 warnings; 106 unit tests |
 | Browser suite, standalone | CI `e2e` job, `npm run test:e2e` locally | **PASS** — 52 Playwright tests, failing on any CSP violation and on serious axe findings |
 | Images | CI `docker` job | **PASS** — eleven images build, run as non-root, start healthy; Trivy blocks on fixable high/critical advisories in every one |
 | Full stack under compose | CI `compose` job | **PASS** — every DevForge container read-only and without capabilities (checked on the running containers), each in its own container on real PostgreSQL, Kafka (SASL, per-service ACLs, refusals checked) and Redis; the browser suite with real events; outboxes drain; Prometheus scrapes all ten; six alert rules load; a stopped service's ServiceDown alert is emailed |
@@ -153,9 +153,9 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 | Chat (§11) | `IMPLEMENTED` | chat-service: one channel per project, post/list/edit/delete, author-only edits, deletes erase the text. 8 tests. Live delivery over Server-Sent Events, verified across two browser windows through the dev proxy and the gateway. 14 backend tests. Pushes reach subscribers on every instance: each relays over `devforge.chat.v1` and reads it in a group of its own, verified against an in-process broker (3 tests) and the topic and ACLs against the real broker image. Two instances behind the gateway end to end **UNVERIFIED**. **No presence** |
 | Analytics (§14) | `IMPLEMENTED` | With a UI: totals, a daily chart and a screen-reader table, plus the server's completeness note shown verbatim. analytics-service consumes task and repository events into daily per-project counters, with a read API. The platform's second production consumer. 14 tests, 5 against a real broker |
 | Documentation generation (§10) | `IMPLEMENTED` | documentation-service: repository overview, API surface and doc-coverage documents generated from real content. 31 tests. Not AI-written — every statement is derived from files that exist |
-| Code-execution sandbox (§37) | `MISSING` | **Designed, deliberately not built** — see docs/SANDBOX.md. No container, VM or hypervisor is available here, and a sandbox that cannot isolate is worse than none because people trust it |
+| Code-execution sandbox (§37) | `IMPLEMENTED` | deployment-service: a container per run - no network, read-only root, tmpfs work dir, no capabilities, nobody user, memory/CPU/pid/output/time limits, removed after. 11 escape tests (G1-G12, docs/SANDBOX.md) against a real Docker engine, two of them mutation-checked; 8 API tests (membership, clamping, audit, hourly quota, fail-closed). Verified live through the gateway in standalone mode. **Off by default** in compose and Kubernetes: enabling it means giving the service a container engine. Shares the host kernel - see docs/SANDBOX.md for residual risk |
 | AI file explanation and pull request review | `IMPLEMENTED` (live call **UNVERIFIED**) | ai-service reads the file as the caller and asks Claude, treating the content as untrusted data; off without a key, and the UI says so. 6 tests against a stand-in API; CI checks the unconfigured state in the browser |
-| IDE, deploy, RAG, agents, AI generation and review | `MISSING` / `SCAFFOLDED` | deployment-service is a health endpoint (needs a container runtime); the rest need the model key to be verified |
+| IDE, deploy, RAG, agents, AI generation and review | `MISSING` | Deployment pipelines can now build on the sandbox but are not built; the AI pieces need the model key to be verified |
 | Frontend app shell, routing, theme store | `IMPLEMENTED` | 12 passing tests |
 | Frontend auth screens (login/MFA/signup/verify/forgot/reset) | `IMPLEMENTED` | Driven against the live API; verified end-to-end through the dev proxy |
 | Frontend organization + project screens | `IMPLEMENTED` | List/create, loading/empty/error states |
@@ -164,7 +164,7 @@ requiring a Docker daemon. (H2 support ships inside `flyway-core` 10.20.1, so no
 | Frontend documentation | `IMPLEMENTED` | Generate, tab per document, Markdown rendered as text. Reachable from a repository. 8 tests + 2 e2e |
 | Frontend code review | `IMPLEMENTED` | Gate result, severity counts, findings with redacted snippets, and dismissal with a required reason. Reachable from a repository. 10 tests + 4 e2e |
 | Frontend code browser | `IMPLEMENTED` | Repository list and create, file tree, file contents with line numbers, commit history, branch switching, and a commit form so a new repository is not a dead end. 20 tests + 6 e2e |
-| Frontend IDE/AI screens | `MISSING` | Phases 5+ |
+| Frontend IDE/AI screens | `PARTIALLY_IMPLEMENTED` | **Run code** page: language, editor, result rendered as text, run history. No full IDE and no AI generation screens |
 | End-to-end browser tests | `IMPLEMENTED` | 50 Playwright tests, run in CI against the standalone stack and again against the full compose stack |
 | Audit trail | `IMPLEMENTED` | Every published change recorded from the events, per-project SHA-256 hash chain, verify on demand from the UI; verified on PostgreSQL in CI |
 | Monitoring and alerting | `IMPLEMENTED` | Prometheus metrics behind a scrape credential, Grafana dashboard, outbox and dead-letter meters, six alert rules, Alertmanager email; delivery checked in CI. Distributed tracing to Jaeger in compose, checked across services in CI |

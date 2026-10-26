@@ -41,6 +41,10 @@ const SERVICES = [
   { name: "chat-service", port: 9008, db: "devforge_chat", kafka: true },
   { name: "analytics-service", port: 9010, db: "devforge_analytics", kafka: true },
   { name: "notification-service", port: 9011, db: "devforge_notification", kafka: true },
+  // Code execution stays refused here: kind gives a pod no container engine, and mounting the
+  // node's would hand the pod the node. See docs/SANDBOX.md.
+  { name: "deployment-service", port: 9009, db: "devforge_deployment",
+    env: [["DEVFORGE_SANDBOX_ENABLED", "false"]] },
   // Stateless, and off until the Secret's anthropic-api-key is set.
   { name: "ai-service", port: 9004, env: [["ANTHROPIC_API_KEY", { secret: "anthropic-api-key" }]] },
 ];
@@ -48,7 +52,7 @@ const GATEWAY_ROUTES = {
   AUTH_SERVICE_URL: "auth-service:9001", PROJECT_SERVICE_URL: "project-service:9002",
   TASK_SERVICE_URL: "task-service:9003", GIT_SERVICE_URL: "git-service:9005",
   REVIEW_SERVICE_URL: "review-service:9006", DOCUMENTATION_SERVICE_URL: "documentation-service:9007",
-  CHAT_SERVICE_URL: "chat-service:9008", ANALYTICS_SERVICE_URL: "analytics-service:9010",
+  CHAT_SERVICE_URL: "chat-service:9008", DEPLOYMENT_SERVICE_URL: "deployment-service:9009", ANALYTICS_SERVICE_URL: "analytics-service:9010",
   NOTIFICATION_SERVICE_URL: "notification-service:9011", AI_SERVICE_URL: "ai-service:9004",
 };
 

@@ -17,6 +17,7 @@ import { RepositoriesPage } from './pages/RepositoriesPage';
 import { RepositoryBrowserPage } from './pages/RepositoryBrowserPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
 import { ChatPage } from './pages/ChatPage';
+import { RunCodePage } from './pages/RunCodePage';
 import { ProjectMembersPage } from './pages/ProjectMembersPage';
 import { DocsPage } from './pages/DocsPage';
 import { PullRequestDetailPage, PullRequestsPage } from './pages/PullRequestsPage';
@@ -75,6 +76,10 @@ function App() {
               <Route
                 path="organizations/:organizationId/projects/:projectId/chat"
                 element={<ChatPage />}
+              />
+              <Route
+                path="organizations/:organizationId/projects/:projectId/run"
+                element={<RunCodePage />}
               />
               <Route
                 path="organizations/:organizationId/projects/:projectId/members"
