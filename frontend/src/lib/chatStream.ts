@@ -5,7 +5,8 @@ import { refreshSession } from '@/lib/axios';
 export type StreamStatus = 'connecting' | 'live' | 'reconnecting';
 
 /**
- * Subscribes to a project's chat stream and calls `onEvent` for each message pushed.
+ * Subscribes to a project's chat stream and calls `onEvent` with the name of each event pushed:
+ * `message` for a new or changed message, `presence` when someone joins or leaves.
  *
  * Uses `fetch` rather than `EventSource` because `EventSource` hides the response status, and a 401
  * here is the signal to renew the access cookie before reconnecting.
@@ -17,7 +18,7 @@ export type StreamStatus = 'connecting' | 'live' | 'reconnecting';
 export function useChatStream(
   organizationId: string,
   projectId: string,
-  onEvent: () => void,
+  onEvent: (name: string) => void,
 ): StreamStatus {
   const [status, setStatus] = useState<StreamStatus>('connecting');
 
@@ -55,7 +56,11 @@ export function useChatStream(
             // Events are separated by a blank line; keep any partial event for the next chunk.
             const events = buffer.split('\n\n');
             buffer = events.pop() ?? '';
-            if (events.some((e) => e.includes('data:'))) onEvent();
+            for (const event of events) {
+              if (!event.includes('data:')) continue;
+              const name = /^event:\s*(.+)$/m.exec(event)?.[1]?.trim() ?? 'message';
+              onEvent(name);
+            }
           }
         } catch {
           if (abort.signal.aborted) return;

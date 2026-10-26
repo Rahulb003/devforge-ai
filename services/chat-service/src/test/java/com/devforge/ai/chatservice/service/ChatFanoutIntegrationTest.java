@@ -93,6 +93,16 @@ class ChatFanoutIntegrationTest {
   }
 
   @Test
+  @DisplayName("a presence change on another instance reaches streams on this one")
+  void relaysPresenceChanges() throws Exception {
+    var relay = new ChatFanout.Relay(UUID.randomUUID().toString(), projectId, null, true);
+    kafkaTemplate.send(ChatFanout.TOPIC, projectId.toString(), objectMapper.writeValueAsString(relay))
+        .get();
+
+    verify(streams, timeout(10_000)).broadcastPresenceChanged(projectId);
+  }
+
+  @Test
   @DisplayName("an unreadable relay is dropped without stopping the listener")
   void survivesGarbage() throws Exception {
     kafkaTemplate.send(ChatFanout.TOPIC, projectId.toString(), "not json").get();

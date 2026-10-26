@@ -72,6 +72,21 @@ public class ChatStreamRegistry {
     }
   }
 
+  /** A bare signal: clients re-read the presence list rather than trusting a pushed copy. */
+  public void broadcastPresenceChanged(UUID projectId) {
+    var set = streams.get(projectId);
+    if (set == null) {
+      return;
+    }
+    for (var emitter : set) {
+      try {
+        emitter.send(SseEmitter.event().name("presence").data(projectId.toString()));
+      } catch (IOException | IllegalStateException ex) {
+        set.remove(emitter);
+      }
+    }
+  }
+
   /** Open streams for a project. For tests and diagnostics. */
   int subscribers(UUID projectId) {
     var set = streams.get(projectId);

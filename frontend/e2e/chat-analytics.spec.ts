@@ -97,4 +97,26 @@ test.describe('Chat and activity', () => {
     await expect(page.getByText('pushed to the other window')).toBeVisible({ timeout: 10_000 });
     await other.close();
   });
+
+  test('the channel shows who is here, and the list follows people leaving', async ({
+    page,
+    browser,
+  }) => {
+    await openBoard(page);
+    await page.getByRole('link', { name: 'Chat' }).click();
+    // The first read can race the stream opening; the join's own presence push then corrects it.
+    await expect(page.getByTestId('chat-presence')).toHaveText('Here now: you', {
+      timeout: 10_000,
+    });
+
+    // A second session of the same person is still one person.
+    const other = await browser.newContext({ storageState: await page.context().storageState() });
+    const otherPage = await other.newPage();
+    await otherPage.goto(page.url());
+    await expect(otherPage.getByTestId('chat-presence')).toHaveText('Here now: you', {
+      timeout: 10_000,
+    });
+    await other.close();
+    await expect(page.getByTestId('chat-presence')).toHaveText('Here now: you');
+  });
 });

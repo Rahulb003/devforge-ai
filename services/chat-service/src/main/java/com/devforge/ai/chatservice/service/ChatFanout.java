@@ -34,8 +34,16 @@ public class ChatFanout {
    */
   public static final String GROUP_PREFIX = "chat-service.fanout.";
 
-  /** Relayed message. Package-visible for the tests. */
-  record Relay(String origin, UUID projectId, MessageResponse message) {}
+  /**
+   * Relayed push: a message, or - with no message - a note that the channel's presence changed.
+   * Package-visible for the tests.
+   */
+  record Relay(String origin, UUID projectId, MessageResponse message, boolean presenceChanged) {
+
+    Relay(String origin, UUID projectId, MessageResponse message) {
+      this(origin, projectId, message, false);
+    }
+  }
 
   private final String instanceId = UUID.randomUUID().toString();
   private final ChatStreamRegistry streams;
@@ -56,13 +64,28 @@ public class ChatFanout {
     return GROUP_PREFIX + instanceId;
   }
 
+  String instanceId() {
+    return instanceId;
+  }
+
   public void deliver(UUID projectId, MessageResponse message) {
     streams.broadcast(projectId, message);
+    relay(new Relay(instanceId, projectId, message));
+  }
+
+  /** Tells every instance's subscribers to re-read who is in the channel. */
+  public void presenceChanged(UUID projectId) {
+    streams.broadcastPresenceChanged(projectId);
+    relay(new Relay(instanceId, projectId, null, true));
+  }
+
+  private void relay(Relay relay) {
+    var projectId = relay.projectId();
     if (!relayEnabled) {
       return;
     }
     try {
-      var payload = objectMapper.writeValueAsString(new Relay(instanceId, projectId, message));
+      var payload = objectMapper.writeValueAsString(relay);
       // Keyed by project so one channel's messages stay on one partition, in order.
       kafka.getObject().send(TOPIC, projectId.toString(), payload)
           .whenComplete((result, ex) -> {
@@ -85,8 +108,13 @@ public class ChatFanout {
   public void onRelay(String payload) {
     try {
       var relay = objectMapper.readValue(payload, Relay.class);
-      if (!instanceId.equals(relay.origin())) {
+      if (instanceId.equals(relay.origin())) {
+        return;
+      }
+      if (relay.message() != null) {
         streams.broadcast(relay.projectId(), relay.message());
+      } else if (relay.presenceChanged()) {
+        streams.broadcastPresenceChanged(relay.projectId());
       }
     } catch (Exception ex) {
       // Swallowed rather than handed to the container's error handler: that would retry and then

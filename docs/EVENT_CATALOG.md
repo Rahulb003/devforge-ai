@@ -78,7 +78,7 @@ and consumer groups for no ordering benefit.
 | `devforge.repositories.v1` | Repository creation, commits, branch changes |
 | `devforge.security.v1` | Security signals other services act on |
 | `devforge.notifications.v1` | Notification fan-out (not yet produced) |
-| `devforge.chat.v1` | Live chat pushes relayed between chat-service instances. Not envelope events: a push of a message already in the database, read in a per-instance group from the latest offset, kept an hour, never dead-lettered |
+| `devforge.chat.v1` | Live chat pushes - new messages and "presence changed" signals - relayed between chat-service instances. Not envelope events: a push of a message already in the database, read in a per-instance group from the latest offset, kept an hour, never dead-lettered |
 
 Dead-letter topics are the topic name plus `.dlt`, e.g. `devforge.identity.v1.dlt`.
 

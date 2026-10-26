@@ -2,6 +2,7 @@ package com.devforge.ai.chatservice.controller;
 
 import com.devforge.ai.chatservice.dto.ChatDtos.MessageResponse;
 import com.devforge.ai.chatservice.dto.ChatDtos.PostMessageRequest;
+import com.devforge.ai.chatservice.service.ChatPresence;
 import com.devforge.ai.chatservice.service.ChatService;
 import com.devforge.ai.common.web.ApiResponse;
 import jakarta.validation.Valid;
@@ -59,6 +60,14 @@ public class ChatController {
   @GetMapping(path = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
   public SseEmitter stream(@PathVariable UUID organizationId, @PathVariable UUID projectId) {
     return chat.subscribe(organizationId, projectId);
+  }
+
+  /** Who has the channel open right now. Re-read whenever the stream says presence changed. */
+  @GetMapping("/presence")
+  public ResponseEntity<ApiResponse<List<ChatPresence.Present>>> presence(
+      @PathVariable UUID organizationId, @PathVariable UUID projectId) {
+    return ResponseEntity.ok(
+        new ApiResponse<>(true, chat.presence(organizationId, projectId), null));
   }
 
   @PostMapping

@@ -34,7 +34,19 @@ export function ChatPage() {
 
   const refresh = () => void queryClient.invalidateQueries({ queryKey: ['chat', projectId] });
 
-  const streamStatus = useChatStream(organizationId, projectId, refresh);
+  const presence = useQuery({
+    queryKey: ['chat-presence', projectId],
+    queryFn: async () => (await chatApi.presence(organizationId, projectId)).data.data,
+    enabled: Boolean(organizationId && projectId),
+  });
+
+  const streamStatus = useChatStream(organizationId, projectId, (event) => {
+    if (event === 'presence') {
+      void queryClient.invalidateQueries({ queryKey: ['chat-presence', projectId] });
+    } else {
+      refresh();
+    }
+  });
 
   const send = useMutation({
     mutationFn: () => chatApi.post(organizationId, projectId, draft.trim()),
@@ -71,6 +83,12 @@ export function ChatPage() {
             ? 'Live — new messages appear as they are sent.'
             : 'Reconnecting… messages may arrive a little late.'}
         </p>
+        {presence.data && presence.data.length > 0 && (
+          <p className="mt-1 text-sm text-slate-400" data-testid="chat-presence">
+            Here now:{' '}
+            {presence.data.map((p) => (p.userId === me?.id ? 'you' : p.username)).join(', ')}
+          </p>
+        )}
       </header>
 
       {error && (

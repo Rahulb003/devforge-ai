@@ -13,6 +13,7 @@ import { useAuthStore } from '@/stores/authStore';
 const list = vi.fn();
 const post = vi.fn();
 const remove = vi.fn();
+const presence = vi.fn();
 const activity = vi.fn();
 const audit = vi.fn();
 const verifyAudit = vi.fn();
@@ -26,6 +27,7 @@ vi.mock('@/api/chat.api', () => ({
     list: (...a: unknown[]) => list(...a),
     post: (...a: unknown[]) => post(...a),
     remove: (...a: unknown[]) => remove(...a),
+    presence: (...a: unknown[]) => presence(...a),
   },
   analyticsApi: {
     activity: (...a: unknown[]) => activity(...a),
@@ -238,5 +240,21 @@ describe('AnalyticsPage', () => {
     activity.mockRejectedValue(new Error('down'));
     renderAt('analytics', <AnalyticsPage />);
     expect(await screen.findByRole('button', { name: /try again|retry/i })).toBeInTheDocument();
+  });
+});
+
+describe('ChatPage presence', () => {
+  it('lists who has the channel open, calling the viewer "you"', async () => {
+    useAuthStore.setState({ user: { id: 'me', username: 'ada' } as never });
+    list.mockResolvedValue(env([]));
+    presence.mockResolvedValue(
+      env([
+        { userId: 'me', username: 'ada' },
+        { userId: 'u2', username: 'bob' },
+      ]),
+    );
+    renderAt('chat', <ChatPage />);
+
+    expect(await screen.findByTestId('chat-presence')).toHaveTextContent('Here now: you, bob');
   });
 });

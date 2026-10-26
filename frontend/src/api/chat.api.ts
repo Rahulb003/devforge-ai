@@ -45,7 +45,15 @@ export const chatApi = {
     api.post<ApiEnvelope<ChatMessage>>(`${project(o, p)}/chat/messages`, { body }),
   remove: (o: string, p: string, id: string) =>
     api.delete<ApiEnvelope<void>>(`${project(o, p)}/chat/messages/${id}`),
+  presence: (o: string, p: string) =>
+    api.get<ApiEnvelope<ChatPresent[]>>(`${project(o, p)}/chat/messages/presence`),
 };
+
+/** Someone with the channel open, on any device. */
+export interface ChatPresent {
+  userId: string;
+  username: string;
+}
 
 /** One recorded change. `details` is the event payload as the producing service published it. */
 export interface AuditEntry {

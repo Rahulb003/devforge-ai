@@ -37,11 +37,20 @@ public class ChatService {
   private final ProjectAccessClient projectAccess;
   private final ChatStreamRegistry streams;
   private final ChatFanout fanout;
+  private final ChatPresence presence;
 
   /** Opens a live stream of this channel. Access is checked here, once, when it opens. */
   public SseEmitter subscribe(UUID organizationId, UUID projectId) {
     requireAccess(organizationId, projectId, ProjectAccessClient.Access.READ);
-    return streams.subscribe(projectId);
+    var emitter = streams.subscribe(projectId);
+    presence.join(projectId, currentUser(), emitter);
+    return emitter;
+  }
+
+  /** Who has this channel open, on any instance. */
+  public List<ChatPresence.Present> presence(UUID organizationId, UUID projectId) {
+    requireAccess(organizationId, projectId, ProjectAccessClient.Access.READ);
+    return presence.who(projectId);
   }
 
   /**
