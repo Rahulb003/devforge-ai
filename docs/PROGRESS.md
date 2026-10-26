@@ -46,7 +46,7 @@ running either would overwrite the compose file, the Dockerfiles and the ingress
 | `ENTRYPOINT [\"java\", \"-jar\", \"app.jar\"]` — escaped quotes, invalid exec form | 14 Dockerfiles | Unescaped |
 
 Repaired via a scripted, reviewed pass (`scratchpad/repair.mjs`); a full backup of all 176 files was
-taken first because **this directory is not a git repository** (see Known Issues).
+taken first because **this directory was not yet a git repository**.
 
 ### Backend defects found and fixed
 
@@ -250,7 +250,7 @@ All 11 files required by §7 are written:
 | `docs/THREAT_MODEL.md` | assets, trust boundaries, threats, residual risk |
 | `docs/EVENT_CATALOG.md` | every event, its payload, its consumers, verification status |
 
-`docs/Setup.md` predates the build repair and has **not** been reviewed; treat it as stale.
+`docs/Setup.md` was rewritten on 2026-10-27 against the launcher, compose file and `.env.example`.
 
 Two things these documents record that are easy to lose and were previously only in code comments or
 commit messages: the numbered architectural decisions (`AD-1`…`AD-18`, above), and the fact that
