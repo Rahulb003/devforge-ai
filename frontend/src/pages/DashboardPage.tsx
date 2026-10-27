@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import { projectApi } from '@/api/project.api';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { YourDay } from '@/components/dashboard/YourDay';
 import { InvitationsInbox } from '@/components/organizations/InvitationsInbox';
 import { EmptyState, Skeleton } from '@/components/ui/states';
 import { useAuthStore } from '@/stores/authStore';
@@ -35,6 +36,8 @@ export function DashboardPage() {
           isolated sandbox, and talk it through in project chat.
         </p>
       </section>
+
+      <YourDay />
 
       <InvitationsInbox />
 

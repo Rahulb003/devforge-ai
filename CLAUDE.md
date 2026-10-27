@@ -33,7 +33,7 @@ mvn -B -ntp -f backend/pom.xml -pl ../services/auth-service -am test   # one mod
 
 # Frontend
 cd frontend
-npm test            # 111 unit tests (vitest)
+npm test            # 113 unit tests (vitest)
 npm run lint        # prettier runs as an eslint rule; 0 warnings allowed
 npm run typecheck
 npm run test:e2e    # 55 Playwright tests — needs the stack already running, on an idle machine
