@@ -366,7 +366,8 @@ jobs:
           command -v trivy > /dev/null || { echo "::error::trivy not on PATH"; exit 1; }
           failed=0
           for name in api-gateway project-service task-service git-service review-service \
-                      documentation-service chat-service analytics-service notification-service ai-service frontend; do
+                      documentation-service chat-service analytics-service notification-service ai-service \
+                      deployment-service frontend; do
             echo "::group::$name"
             if ! trivy image --quiet --exit-code 1 --ignore-unfixed --severity HIGH,CRITICAL \
                 --ignorefile .trivyignore "devforge-ai/$name:${GITHUB_SHA}"; then
@@ -533,7 +534,7 @@ jobs:
           set -euo pipefail
           for service in frontend api-gateway auth-service project-service task-service git-service \
               review-service documentation-service chat-service analytics-service notification-service \
-              ai-service; do
+              ai-service deployment-service; do
             id="$(docker compose ps -q "$service")"
             config="$(docker inspect -f '{{.HostConfig.ReadonlyRootfs}} {{.HostConfig.CapDrop}}' "$id")"
             [ "$config" = "true [ALL]" ] || { echo "::error::$service runs with: $config"; exit 1; }
@@ -803,7 +804,8 @@ jobs:
               git-service:services/git-service:9005 review-service:services/review-service:9006 \
               documentation-service:services/documentation-service:9007 \
               chat-service:services/chat-service:9008 analytics-service:services/analytics-service:9010 \
-              notification-service:services/notification-service:9011 ai-service:services/ai-service:9004; do
+              notification-service:services/notification-service:9011 ai-service:services/ai-service:9004 \
+              deployment-service:services/deployment-service:9009; do
             name="${entry%%:*}"; rest="${entry#*:}"; path="${rest%%:*}"; port="${rest##*:}"
             docker build -q --target service --build-arg "MODULE_PATH=$path" \
               --build-arg "ARTIFACT_ID=$name" --build-arg "SERVICE_PORT=$port" -t "devforge-ai/$name:latest" .
