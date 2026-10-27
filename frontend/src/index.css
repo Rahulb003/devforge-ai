@@ -130,6 +130,19 @@
   The aurora behind every signed-in page: two slow, heavily blurred glows. Fixed and behind
   everything, and pointer-events none, so it can never take a click or cover text.
 */
+/*
+  JetBrains Mono draws != as a single ≠ glyph. In code and in a program's output that misreports
+  what was actually written - a failing test printed "-1 != 5" and the page showed "-1 ≠ 5".
+*/
+@layer base {
+  code,
+  kbd,
+  pre,
+  samp,
+  .font-mono {
+    font-variant-ligatures: none;
+  }
+}
 @utility forge-backdrop {
   position: fixed;
   inset: 0;
@@ -158,6 +171,48 @@
   background: var(--forge-surface);
   border-color: var(--forge-edge);
   backdrop-filter: blur(18px);
+}
+/* Pipeline map: the result stamp lands once; a broken station pulses, a running one breathes. */
+@utility forge-stamp {
+  display: inline-block;
+  transform: rotate(-7deg);
+  animation: forge-stamp 0.5s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+@keyframes forge-stamp {
+  0% {
+    transform: rotate(-7deg) scale(1.7);
+    opacity: 0;
+  }
+  60% {
+    transform: rotate(-7deg) scale(0.94);
+    opacity: 1;
+  }
+  100% {
+    transform: rotate(-7deg) scale(1);
+  }
+}
+@utility forge-alarm {
+  animation: forge-alarm 2s ease-out infinite;
+}
+@keyframes forge-alarm {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(248 113 113 / 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 12px rgb(248 113 113 / 0);
+  }
+}
+@utility forge-running {
+  animation: forge-running 1.4s ease-in-out infinite;
+}
+@keyframes forge-running {
+  50% {
+    transform: scale(1.12);
+  }
+}
+@utility forge-track-idle {
+  background: repeating-linear-gradient(90deg, var(--color-slate-600) 0 8px, transparent 8px 14px);
 }
 @media (prefers-reduced-motion: reduce) {
   *,

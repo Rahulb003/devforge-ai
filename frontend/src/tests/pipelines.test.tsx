@@ -104,6 +104,36 @@ describe('PipelinesPage', () => {
     expect(within(card).getByText(/logo\.png/)).toBeInTheDocument();
   });
 
+  it('opens on the failing station, and another station shows its own output', async () => {
+    trigger.mockResolvedValue(env({ ...finishedRun, status: 'QUEUED', steps: [] }));
+    get.mockResolvedValue(env(finishedRun));
+    renderIt();
+    await userEvent.click(await screen.findByRole('button', { name: 'Run pipeline' }));
+
+    const failing = await screen.findByRole('button', { name: /^test/ });
+    expect(failing).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('region', { name: 'Output of step 2, test' })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /^compile/ }));
+    const output = screen.getByRole('region', { name: 'Output of step 1, compile' });
+    expect(output).toHaveTextContent('python -m py_compile calc.py');
+    expect(output).not.toHaveTextContent('AssertionError');
+  });
+
+  it('refreshes the run list once the watched run finishes', async () => {
+    // On load, right after the trigger (still running), and - the fix - once it has finished.
+    list
+      .mockResolvedValueOnce(env([]))
+      .mockResolvedValueOnce(env([{ ...finishedRun, status: 'RUNNING', finishedAt: null }]))
+      .mockResolvedValue(env([finishedRun]));
+    trigger.mockResolvedValue(env({ ...finishedRun, status: 'QUEUED', steps: [] }));
+    get.mockResolvedValue(env(finishedRun));
+    renderIt();
+    await userEvent.click(await screen.findByRole('button', { name: 'Run pipeline' }));
+
+    expect(await screen.findByRole('button', { name: /^Failed · main/ })).toBeInTheDocument();
+  });
+
   it('explains a repository without a pipeline file', async () => {
     const error = new AxiosError('400');
     error.response = {
