@@ -191,6 +191,15 @@
     transform: rotate(-7deg) scale(1);
   }
 }
+@utility forge-rise {
+  transform-origin: bottom;
+  animation: forge-rise 0.7s cubic-bezier(0.2, 1, 0.3, 1) both;
+}
+@keyframes forge-rise {
+  from {
+    transform: scaleY(0);
+  }
+}
 @utility forge-alarm {
   animation: forge-alarm 2s ease-out infinite;
 }

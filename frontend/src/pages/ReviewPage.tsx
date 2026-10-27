@@ -181,6 +181,15 @@ export function ReviewPage() {
   );
 }
 
+/** Severity told apart by lightness as well as hue: red, forge orange, amber, indigo. */
+const SKYLINE_COLOR: Record<Severity, string> = {
+  BLOCKER: 'bg-red-500/85',
+  HIGH: 'bg-forge-400/85',
+  MEDIUM: 'bg-amber-300/80',
+  LOW: 'bg-indigo-400/85',
+  INFO: 'bg-slate-400',
+};
+
 function GateSummary({ review }: { review: Review }) {
   const passed = review.gate === 'PASS';
   const counts: Array<[Severity, number]> = [
@@ -189,6 +198,7 @@ function GateSummary({ review }: { review: Review }) {
     ['MEDIUM', review.mediumCount],
     ['LOW', review.lowCount],
   ];
+  const tallest = Math.max(1, ...counts.map(([, count]) => count));
 
   return (
     <Card>
@@ -231,13 +241,40 @@ function GateSummary({ review }: { review: Review }) {
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          {counts.map(([severity, count]) => (
-            <Badge key={severity} tone={count > 0 ? SEVERITY_TONE[severity] : 'neutral'}>
+        {review.gate !== null && (
+          <span
+            aria-hidden="true"
+            className={`forge-stamp rounded-xl border-[3px] px-4 py-1.5 font-display text-lg font-bold tracking-[0.14em] ${
+              passed ? 'border-teal-400 text-teal-300' : 'border-red-400 text-red-300'
+            }`}
+          >
+            {passed ? 'GATE PASSED' : 'GATE FAILED'}
+          </span>
+        )}
+      </div>
+
+      {/* The findings as a skyline: each severity a tower, tallest where most findings are. The
+          count and name sit under each tower as text, so nothing depends on reading the bars. */}
+      <div className="mt-6 flex h-36 items-end gap-3 sm:gap-6">
+        {counts.map(([severity, count]) => (
+          <div
+            key={severity}
+            className="flex h-full flex-1 flex-col items-center justify-end gap-2"
+          >
+            <span
+              aria-hidden="true"
+              className={`forge-rise w-full max-w-20 rounded-t-xl rounded-b-sm ${
+                count > 0 ? SKYLINE_COLOR[severity] : 'bg-slate-700/60'
+              }`}
+              style={{ height: `${Math.max(6, Math.round((count / tallest) * 96))}px` }}
+            />
+            <span
+              className={`text-sm ${count > 0 ? 'font-semibold text-white' : 'text-slate-400'}`}
+            >
               {count} {SEVERITY_LABELS[severity].toLowerCase()}
-            </Badge>
-          ))}
-        </div>
+            </span>
+          </div>
+        ))}
       </div>
     </Card>
   );
