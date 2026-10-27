@@ -16,7 +16,7 @@ export function Card({
 }: HTMLAttributes<HTMLElement> & { as?: ElementType }) {
   return (
     <Component
-      className={cn('rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xs', className)}
+      className={cn('forge-surface rounded-3xl border p-6 shadow-xs', className)}
       {...props}
     />
   );
@@ -34,7 +34,7 @@ export function CardHeader({
   return (
     <div className="mb-5 flex items-start justify-between gap-4">
       <div>
-        <h2 className="text-lg font-semibold text-white">{title}</h2>
+        <h2 className="font-display text-lg font-semibold text-white">{title}</h2>
         {description && <p className="mt-1 text-sm text-slate-400">{description}</p>}
       </div>
       {action}

@@ -26,14 +26,13 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-3xl border border-slate-800 bg-slate-900 p-8 shadow-lg">
-        <h1 className="text-3xl font-semibold text-white">
+      <section className="forge-surface relative overflow-hidden rounded-3xl border p-8 shadow-lg">
+        <h1 className="font-display text-3xl font-semibold tracking-tight text-white sm:text-4xl">
           Welcome back{user ? `, ${user.firstName}` : ''}
         </h1>
         <p className="mt-3 max-w-2xl text-slate-400">
-          Organizations and teams, projects and boards, repositories with pull requests and review,
-          documentation, chat and activity are live. AI assistance and running code are not built
-          yet.
+          Plan on boards, review and merge in your repositories, run code and pipelines in an
+          isolated sandbox, and talk it through in project chat.
         </p>
       </section>
 
