@@ -6,12 +6,14 @@ import {
   Moon,
   PanelLeftClose,
   PanelLeftOpen,
+  Search,
   Settings,
   Sun,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 
+import { CommandPalette } from './CommandPalette';
 import { NotificationBell } from './NotificationBell';
 
 import { authApi } from '@/api/auth.api';
@@ -41,6 +43,20 @@ export function AppLayout() {
   const { user, clearAuth } = useAuthStore();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(readCollapsed);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const closePalette = useCallback(() => setPaletteOpen(false), []);
+
+  // Ctrl+K, or Cmd+K on a Mac, from anywhere in the signed-in app.
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        setPaletteOpen((open) => !open);
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   function toggleRail() {
     setCollapsed((was) => {
@@ -97,6 +113,8 @@ export function AppLayout() {
           }}
         />
       </div>
+
+      <CommandPalette open={paletteOpen} onClose={closePalette} />
 
       <div className="flex min-h-screen">
         <aside
@@ -179,6 +197,19 @@ export function AppLayout() {
             </div>
 
             <div className="flex items-center gap-2 sm:gap-3">
+              <button
+                type="button"
+                onClick={() => setPaletteOpen(true)}
+                aria-label="Search and jump to (Ctrl K)"
+                aria-haspopup="dialog"
+                className="inline-flex h-11 items-center gap-3 rounded-xl border border-slate-700/70 bg-slate-800/60 px-3 text-sm text-slate-400 transition hover:border-slate-600 hover:text-slate-200 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-indigo-400 sm:min-w-64"
+              >
+                <Search className="h-5 w-5 shrink-0" aria-hidden="true" />
+                <span className="hidden flex-1 text-left sm:inline">Jump to…</span>
+                <kbd className="hidden rounded-md border border-slate-700 px-1.5 py-0.5 font-mono text-[11px] text-slate-300 sm:inline">
+                  Ctrl K
+                </kbd>
+              </button>
               <NotificationBell />
 
               <button
