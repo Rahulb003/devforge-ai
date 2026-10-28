@@ -379,7 +379,7 @@ export function RepositoryBrowserPage() {
           )}
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {!isEmpty && repository.isSuccess && (
             <Link
               to={`/organizations/${organizationId}/projects/${projectId}/repositories/${repositoryId}/review`}
@@ -1095,7 +1095,7 @@ function CloneUrl({
         readOnly
         value={url}
         onFocus={(e) => e.currentTarget.select()}
-        className="w-96 max-w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 font-mono text-slate-200"
+        className="w-full min-w-0 rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 font-mono text-slate-200 sm:w-96"
       />
       <span>
         password: an{' '}
