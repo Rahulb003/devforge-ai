@@ -14,7 +14,7 @@ and on Kubernetes (kind) against real PostgreSQL, Kafka and Redis.
 
 | Gate | Command | Result |
 |---|---|---|
-| Backend tests | `mvn -B -ntp -f backend/pom.xml test` | **PASS** — 649 tests, 0 failures, 0 skipped locally (2026-10-27), sandbox escape tests against a real Docker engine; CI not rerun since |
+| Backend tests | `mvn -B -ntp -f backend/pom.xml test` | **PASS** — 650 tests, 0 failures, 0 skipped locally (2026-10-27), sandbox escape tests against a real Docker engine; CI not rerun since |
 | Frontend lint, typecheck, unit tests, build | `npm run lint`, `typecheck`, `test`, `build` | **PASS** — 0 warnings; 111 unit tests |
 | Browser suite, standalone | CI `e2e` job, `npm run test:e2e` locally | **PASS** — 52 Playwright tests, failing on any CSP violation and on serious axe findings |
 | Images | CI `docker` job | **PASS** — eleven images build, run as non-root, start healthy; Trivy blocks on fixable high/critical advisories in every one |
