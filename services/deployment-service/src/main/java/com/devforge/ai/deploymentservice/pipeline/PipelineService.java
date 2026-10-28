@@ -14,6 +14,7 @@ import com.devforge.ai.deploymentservice.sandbox.Workspace;
 import jakarta.annotation.PreDestroy;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -100,8 +101,10 @@ public class PipelineService {
     var token = bearerToken();
     projectAccess.requireProjectAccess(organizationId, projectId, token, ProjectAccessClient.Access.WRITE);
     var user = currentUser();
-    if (runs.countByTriggeredByAndCreatedAtAfter(user.id(), Instant.now().minus(Duration.ofHours(1)))
-        >= runsPerHour) {
+    // A fast refusal before reading the repository; the check that holds under concurrency is
+    // the one after this run's row is written, below.
+    if (runs.countByTriggeredByAndCreatedAtAfterAndCreatedAtLessThanEqual(user.id(),
+        Instant.now().minus(Duration.ofHours(1)), Instant.now()) >= runsPerHour) {
       throw new QuotaExceededException("Pipeline limit reached: " + runsPerHour + " runs per hour");
     }
 
@@ -142,8 +145,17 @@ public class PipelineService {
         .triggeredBy(user.id())
         .status(PipelineRunEntity.Status.QUEUED)
         .omittedFiles(omitted.isEmpty() ? null : String.join("\n", omitted))
-        .createdAt(Instant.now())
+        // Microseconds, as the column stores them: it rounds, so a nanosecond Instant could be
+        // stored just after itself and the quota count, which compares against it, missed this row.
+        .createdAt(Instant.now().truncatedTo(ChronoUnit.MICROS))
         .build());
+    // Counted after this run exists, and only runs at or before it, so of two simultaneous
+    // triggers the later always sees the earlier: the limit cannot be overrun by a race.
+    if (runs.countByTriggeredByAndCreatedAtAfterAndCreatedAtLessThanEqual(user.id(),
+        run.getCreatedAt().minus(Duration.ofHours(1)), run.getCreatedAt()) > runsPerHour) {
+      runs.delete(run);
+      throw new QuotaExceededException("Pipeline limit reached: " + runsPerHour + " runs per hour");
+    }
     var stepRows = new ArrayList<PipelineStepEntity>();
     for (int i = 0; i < definition.steps().size(); i++) {
       var step = definition.steps().get(i);

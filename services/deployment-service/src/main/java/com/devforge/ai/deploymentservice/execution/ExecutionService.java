@@ -12,6 +12,7 @@ import com.devforge.ai.deploymentservice.sandbox.Sandbox.Limits;
 import com.devforge.ai.deploymentservice.sandbox.Sandbox.SandboxUnavailableException;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Semaphore;
@@ -68,12 +69,6 @@ public class ExecutionService {
     projectAccess.requireProjectAccess(organizationId, projectId, bearerToken(),
         ProjectAccessClient.Access.WRITE);
     var user = currentUser();
-    // Counted from the audit table, so the quota holds across instances and restarts. Refused runs
-    // count too: otherwise a caller could probe a down sandbox as fast as it liked.
-    if (executions.countByUserIdAndCreatedAtAfter(user.id(), Instant.now().minus(Duration.ofHours(1)))
-        >= runsPerHour) {
-      throw new QuotaExceededException("Run limit reached: " + runsPerHour + " per hour");
-    }
     if (!slots.tryAcquire()) {
       throw new QuotaExceededException("The sandbox is busy; try again in a moment");
     }
@@ -90,8 +85,20 @@ public class ExecutionService {
           .memoryMb(limits.memoryMb())
           .outputBytes(limits.outputBytes())
           .status(Status.RUNNING)
-          .createdAt(Instant.now())
+          // Microseconds, as the column stores them: it rounds, so a nanosecond Instant could be
+          // stored just after itself and the quota count, which compares against it, missed this row.
+          .createdAt(Instant.now().truncatedTo(ChronoUnit.MICROS))
           .build());
+      // The quota is checked after this run's row exists, not before: two requests checking first
+      // could both see room for one more and both run. Counted from the audit table, so it holds
+      // across instances and restarts, and counting only runs at or before this one means the
+      // later of two simultaneous requests always sees the earlier. Refused runs count too:
+      // otherwise a caller could probe a down sandbox as fast as it liked.
+      if (executions.countByUserIdAndCreatedAtAfterAndCreatedAtLessThanEqual(user.id(),
+          execution.getCreatedAt().minus(Duration.ofHours(1)), execution.getCreatedAt()) > runsPerHour) {
+        executions.delete(execution);
+        throw new QuotaExceededException("Run limit reached: " + runsPerHour + " per hour");
+      }
       try {
         var result = sandbox.run(request.language(), request.code(), limits);
         execution.setStatus(Status.valueOf(result.outcome().name()));

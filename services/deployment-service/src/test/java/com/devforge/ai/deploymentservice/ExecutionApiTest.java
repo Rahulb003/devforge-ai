@@ -147,6 +147,37 @@ class ExecutionApiTest {
     run("{\"language\":\"PYTHON\",\"code\":\"x\"}").andExpect(status().isTooManyRequests());
   }
 
+  private void existingRun(java.time.Instant at) {
+    executions.save(com.devforge.ai.deploymentservice.execution.ExecutionEntity.builder()
+        .id(UUID.randomUUID()).organizationId(organizationId).projectId(projectId).userId(alice)
+        .language("PYTHON").code("x").timeoutSeconds(10).memoryMb(256).outputBytes(65536)
+        .status(Status.COMPLETED).createdAt(at).build());
+  }
+
+  @Test
+  @DisplayName("a run over the quota is refused and leaves no row behind")
+  void overQuotaLeavesNothing() throws Exception {
+    var earlier = java.time.Instant.now().minusSeconds(60);
+    for (int i = 0; i < 3; i++) existingRun(earlier.plusSeconds(i));
+
+    run("{\"language\":\"PYTHON\",\"code\":\"x\"}").andExpect(status().isTooManyRequests());
+    assertThat(executions.count()).isEqualTo(3);
+    verify(sandbox, never()).run(any(), any(), any());
+  }
+
+  @Test
+  @DisplayName("the quota counts runs up to this one, so a simultaneous later request cannot crowd it out")
+  void quotaCountsOnlyEarlierRuns() throws Exception {
+    when(sandbox.run(any(), any(), any())).thenReturn(new Result(Outcome.COMPLETED, 0, "", "", false, 1));
+    var now = java.time.Instant.now();
+    existingRun(now.minusSeconds(30));
+    // A request that raced this one and was written a moment after it: it is the one that must
+    // yield, so it does not count against this run.
+    existingRun(now.plusSeconds(5));
+
+    run("{\"language\":\"PYTHON\",\"code\":\"x\"}").andExpect(status().isCreated());
+  }
+
   @Test
   @DisplayName("rejects an unknown language and empty code")
   void validates() throws Exception {
