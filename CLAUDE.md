@@ -28,7 +28,7 @@ documentation. Not before.
 
 ```bash
 # Backend: always through the reactor root, never a service's own pom.
-mvn -B -ntp -f backend/pom.xml test                 # 650 tests
+mvn -B -ntp -f backend/pom.xml test                 # 663 tests
 mvn -B -ntp -f backend/pom.xml -pl ../services/auth-service -am test   # one module (-am is required)
 
 # Frontend
