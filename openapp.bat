@@ -2,7 +2,8 @@
 REM ============================================================================
 REM  DevForge AI - one-click local launcher
 REM
-REM  Starts auth-service, project-service and the frontend, then opens a browser.
+REM  Starts every service and the frontend hidden in the background, in this one
+REM  window, then opens the browser once they are healthy.
 REM
 REM  Runs the STANDALONE profile: real application code, real Flyway migrations
 REM  and real persistence on an embedded H2 database, so no PostgreSQL, Kafka,
@@ -17,6 +18,8 @@ REM ============================================================================
 
 setlocal EnableDelayedExpansion
 cd /d "%~dp0"
+rem Captured once: inside a CALLed label %~dp0 is not reliably this script's folder.
+set "ROOT=%~dp0"
 
 set AUTH_PORT=9001
 set PROJECT_PORT=9002
@@ -129,49 +132,28 @@ if not exist "frontend\node_modules" (
 )
 
 REM ---------------------------------------------------------------- launch
-REM Each service gets its own window so its log is visible; closing a window
-REM stops that service.
+REM Every service runs hidden in the background, its output in logs\<name>.log,
+REM so starting DevForge opens this one window instead of fourteen. They keep
+REM running after this window is closed; stopapp.bat stops them all.
+if not exist "logs" mkdir "logs"
 echo.
-echo   Starting auth-service on port %AUTH_PORT% ...
-start "DevForge auth-service" cmd /k "java -jar %AUTH_JAR% --spring.profiles.active=standalone"
-
-echo   Starting project-service on port %PROJECT_PORT% ...
-start "DevForge project-service" cmd /k "java -jar %PROJECT_JAR% --spring.profiles.active=standalone"
-
-echo   Starting task-service on port %TASK_PORT% ...
-start "DevForge task-service" cmd /k "java -jar %TASK_JAR% --spring.profiles.active=standalone"
-
-echo   Starting git-service on port %GIT_PORT% ...
-start "DevForge git-service" cmd /k "java -jar %GIT_JAR% --spring.profiles.active=standalone"
-
-echo   Starting review-service on port %REVIEW_PORT% ...
-start "DevForge review-service" cmd /k "java -jar %REVIEW_JAR% --spring.profiles.active=standalone"
-
-echo   Starting documentation-service on port %DOCS_PORT% ...
-start "DevForge documentation-service" cmd /k "java -jar %DOCS_JAR% --spring.profiles.active=standalone"
-
-echo   Starting analytics-service on port %ANALYTICS_PORT% ...
-start "DevForge analytics-service" cmd /k "java -jar %ANALYTICS_JAR% --spring.profiles.active=standalone"
-
-echo   Starting chat-service on port %CHAT_PORT% ...
-start "DevForge chat-service" cmd /k "java -jar %CHAT_JAR% --spring.profiles.active=standalone"
-
+echo   Starting the services in the background (logs in .\logs\) ...
+call :launch auth-service          "%AUTH_JAR%"
+call :launch project-service       "%PROJECT_JAR%"
+call :launch task-service          "%TASK_JAR%"
+call :launch git-service           "%GIT_JAR%"
+call :launch review-service        "%REVIEW_JAR%"
+call :launch documentation-service "%DOCS_JAR%"
+call :launch analytics-service     "%ANALYTICS_JAR%"
+call :launch chat-service          "%CHAT_JAR%"
 rem AI assistance is off unless ANTHROPIC_API_KEY is set in this window's environment.
-echo   Starting ai-service on port %AI_PORT% ...
-start "DevForge ai-service" cmd /k "java -jar %AI_JAR% --spring.profiles.active=standalone"
-
+call :launch ai-service            "%AI_JAR%"
 rem Code execution is refused unless DEVFORGE_SANDBOX_ENABLED=true is set and Docker is running.
-echo   Starting deployment-service on port %DEPLOYMENT_PORT% ...
-start "DevForge deployment-service" cmd /k "java -jar %DEPLOYMENT_JAR% --spring.profiles.active=standalone"
-
-echo   Starting notification-service on port %NOTIFICATION_PORT% ...
-start "DevForge notification-service" cmd /k "java -jar %NOTIFICATION_JAR% --spring.profiles.active=standalone"
-
-echo   Starting api-gateway on port %GATEWAY_PORT% ...
-start "DevForge api-gateway" cmd /k "java -jar %GATEWAY_JAR% --spring.profiles.active=standalone"
-
-echo   Starting frontend on port %WEB_PORT% ...
-start "DevForge frontend" cmd /k "cd /d "%~dp0frontend" && npm run dev"
+call :launch deployment-service    "%DEPLOYMENT_JAR%"
+call :launch notification-service  "%NOTIFICATION_JAR%"
+call :launch api-gateway           "%GATEWAY_JAR%"
+powershell -NoProfile -Command "Start-Process -FilePath 'cmd.exe' -ArgumentList '/c','npm run dev' -WorkingDirectory '%ROOT%frontend' -WindowStyle Hidden -RedirectStandardOutput '%ROOT%logs\frontend.log' -RedirectStandardError '%ROOT%logs\frontend.err.log'"
+echo     frontend
 
 REM ------------------------------------------------------- wait for health
 REM Poll the actuator endpoint rather than sleeping a fixed time: JVM startup
@@ -226,13 +208,23 @@ echo.
 echo   Accounts and git repositories live in .\data\ and survive a restart.
 echo   Delete that folder for a clean slate.
 echo.
-echo   Stop everything with stopapp.bat
+echo   Stop everything with stopapp.bat. Logs are in .\logs\.
 echo.
 
 start "" "http://localhost:%WEB_PORT%"
+echo   The web app is open in your browser. You can close this window:
+echo   DevForge keeps running until you run stopapp.bat.
+echo.
+pause
 goto :end
 
 REM ---------------------------------------------------------------- helpers
+:launch
+REM %1 = service name (also its log name), %2 = jar path. Hidden, never its own window.
+powershell -NoProfile -Command "Start-Process -FilePath 'java' -ArgumentList '-jar','%~2','--spring.profiles.active=standalone' -WorkingDirectory '%ROOT%' -WindowStyle Hidden -RedirectStandardOutput '%ROOT%logs\%~1.log' -RedirectStandardError '%ROOT%logs\%~1.err.log'"
+echo     %~1
+exit /b 0
+
 :waitfor
 REM %1 = label, %2 = url, %3 = attempts (roughly seconds x2)
 set "LABEL=%~1"
@@ -250,7 +242,7 @@ if not errorlevel 1 (
   exit /b 0
 )
 if %N% geq %TRIES% (
-  echo     [TIMEOUT] %LABEL% did not respond - check its window for errors.
+  echo     [TIMEOUT] %LABEL% did not respond - see logs\%LABEL%.log
   exit /b 1
 )
 goto :waitloop
