@@ -130,6 +130,12 @@ public class DockerSandbox implements Sandbox {
         outcome = Outcome.MEMORY_EXCEEDED;
       } else if (exitCode == KILLED && durationMs >= limits.timeoutSeconds() * 1000L) {
         outcome = Outcome.TIMED_OUT;
+      } else if (exitCode == KILLED) {
+        // SIGKILL before the time limit: nothing here sends one except at the time or output limits,
+        // both handled above, so it was the kernel's OOM killer. Docker's OOMKilled flag cannot be
+        // relied on for this: on cgroup v2 it reflects the container's main process, which since
+        // --init is the init, not the program - CI's runners reported a memory kill as COMPLETED.
+        outcome = Outcome.MEMORY_EXCEEDED;
       } else {
         outcome = Outcome.COMPLETED;
       }
