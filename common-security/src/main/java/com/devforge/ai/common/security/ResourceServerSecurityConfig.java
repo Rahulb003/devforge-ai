@@ -7,6 +7,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -25,6 +27,21 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class ResourceServerSecurityConfig {
 
   private final JwtTokenVerifier tokenVerifier;
+
+  /**
+   * A user store that holds no one: these services take bearer tokens and nothing else.
+   *
+   * <p>Without any UserDetailsService, Boot creates an in-memory user with a random password and
+   * logs it at WARN on every start. Nothing here could ever sign in with it - the filter chain has
+   * no form or basic login - but every service's log carried a fresh credential that looked like
+   * a way in. Defining an empty store makes Boot skip it.
+   */
+  @Bean
+  public UserDetailsService noPasswordUsers() {
+    return username -> {
+      throw new UsernameNotFoundException("This service accepts bearer tokens only");
+    };
+  }
 
   @Bean
   public SecurityFilterChain resourceServerFilterChain(HttpSecurity http) throws Exception {

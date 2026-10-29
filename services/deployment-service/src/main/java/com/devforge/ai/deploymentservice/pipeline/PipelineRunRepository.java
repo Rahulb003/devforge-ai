@@ -18,7 +18,8 @@ public interface PipelineRunRepository extends JpaRepository<PipelineRunEntity, 
   Optional<PipelineRunEntity> findByIdAndRepositoryIdAndProjectId(
       UUID id, UUID repositoryId, UUID projectId);
 
-  long countByTriggeredByAndCreatedAtAfter(UUID userId, Instant since);
+  long countByTriggeredByAndCreatedAtAfterAndCreatedAtLessThanEqual(UUID userId, Instant since,
+      Instant upTo);
 
   /**
    * Runs still open long after any run could have finished: their instance stopped. Marked rather

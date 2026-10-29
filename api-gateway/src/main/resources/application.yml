@@ -1,6 +1,11 @@
 # api-gateway — the single entry point in front of the platform.
 server:
   port: ${SERVER_PORT:8080}
+  tomcat:
+    # RequestSizeFilter answers 413 without reading an oversized body. Tomcat drains at most this
+    # much of an unread upload before closing the connection; at its 2 MB default a client sending
+    # more saw a connection reset instead of the 413 and its message.
+    max-swallow-size: 16MB
 
 spring:
   application:

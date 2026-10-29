@@ -13,5 +13,5 @@ public interface ExecutionRepository extends JpaRepository<ExecutionEntity, UUID
 
   Optional<ExecutionEntity> findByIdAndProjectId(UUID id, UUID projectId);
 
-  long countByUserIdAndCreatedAtAfter(UUID userId, Instant since);
+  long countByUserIdAndCreatedAtAfterAndCreatedAtLessThanEqual(UUID userId, Instant since, Instant upTo);
 }

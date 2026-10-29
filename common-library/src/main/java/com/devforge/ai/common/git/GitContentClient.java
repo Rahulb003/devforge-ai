@@ -249,6 +249,12 @@ public class GitContentClient {
         // this does not become a way to learn that a repository exists.
         throw new ResourceNotFoundException("Repository not found");
       }
+      if (status == 400) {
+        // git-service refusing a ref or path it cannot use - "-1", say - is the caller's mistake,
+        // not this service failing. Rethrown raw it surfaced as a 500 from every service that
+        // reads repositories; as an IllegalArgumentException it is the 400 it always was.
+        throw new IllegalArgumentException(gitServiceMessage(ex));
+      }
       throw ex;
     } catch (ResourceAccessException ex) {
       // Fails closed: a review that cannot read the code must not report "no problems found",
@@ -256,6 +262,20 @@ public class GitContentClient {
       throw new GitServiceUnavailableException(
           "Cannot read the repository right now. Please try again.", ex);
     }
+  }
+
+  /** git-service's own explanation, when its error body carries one; else a plain fallback. */
+  private static String gitServiceMessage(HttpClientErrorException ex) {
+    try {
+      var message = new com.fasterxml.jackson.databind.ObjectMapper()
+          .readTree(ex.getResponseBodyAsString()).path("message").asText("");
+      if (!message.isBlank() && message.length() <= 300) {
+        return message;
+      }
+    } catch (Exception ignored) {
+      // Not JSON: the fallback below says enough.
+    }
+    return "Not a valid branch, commit or path for this repository";
   }
 
   /** Where the content lives. Grouped so the three ids travel together. */

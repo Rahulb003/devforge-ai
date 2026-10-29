@@ -28,7 +28,7 @@ documentation. Not before.
 
 ```bash
 # Backend: always through the reactor root, never a service's own pom.
-mvn -B -ntp -f backend/pom.xml test                 # 650 tests
+mvn -B -ntp -f backend/pom.xml test                 # 663 tests
 mvn -B -ntp -f backend/pom.xml -pl ../services/auth-service -am test   # one module (-am is required)
 
 # Frontend
@@ -36,7 +36,7 @@ cd frontend
 npm test            # 119 unit tests (vitest)
 npm run lint        # prettier runs as an eslint rule; 0 warnings allowed
 npm run typecheck
-npm run test:e2e    # 55 Playwright tests — needs the stack already running, on an idle machine
+npm run test:e2e    # 56 Playwright tests — needs the stack already running, on an idle machine
 
 # Run the whole stack locally, no Docker/PostgreSQL/Kafka needed
 ./openapp.bat       # then ./stopapp.bat
