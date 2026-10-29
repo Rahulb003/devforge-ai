@@ -152,7 +152,9 @@ class DockerSandboxEscapeTest {
   @DisplayName("G5: an allocation loop is killed for memory, and the next run is unaffected")
   void boundedMemory() {
     var result = python("hog = []\nwhile True: hog.append(bytearray(8 * 1024 * 1024))");
-    assertThat(result.outcome()).isEqualTo(Outcome.MEMORY_EXCEEDED);
+    // The whole result on failure: the one time this broke, on CI, the outcome alone did not say
+    // whether the program was killed or exited by itself.
+    assertThat(result.outcome()).as("result %s", result).isEqualTo(Outcome.MEMORY_EXCEEDED);
     assertThat(python("print('alive')").stdout()).isEqualTo("alive\n");
   }
 
