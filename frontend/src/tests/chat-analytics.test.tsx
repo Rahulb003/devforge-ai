@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
@@ -20,7 +20,13 @@ const verifyAudit = vi.fn();
 
 // The stream is a network concern; here the page is tested against each status it can report.
 const streamStatus = vi.fn(() => 'live');
-vi.mock('@/lib/chatStream', () => ({ useChatStream: () => streamStatus() }));
+let streamEvent: (name: string) => void = () => {};
+vi.mock('@/lib/chatStream', () => ({
+  useChatStream: (_o: string, _p: string, onEvent: (name: string) => void) => {
+    streamEvent = onEvent;
+    return streamStatus();
+  },
+}));
 
 vi.mock('@/api/chat.api', () => ({
   chatApi: {
@@ -244,6 +250,23 @@ describe('AnalyticsPage', () => {
 });
 
 describe('ChatPage presence', () => {
+  it('re-reads when told presence changed, even mid-way through the first read', async () => {
+    useAuthStore.setState({ user: { id: 'me', username: 'ada' } as never });
+    list.mockResolvedValue(env([]));
+    // The first read is slow and answers from before this viewer's own join.
+    let answerFirst: (v: unknown) => void = () => {};
+    presence
+      .mockImplementationOnce(() => new Promise((resolve) => (answerFirst = resolve)))
+      .mockResolvedValue(env([{ userId: 'me', username: 'ada' }]));
+    renderAt('chat', <ChatPage />);
+    await waitFor(() => expect(presence).toHaveBeenCalledTimes(1));
+
+    act(() => streamEvent('presence'));
+    answerFirst(env([]));
+
+    expect(await screen.findByTestId('chat-presence')).toHaveTextContent('Here now: you');
+  });
+
   it('lists who has the channel open, calling the viewer "you"', async () => {
     useAuthStore.setState({ user: { id: 'me', username: 'ada' } as never });
     list.mockResolvedValue(env([]));

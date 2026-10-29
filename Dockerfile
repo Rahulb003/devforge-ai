@@ -73,6 +73,11 @@ FROM eclipse-temurin:21-jre-alpine AS runtime-base
 # otherwise Docker creates the mount point root-owned and git-service cannot write to it.
 # Fixed numeric ids: Kubernetes' runAsNonRoot can only verify a numeric user, and refuses to
 # start a container whose user is a name.
+# Alpine fixes reach the package index before the base image is rebuilt; without this a
+# vulnerability fixed upstream days ago (brotli-libs, CVE-2026-111497) still failed the image scan.
+# The frontend image does the same.
+RUN apk upgrade --no-cache
+
 RUN addgroup -S -g 10001 devforge \
  && adduser -S -H -u 10001 -G devforge -s /sbin/nologin devforge \
  && mkdir -p /app/data/git-repositories \

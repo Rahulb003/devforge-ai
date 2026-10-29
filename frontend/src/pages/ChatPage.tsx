@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, MessageSquare } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { Link, useParams } from 'react-router-dom';
@@ -34,15 +34,20 @@ export function ChatPage() {
 
   const refresh = () => void queryClient.invalidateQueries({ queryKey: ['chat', projectId] });
 
+  // Bumped by every "presence changed" event and part of the key, so each event is a new read.
+  // Invalidating instead was merged into the first read when that was still in flight - a read
+  // the server answered before this very stream's join, so the list stayed empty for good.
+  const [presenceVersion, setPresenceVersion] = useState(0);
   const presence = useQuery({
-    queryKey: ['chat-presence', projectId],
+    queryKey: ['chat-presence', projectId, presenceVersion],
+    placeholderData: keepPreviousData,
     queryFn: async () => (await chatApi.presence(organizationId, projectId)).data.data,
     enabled: Boolean(organizationId && projectId),
   });
 
   const streamStatus = useChatStream(organizationId, projectId, (event) => {
     if (event === 'presence') {
-      void queryClient.invalidateQueries({ queryKey: ['chat-presence', projectId] });
+      setPresenceVersion((v) => v + 1);
     } else {
       refresh();
     }
