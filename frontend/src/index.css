@@ -35,6 +35,16 @@
 
   --font-sans:
     Inter Variable, Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+  /* Bundled, not fetched: the CSP's font-src is 'self'. */
+  --font-display: 'Space Grotesk Variable', 'Inter Variable', ui-sans-serif, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, 'Cascadia Code', monospace;
+
+  /* The forge accent, beside indigo. Remapped darker under :root.light so text in it still
+     clears 4.5:1 on a light surface. */
+  --color-forge-300: #fdba74;
+  --color-forge-400: #fb923c;
+  --color-forge-500: #f97316;
+  --color-on-forge: #1c1917;
 
   --animate-fade-in: fade-in 0.5s ease-out;
   --animate-fade-in-up: fade-in-up 0.6s ease-out;
@@ -116,6 +126,113 @@
   }
 }
 
+/*
+  The aurora behind every signed-in page: two slow, heavily blurred glows. Fixed and behind
+  everything, and pointer-events none, so it can never take a click or cover text.
+*/
+/*
+  JetBrains Mono draws != as a single ≠ glyph. In code and in a program's output that misreports
+  what was actually written - a failing test printed "-1 != 5" and the page showed "-1 ≠ 5".
+*/
+@layer base {
+  code,
+  kbd,
+  pre,
+  samp,
+  .font-mono {
+    font-variant-ligatures: none;
+  }
+}
+@utility forge-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  background: var(--forge-ground);
+}
+@utility forge-glow {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(120px);
+  animation: forge-drift 22s ease-in-out infinite;
+}
+@keyframes forge-drift {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(40px, -30px) scale(1.08);
+  }
+}
+/* Frosted surface for cards and bars; reads the theme's own tint. */
+@utility forge-surface {
+  background: var(--forge-surface);
+  border-color: var(--forge-edge);
+  backdrop-filter: blur(18px);
+}
+/* Pipeline map: the result stamp lands once; a broken station pulses, a running one breathes. */
+@utility forge-stamp {
+  display: inline-block;
+  transform: rotate(-7deg);
+  animation: forge-stamp 0.5s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+@keyframes forge-stamp {
+  0% {
+    transform: rotate(-7deg) scale(1.7);
+    opacity: 0;
+  }
+  60% {
+    transform: rotate(-7deg) scale(0.94);
+    opacity: 1;
+  }
+  100% {
+    transform: rotate(-7deg) scale(1);
+  }
+}
+@utility forge-rise {
+  transform-origin: bottom;
+  animation: forge-rise 0.7s cubic-bezier(0.2, 1, 0.3, 1) both;
+}
+@keyframes forge-rise {
+  from {
+    transform: scaleY(0);
+  }
+}
+@utility forge-alarm {
+  animation: forge-alarm 2s ease-out infinite;
+}
+@keyframes forge-alarm {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(248 113 113 / 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 12px rgb(248 113 113 / 0);
+  }
+}
+@utility forge-running {
+  animation: forge-running 1.4s ease-in-out infinite;
+}
+@keyframes forge-running {
+  50% {
+    transform: scale(1.12);
+  }
+}
+@utility forge-track-idle {
+  background: repeating-linear-gradient(90deg, var(--color-slate-600) 0 8px, transparent 8px 14px);
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
 @utility glass {
   @apply bg-white/3 backdrop-blur-xl border border-white/6;
 }
@@ -177,6 +294,11 @@
     --input: 217 33% 17%;
     --ring: 217 91% 60%;
     --radius: 0.75rem;
+    --forge-ground: #070a12;
+    --forge-surface: rgb(15 23 42 / 0.55);
+    --forge-edge: rgb(148 163 184 / 0.14);
+    --forge-glow-a: rgb(79 70 229 / 0.5);
+    --forge-glow-b: rgb(13 148 136 / 0.32);
   }
 }
 
@@ -311,5 +433,13 @@ input[type='password']::-ms-clear {
     --accent-foreground: 222 47% 11%;
     --border: 214 32% 85%;
     --input: 214 32% 85%;
+    --color-forge-300: #c2410c;
+    --color-forge-400: #c2410c;
+    --color-forge-500: #ea580c;
+    --forge-ground: #f8fafc;
+    --forge-surface: rgb(255 255 255 / 0.72);
+    --forge-edge: rgb(15 23 42 / 0.1);
+    --forge-glow-a: rgb(129 140 248 / 0.28);
+    --forge-glow-b: rgb(45 212 191 / 0.2);
   }
 }

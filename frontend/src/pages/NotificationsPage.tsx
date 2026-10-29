@@ -16,6 +16,7 @@ import { notificationApi } from '@/api/notification.api';
 import { Button } from '@/components/ui/Button';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/states';
 import { describeApiError } from '@/lib/errors';
+import { relativeTime } from '@/lib/time';
 
 const CATEGORY_ICON: Record<NotificationCategory, typeof Bell> = {
   SECURITY: ShieldAlert,
@@ -33,20 +34,6 @@ const CATEGORY_STYLE: Record<NotificationCategory, string> = {
   CODE: 'bg-emerald-500/10 text-emerald-300',
   SYSTEM: 'bg-slate-700/40 text-slate-300',
 };
-
-function relativeTime(iso: string): string {
-  const then = new Date(iso).getTime();
-  if (Number.isNaN(then)) return '';
-  const seconds = Math.round((Date.now() - then) / 1000);
-  if (seconds < 60) return 'just now';
-  const minutes = Math.round(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.round(hours / 24);
-  if (days < 30) return `${days}d ago`;
-  return new Date(iso).toLocaleDateString();
-}
 
 export function NotificationsPage() {
   const [unreadOnly, setUnreadOnly] = useState(false);

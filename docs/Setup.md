@@ -17,7 +17,9 @@ openapp.bat
 ```
 
 Builds and starts the backend services on ports 9001–9011 with the standalone profile, starts the
-frontend on http://localhost:4173 and opens a browser. Stop everything with `stopapp.bat`.
+frontend on http://localhost:4173 and opens a browser. Everything runs hidden in the background, in
+one launcher window, with each service's output in `logs\<service>.log`; closing the window leaves
+DevForge running. Stop everything with `stopapp.bat`.
 
 The standalone profile runs real Flyway migrations against an embedded H2 database in `.\data\`,
 so no PostgreSQL, Kafka, Redis or SMTP server is needed. What that costs:
